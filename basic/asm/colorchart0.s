@@ -1,3 +1,7 @@
+        ;; Reconstructed in part from a sample program in "Mapping the
+        ;; Commodore 64" by Sheldon Leemon. The "Color Chart Madness"
+        ;; series on the Bumbershoot blog evolves this into a more
+        ;; accurate and friendly program.
         .word   $c000
         .org    $c000
 
@@ -19,5 +23,3 @@ lp2:    lda     $d012
         dex
         bpl     lp
         bmi     $c000
-
-       

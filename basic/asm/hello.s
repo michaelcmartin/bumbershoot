@@ -1,3 +1,5 @@
+        ;; Simple HELLO WORLD program that loads into the cassette
+        ;; buffer
         .word   $033c
         .org    $033c
 

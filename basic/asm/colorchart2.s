@@ -1,6 +1,9 @@
+        ;; Correct display of the color chart. This is a raster
+        ;; interrupt routine that replaces the timer interrupt and is
+        ;; designed to fire 16 times per frame.
         .word   $c000
         .org    $c000
-        
+
         lda     #$01            ; Acknowledge interrupt
         sta     $d019
         inc     $d021           ; Set next stripe color
