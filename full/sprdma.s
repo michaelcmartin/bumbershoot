@@ -1,25 +1,25 @@
+
+        ;; KERNAL aliases
+        .alias  chrout  $ffd2
+        .alias  getin   $ffe4
+        .alias  plot    $fff0
+        .alias  stop    $ffe1
+
         ;; PRG header
         .outfile "sprdma.prg"
         .word   $0801
         .org    $0801
-        
+
         ;; BASIC header
         .word   +, 2015
         .byte   $9e, " 2062", 0
 *       .word   0
 
-        .data
-        .org    $4000
-        .space  model   1
-
-        .text
-
         lda     #<heading
         ldx     #>heading
         jsr     strout
-        
+
         jsr     get_model
-        stx     model
         txa
         asl
         tax
@@ -64,7 +64,7 @@
         sta     $0605
         sta     $0606
         sta     $0607
-        
+
         ;; Perfunctory main program; set up IRQ and back to BASIC
         lda     #$7f
         sta     $dc0d
@@ -90,23 +90,27 @@ model_pal:
         .byte   "     PAL: 63 CYCLES/LINE, 312 LINES",0
 model_old_ntsc:
         .byte   "  OLD NTSC:  64 CYCLES/LINE, 262 LINES",0
-model_new_ntsc: 
+model_new_ntsc:
         .byte   "  NEW NTSC:  65 CYCLES/LINE, 263 LINES",0
 delay_meter:
         .byte   13,13,13,13,"   CYCLES CONSUMED",13
         .byte   13,"          11111111112",13
-        .byte   "012345678901234567890",13,0
+        .byte   "012345678901234567890",13,13,13
+        .byte   "   CURRENT SPRITE REGISTER:",13,13
+        .byte   "    KEYS 1-8 TOGGLE SPRITES",13
+        .byte   "    KEYS +/- INC/DEC SPRITE REGISTER",13
+        .byte   "    PRESS RUN/STOP TO QUIT",13,0
 
 strout: sta     [+]+1
         stx     [+]+2
         ldy     #$00
 *       lda     $ffff, y
         beq     +
-        jsr     $ffd2
+        jsr     chrout
         iny
         bne     -
 *       rts
-        
+
 get_model:
         ;; Wait for top of frame
 *       bit     $d011
@@ -147,7 +151,7 @@ get_model:
 get_model_done:
         cli
         rts
-        
+
 new_ntsc_irq_begin:
 .scope
         .org    $c000
@@ -264,7 +268,7 @@ _irqend:
         .checkpc $c100
         .org    old_ntsc_irq_begin+[_irqend-_irq]
 .scend
-        
+
 pal_irq_begin:
 .scope
         .org    $c000
