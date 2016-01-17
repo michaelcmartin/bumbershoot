@@ -11,9 +11,18 @@
         .org    $0801
 
         ;; BASIC header
-        .word   +, 2015
+        .word   +, 2016
         .byte   $9e, " 2062", 0
 *       .word   0
+
+        ;; Variables representing control state
+        .data
+        .org    $c100
+        .space  ready   1       ; Something to do
+        .space  hitkey  1       ; Key that was hit
+        .space  quit    1       ; True if quit was hit
+
+        .text
 
         lda     #<heading
         ldx     #>heading
@@ -33,6 +42,10 @@
         sta     $c000, y
         iny
         bne     -
+        ;; Clear out the initial state, now that Y is conveniently zero
+        sty     ready
+        sty     hitkey
+        sty     quit
         ;; Display the rest of the demo screen
         lda     models, x
         pha
@@ -65,7 +78,7 @@
         sta     $0606
         sta     $0607
 
-        ;; Perfunctory main program; set up IRQ and back to BASIC
+        ;; Set up IRQ
         lda     #$7f
         sta     $dc0d
         lda     #$1b
@@ -78,7 +91,60 @@
         sta     $315
         lda     #$01
         sta     $d01a
-        rts
+
+        ;; Main loop: wait until there's work to do, then do it
+mainlp: jsr     draw_sprval
+*       lda     ready
+        beq     -
+        ;; Are we quitting?
+        lda     quit
+        bne     finish
+        ;; Check + and -
+        lda     hitkey
+        cmp     #$2b            ; +
+        bne     +
+        inc     $d015
+        jmp     mainup
+*       cmp     #$2d            ; -
+        bne     +
+        dec     $d015
+        jmp     mainup
+*       sec
+        sbc     #'0
+        tax
+        lda     #$01
+*       dex
+        beq     found_num
+        asl
+        bcc     -
+        bcs     mainup          ; Not a character 1-8
+found_num:
+        eor     $d015
+        sta     $d015
+mainup:
+        lda     #$00
+        sta     ready
+        beq     mainlp
+
+finish: lda     #$00            ; Disable Raster IRQ
+        sta     $d01a
+        lda     #$1b            ; Fix vscroll
+        sta     $d011
+        lda     #$00            ; Disable sprites
+        sta     $d015
+        sta     $c6             ; Empty keyboard buffer
+        lda     #$06            ; Fix background color
+        sta     $d021
+        lda     #$31            ; Restore IRQ target
+        sta     $314
+        lda     #$ea
+        sta     $315
+        lda     #$81            ; Re-enable timer IRQ
+        sta     $dc0d
+        lda     #147            ; Clear screen
+        jsr     chrout
+        jmp     ($a002)         ; Exit to BASIC
+
 
 irqs:   .word   pal_irq_begin, old_ntsc_irq_begin, new_ntsc_irq_begin
 models: .word   model_pal, model_old_ntsc, model_new_ntsc
@@ -100,6 +166,46 @@ delay_meter:
         .byte   "    KEYS 1-8 TOGGLE SPRITES",13
         .byte   "    KEYS +/- INC/DEC SPRITE REGISTER",13
         .byte   "    PRESS RUN/STOP TO QUIT",13,0
+hexits: .byte   "0123456789ABCDEF"
+
+draw_sprval:
+        clc
+        ldx     #14
+        ldy     #28
+        jsr     plot
+        lda     $d015
+        pha
+        lsr
+        lsr
+        lsr
+        lsr
+        tax
+        lda     hexits, x
+        jsr     chrout
+        pla
+        and     #$0F
+        tax
+        lda     hexits, x
+        jmp     chrout
+
+        ;; Scan the keyboard and set the flags appropriately. The
+        ;; interrupt routine does this so that our main routine can be
+        ;; assured of only doing fast operations when the interrupt
+        ;; happens, no matter what shenanigans the KERNAL gets up to.
+do_scan:
+        lda     ready
+        bne     ++
+        jsr     getin
+        sta     hitkey
+        beq     +
+        lda     #$01
+        sta     ready
+*       jsr     stop
+        bne     +
+        lda     #$01
+        sta     ready
+        sta     quit
+*       rts
 
 strout: sta     [+]+1
         stx     [+]+2
@@ -202,6 +308,7 @@ _stbl:  txs                     ;  5
         sta     $d012
         lda     #<_irq
         sta     $0314
+        jsr     do_scan
         lda     $dc0d
         beq     _notim
         jmp     $ea31
@@ -260,6 +367,7 @@ _stbl:  txs                     ;  5
         sta     $d012
         lda     #<_irq
         sta     $0314
+        jsr     do_scan
         lda     $dc0d
         beq     _notim
         jmp     $ea31
@@ -316,6 +424,7 @@ _stbl:  tax                     ;  5
         sta     $d012
         lda     #<_irq
         sta     $0314
+        jsr     do_scan
         lda     $dc0d
         beq     _notim
         jmp     $ea31
