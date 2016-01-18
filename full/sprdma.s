@@ -21,6 +21,7 @@
         .space  ready   1       ; Something to do
         .space  hitkey  1       ; Key that was hit
         .space  quit    1       ; True if quit was hit
+        .space  buffer  21      ; For computing expected value
 
         .text
 
@@ -162,7 +163,8 @@ delay_meter:
         .byte   13,13,13,13,"   CYCLES CONSUMED",13
         .byte   13,"          11111111112",13
         .byte   "012345678901234567890",13,13,13
-        .byte   "   CURRENT SPRITE REGISTER:",13,13
+        .byte   "   CURRENT SPRITE REGISTER:",13
+        .byte   "   EXPECTED DELAY VALUE:",13,13
         .byte   "    KEYS 1-8 TOGGLE SPRITES",13
         .byte   "    KEYS +/- INC/DEC SPRITE REGISTER",13
         .byte   "    PRESS RUN/STOP TO QUIT",13,0
@@ -183,9 +185,30 @@ draw_sprval:
         lda     hexits, x
         jsr     chrout
         pla
+        pha
         and     #$0F
         tax
         lda     hexits, x
+        jsr     chrout
+        clc
+        ldx     #15
+        ldy     #25
+        jsr     plot
+        pla
+        jsr     expected_value
+        cmp     #$0a            ; 2 digit decimal?
+        bmi     +
+        sec
+        sbc     #$0a
+        pha
+        lda     #'1
+        bne     ++
+*       pha
+        lda     #$20
+*       jsr     chrout
+        pla
+        clc
+        adc     #'0
         jmp     chrout
 
         ;; Scan the keyboard and set the flags appropriately. The
@@ -206,6 +229,54 @@ do_scan:
         sta     ready
         sta     quit
 *       rts
+
+        ;; Compute the expected value for sprite delay by simulating
+        ;; the cycles around the border.
+expected_value:
+        ;; Argument comes in in accumulator
+        ;; Save value to convert on stack
+        pha
+
+        ;; Clear buffer
+        ldx     #20
+        lda     #$00
+*       sta     buffer, x
+        dex
+        bpl     -
+
+        ;; Iterate through the bits of the argument
+        ldy     #$08            ; .Y = Iteration count
+        ldx     #$00            ; .X = index into buffer (aka "cycles so far")
+        pla                     ; Get back the argument
+        pha                     ; And remember it again
+*       and     #$01            ; Low bit set?
+        beq     +               ; If not, next iteration
+        ;; If so, set the next five cycles as stolen
+        sta     buffer, x
+        sta     buffer+1, x
+        sta     buffer+2, x
+        sta     buffer+3, x
+        sta     buffer+4, x
+*       inx                     ; Loop end: Increment 2 cycles in the sim
+        inx                     ; (one sprite's worth)
+        pla                     ; Halve the argument, to move to the next bit
+        lsr
+        pha
+        dey                     ; And count down an iteration
+        bne     --
+
+        pla                     ; Discard the saved value, we don't need it anymore
+
+        ;; Now that we've done that, we just sum the values in the buffer.
+        clc                     ; After this, carry will never be set
+        lda     #$00
+        ldx     #20
+*       adc     buffer, x
+        dex
+        bpl     -
+
+        ;; Accumulator now holds the buffer delay.
+        rts
 
 strout: sta     [+]+1
         stx     [+]+2
