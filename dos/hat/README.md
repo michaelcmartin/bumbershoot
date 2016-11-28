@@ -1,6 +1,6 @@
 # The HAT Experiment
 
-This code implements the various programs I used in the Bumbershoot software article [HLLs in DOS: Exploring the HAT Funtion](https://bumbershootsoft.wordpress.com/2016/11/06/hlls-in-dos-exploring-the-hat-function/).
+This code implements the various programs I used in the Bumbershoot software article [HLLs in DOS: Exploring the HAT Function](https://bumbershootsoft.wordpress.com/2016/11/06/hlls-in-dos-exploring-the-hat-function/).
 
 I have included some simple build and clean scripts in this directory, but to actually make use of them, you will need the following things in your path:
 
