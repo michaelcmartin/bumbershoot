@@ -1,4 +1,13 @@
-        cpu     386
+;;; C_HATAUX.ASM - Assembly language support for C_HAT.C
+;;;
+;;; This incorporates routines from CGAEXT.ASM and KEYWAIT.ASM, with a
+;;; more special-purpose version of CgaPixel called HatSlab. It also
+;;; provides an implementation of SYSTIMER.PAS in assembly language
+;;; since Turbo C seems to lack this functionality on its own.
+;;;
+;;; This code is intended to be linked into a tiny, small, or compact
+;;; memory model. It does not use data, but all calls are near.
+        cpu     386             ; _get_msdos_time needs EAX
         bits    16
 
         segment _TEXT class=CODE
@@ -38,7 +47,8 @@ _hat_slab:
         shr     bx, 1
         jnc     .even
         mov     di, 0x2000
-        ;; BX is now y div 2. Add (BX << 4) and (BX << 6) and (AX >> 2) to DI to get the mask.
+        ;; BX is now y div 2. Add (BX << 4) and (BX << 6) and
+        ;; (AX >> 2) to DI to get the mask.
 .even:  shl     bx, 4
         add     di, bx
         shl     bx, 2
@@ -51,7 +61,8 @@ _hat_slab:
         neg     cl
         add     cl, 3
         shl     cl, 1
-        ;; CL now holds the number of places we need to shift our pixel mask.
+        ;; CL now holds the number of places we need to shift our
+        ;; pixel mask.
         mov     ax, 0xb800
         mov     es, ax
         ;; ES now points to the screen.
@@ -60,7 +71,8 @@ _hat_slab:
         mov     dx, ax
         or      al, byte [es:di]
         mov     byte [es:di], al
-        ;; Now we need to draw a black line straight down from here to the end of the screen.
+        ;; Now we need to draw a black line straight down from here to
+        ;; the end of the screen.
         xor     dl, 0xff
 .blklp: test    di, 0x2000
         jz      .even2
@@ -115,4 +127,3 @@ _get_msdos_time:
         shr     ebx, 16
         mov     dx, bx
         ret
-        

@@ -1,5 +1,10 @@
 program Hat;
 
+{ This is the default implementation of the HAT function, implemented
+  using the Borland Graphics Interface routines. In order to run it
+  you will need to copy CGA.BGI from your Turbo Pascal directory into
+  the directory with HAT1.EXE. }
+
 {$N+}
 
 uses Crt, Graph, SysTimer;

@@ -1,3 +1,11 @@
+;;; HATAUX.ASM - Assembly language support for HAT4.PAS
+;;;
+;;; This incorporates routines from CGAEXT.ASM and KEYWAIT.ASM, with a
+;;; more special-purpose version of CgaPixel called HatSlab.
+;;;
+;;; This object file is linked directly into the main program, so
+;;; unlike the normal Pascal calling conventions, all calls are NEAR.
+
         cpu     286
         bits    16
 
@@ -35,7 +43,8 @@ HatSlab:
         shr     bx, 1
         jnc     .even
         mov     di, 0x2000
-        ;; BX is now y div 2. Add (BX << 4) and (BX << 6) and (AX >> 2) to DI to get the mask.
+        ;; BX is now y div 2. Add (BX << 4) and (BX << 6) and
+        ;; (AX >> 2) to DI to get the mask.
 .even:  shl     bx, 4
         add     di, bx
         shl     bx, 2
@@ -48,7 +57,8 @@ HatSlab:
         neg     cl
         add     cl, 3
         shl     cl, 1
-        ;; CL now holds the number of places we need to shift our pixel mask.
+        ;; CL now holds the number of places we need to shift our
+        ;; pixel mask.
         mov     ax, 0xb800
         mov     es, ax
         ;; ES now points to the screen.
@@ -57,7 +67,8 @@ HatSlab:
         mov     dx, ax
         or      al, byte [es:di]
         mov     byte [es:di], al
-        ;; Now we need to draw a black line straight down from here to the end of the screen.
+        ;; Now we need to draw a black line straight down from here to
+        ;; the end of the screen.
         xor     dl, 0xff
 .blklp: test    di, 0x2000
         jz      .even2
@@ -85,4 +96,3 @@ WaitForKey:
         int     21h
         jnz     .wait_for_no_key
         ret
-        

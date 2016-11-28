@@ -1,7 +1,7 @@
 program Hat3;
 
-{ This implementation uses a 100%-ASM CGA driver which isn't much faster
-  than BGI but which is way smaller. }
+{ This implementation switches to a 100%-ASM CGA driver, linked in as
+  a module in its own right. }
 
 {$N+}
 

@@ -1,10 +1,15 @@
 unit Cga;
 
+{ 100% Pascal implementation of a simple CGA driver. }
+
+{ It is not even remotely optimized and is by a large factor the
+  slowest of the implementations tested in this project. }
+
 interface
 
-procedure CgaStart;
-procedure CgaEnd;
-procedure CgaPixel(x, y, c:integer);
+procedure CgaStart; { Enter CGA mode, 320x200x4 }
+procedure CgaEnd;   { Return to text mode }
+procedure CgaPixel(x, y, c:integer); { Turn pixel (x, y) color c }
 
 implementation
 

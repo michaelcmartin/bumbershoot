@@ -4,6 +4,14 @@ program Hat4;
 
 uses SysTimer;
 
+{ This final Pascal edition of the HAT function uses a custom assembly
+  language routine for drawing parts of the graph. HatSlab puts a
+  white dot at the listed location and then black dots on all
+  locations directly below it.
+
+  Experimentation showed that this implementation was the fastest of
+  the Pascal builds. }
+
 procedure CgaStart; external;
 procedure CgaEnd; external;
 procedure HatSlab(x, y:integer); external;

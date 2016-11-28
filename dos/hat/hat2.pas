@@ -1,7 +1,8 @@
 program Hat2;
 
-{ This implementation uses a custom CGA driver which isn't much faster
-  than BGI but which is way smaller. }
+{ This implementation uses a custom CGA driver which ends up quite a
+  bit slower than the BGI implementation, but which is noticably
+  smaller and more self-contained. }
 
 {$N+}
 

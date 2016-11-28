@@ -1,5 +1,8 @@
 unit CgaAsm;
 
+{ This binds CGAEXT.OBJ into Pascal, providing an assembly-language
+  based implementation of the same interface as CGA.PAS. }
+
 interface
 
 procedure CgaStart;

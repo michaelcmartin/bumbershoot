@@ -1,3 +1,10 @@
+;;; CGAEXT.ASM - implementation for CgaAsm unit
+;;;
+;;; This file is nothing more than an Assembly-language implementation
+;;; of the functions provided in CGA.PAS. CgaPixel makes more use of
+;;; strength reduction and common-subexpression elimination to improve
+;;; efficiency over the Pascal implementation.
+
         cpu     286
         bits    16
 
@@ -34,7 +41,8 @@ CgaPixel:
         shr     bx, 1
         jnc     .even
         mov     di, 0x2000
-        ;; BX is now y div 2. Add (BX << 4) and (BX << 6) and (AX >> 2) to DI to get the mask.
+        ;; BX is now y div 2. Add (BX << 4) and (BX << 6) and
+        ;; (AX >> 2) to DI to get the mask.
 .even:  shl     bx, 4
         add     di, bx
         shl     bx, 2
@@ -47,7 +55,8 @@ CgaPixel:
         neg     cl
         add     cl, 3
         shl     cl, 1
-        ;; CL now holds the number of places we need to shift our pixel mask.
+        ;; CL now holds the number of places we need to shift our
+        ;; pixel mask.
         mov     ax, 0xb800
         mov     es, ax
         ;; ES now points to the screen.

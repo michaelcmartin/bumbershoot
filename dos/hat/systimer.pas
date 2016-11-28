@@ -2,6 +2,7 @@ unit SysTimer;
 
 interface
 
+{ Return the system time, in hundredths of a second since midnight. }
 function SysTime:real;
 
 implementation
