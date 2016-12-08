@@ -58,14 +58,6 @@ mainlp: hlt
         or      ax, ax
         jz      mainlp
 
-        ;; Restore original timer
-        cli
-        mov     al, 0x34
-        out     0x43, al
-        xor     al, al
-        out     0x40, al
-        out     0x40, al
-        sti
         ;; Restore original IRQ0
         lds     dx, [biostick]
         mov     ax, 0x2508
@@ -99,8 +91,16 @@ tick:   push    ds              ; Save flags
         inc     si              ; Update pointer
         mov     [offset], si
         jmp     .intend         ; ... and jump to end of interrupt
-.nosnd: mov     ax, 1           ; If we were past the end,
-        mov     [done], ax      ; mark sound as done and fall through
+        ;; If we get here, we're past the end of the sound.
+.nosnd: mov     ax, [done]      ; Have we already marked it done?
+        jnz     .intend         ; If so, nothing left to do
+        mov     ax, 1           ; Otherwise, mark it done...
+        mov     [done], ax
+        mov     al, 0x34        ; ... and slow the timer back down
+        out     0x43, al        ; to 18.2 Hz
+        xor     al, al
+        out     0x40, al
+        out     0x40, al
 .intend:
         mov     ax, [subtick]   ; Add microsecond count to the counter
         add     ax, counter
