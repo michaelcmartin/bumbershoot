@@ -578,6 +578,7 @@ bye_str:
 
 ;;; INTERFACE TO BASIC
 
+        .alias  strout          $ab1e
         .alias  int_fac1        $bccc
         .alias  rnd_fac1        $e097
         .alias  ld_fac1_a       $bc3c
@@ -593,9 +594,7 @@ bye_str:
         .alias  f_subtract_mem  $b850
         .alias  f_multiply_mem  $ba28
         .alias  f_divide_mem    $bb0f
-        .alias  f_0_5           $bf11           ;  0.5
         .alias  f_1             $b9bc           ;  1.0
-        .alias  f_pi            $aea8           ;  3.1415926
         .alias  f_10            $baf9           ; 10.0
 
 ;; Copy 5-byte values around in memory without touching the FACs.
@@ -701,22 +700,6 @@ fac1_to_mem:
         bne     -
         rts
 
-ld_fac1_string:
-        ldx     $7a
-        sta     $7a
-        txa
-        pha
-        lda     $7b
-        pha
-        sty     $7b
-        jsr     $79
-        jsr     $bcf3
-        pla
-        sta     $7b
-        pla
-        sta     $7a
-        rts
-
 ;;; Print out the contents of FAC1.
 fac1out:
         ldy     #$00            ; Clean out overflow
@@ -728,23 +711,9 @@ fac1out:
         lda     $100
         sec
         sbc     #$2d
-        beq     strout
-        lda     #$01
-        ;; Fall through to strout
-
-;;; The BASIC ROM already has a STROUT routine - $ab1e - but
-;;; it makes use of BASIC's own temporary string handling. We
-;;; don't want it to ever touch its notion of temporary strings
-;;; here, so we provide our own short routine to do this.
-strout: sta     $fd
-        sty     $fe
-        ldy     #$00
-*       lda     ($fd),y
         beq     +
-        jsr     chrout
-        iny
-        bne     -
-*       rts
+        lda     #$01
+*       jmp     strout
 
 ;;; Execute RND(-TI), seeding the random number generator the traditional way.
 randomize:
@@ -779,21 +748,21 @@ f_3000: .byte $8c,$3b,$80,$00,$00
 ;;; Floating point variables
         .space  starved_total 5 ; "d1"
         .space  starved_pct   5 ; "p1"
-        .space  year    5       ; "z"
-        .space  pop     5       ; "p"
-        .space  storage 5       ; "s"
-        .space  harvest 5       ; "h"
-        .space  rats    5       ; "e"
-        .space  yield   5       ; "y"
-        .space  acres   5       ; "a"
-        .space  imm     5       ; "i" - immigrants
-        .space  health  5       ; "q"
-        .space  starved 5       ; "d"
-        .space  price   5       ; "y" repurposed
-        .space  delta   5       ; "q" repurposed
-        .space  fed     5       ; "q" repurposed
-        .space  planted 5       ; "d" repurposed
-        .space  temp    5       ; "c"
+        .space  year          5 ; "z"
+        .space  pop           5 ; "p"
+        .space  storage       5 ; "s"
+        .space  harvest       5 ; "h"
+        .space  rats          5 ; "e"
+        .space  yield         5 ; "y"
+        .space  acres         5 ; "a"
+        .space  imm           5 ; "i" - immigrants
+        .space  health        5 ; "q"
+        .space  starved       5 ; "d"
+        .space  price         5 ; "y" repurposed
+        .space  delta         5 ; "q" repurposed
+        .space  fed           5 ; "q" repurposed
+        .space  planted       5 ; "d" repurposed
+        .space  temp          5 ; "c"
 
         ;; For get_num
         .space  numbuf  16
