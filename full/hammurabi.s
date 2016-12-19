@@ -1,9 +1,12 @@
         .word   $0801
         .org    $0801
 
-        .require "platform/c64kernal.oph"
+        ;; KERNAL routines we use
+        .alias  chrout  $ffd2
+        .alias  getin   $ffe4
+
         .outfile "hammurabi.prg"
-        
+
 ; BASIC program that just calls our machine language code
 .scope
         .word   _next, 10       ; Next line and current line number
@@ -32,7 +35,7 @@ start:  `print_str title_str
 
         jsr     randomize
 
-new_year_no_starvation: 
+new_year_no_starvation:
         `f_move starved, f_0
 new_year:
         ;; Start-of-year statistics
@@ -54,7 +57,7 @@ new_year:
         `fp_divide f_2
         jsr     int_fac1
         `fp_store pop
-        
+
 *       jsr report
         ;; End of term?
         lda     #11
@@ -72,7 +75,7 @@ buy_sell:
         `fp_add f_17
         jsr     int_fac1
         `fp_store price
-buy_loop:       
+buy_loop:
         `print_str land_buy_str_1
         `fp_print price
         `print_str land_buy_str_2
@@ -113,8 +116,8 @@ sell_ok:
         `fp_multiply price
         `fp_add storage
         `fp_store storage
-        
-feed_people:    
+
+feed_people:
         `print_str nl_str
 feed_lp:
         `print_str feed_str
@@ -243,21 +246,21 @@ not_finked_out:
         `fp_add temp
         `fp_divide year
         `fp_store starved_pct
-        
+
         `fp_load starved_total
         `fp_add starved
         `fp_store starved_total
-        
+
         `fp_load pop
         `fp_subtract starved
         `fp_store pop
-        
+
         jmp     new_year
 termed_out:
         `fp_load acres
         `fp_divide pop
         `fp_store temp
-        
+
         `print_str final_str_1
         `fp_load starved_pct
         jsr     int_fac1
@@ -285,7 +288,7 @@ termed_out:
         jsr     fac1_sign
         cmp     #$ff
         bne     +
-rank_fink:      
+rank_fink:
        `print_str fink_str
         jmp     game_over
 
@@ -307,7 +310,7 @@ rank_fink:
 rank_nero:
         `print_str nero_str
         jmp     game_over
-        
+
         ;; Second-best result: 3% death rate or < 10 acres/person
 *       lda     #3
         jsr     ld_fac1_a
@@ -334,7 +337,7 @@ rank_ok:
 
         ;; Best result!
 *       `print_str excellent_str
-        
+
 game_over:
         `print_str again_str
 *       jsr     getin
@@ -351,7 +354,7 @@ roll_d5:
         `fp_multiply f_5
         `fp_add f_1
         jmp     int_fac1
-        
+
 not_enough_grain:
         `print_str not_enough_str
         `print_str not_enough_grain_str_1
@@ -379,7 +382,7 @@ report: `print_str report_str_1
         `print_str report_str_2
         `fp_print   imm
         `print_str report_str_3
-        `ld_fac1   health
+        `fp_load   health
         jsr     fac1_sign
         cmp     #$01
         beq     +
@@ -409,7 +412,7 @@ _lp:    jsr     getin
         beq     _lp
         dex
         stx     numindx
-        jsr     $ffd2
+        jsr     chrout
         jmp     _lp
 *       cmp     #$0D            ; RETURN?
         bne     +
@@ -426,7 +429,7 @@ _lp:    jsr     getin
         sta     numbuf,x
         inx
         stx     numindx
-        jsr     $ffd2
+        jsr     chrout
         jmp     _lp
 _got:   ldx     numindx
         lda     #$00
@@ -434,11 +437,11 @@ _got:   ldx     numindx
         lda     #$01            ; Disable blinky cursor again
         sta     $cc
         lda     #$20
-        jsr     $ffd2
+        jsr     chrout
         lda     #$0d
-        jsr     $ffd2
+        jsr     chrout
          ;; Turn our numbers into a floating point result!
-        `ld_fac1 f_0
+        `fp_load f_0
         ldx     #$00
         stx     $68             ; Clean out any leftover overflow
         stx     $70
@@ -461,7 +464,7 @@ _got:   ldx     numindx
 _done:  pla
         rts
 .scend
-        
+
 ;;; Strings
 title_str:
         .byte 147,14,13,"               hammurabi",13,13
@@ -472,7 +475,7 @@ title_str:
         ;; Fall through to nl_str
 
 nl_str: .byte 13,0
-        
+
 report_str_1:
         .byte 13,13,"hAMMURABI, i BEG TO REPORT TO YOU:",13,"iN YEAR ",0
 report_str_2:
@@ -494,7 +497,7 @@ report_str_9:
 
 plague_str:
         .byte "a HORRIBLE PLAGUE STRUCK!",13,"hALF THE PEOPLE DIED.",13,0
-        
+
 land_buy_str_1:
         .byte "lAND IS TRADING AT ",0
 land_buy_str_2:
@@ -511,7 +514,7 @@ not_enough_farmers_str_1:
 not_enough_farmers_str_2:
         .byte " PEOPLE TO TEND",13,"THE FIELDS! nOW THEN,",13,0
 
-not_enough_str: 
+not_enough_str:
         .byte "hAMMURABI: THINK AGAIN. yOU ONLY",13,0
 not_enough_grain_str_1:
         .byte "HAVE ",0
@@ -569,11 +572,194 @@ excellent_str:
 
 again_str:
         .byte 13,"tRY ANOTHER TERM? (y/n)",0
-        
+
 bye_str:
         .byte 147,142,13,"SO LONG FOR NOW.",13,0
-        
-.include "platform/libbasic64.oph"
+
+;;; INTERFACE TO BASIC
+
+        .alias  int_fac1        $bccc
+        .alias  rnd_fac1        $e097
+        .alias  ld_fac1_a       $bc3c
+        .alias  fac1_to_57      $bbca
+        .alias  fac1_to_5c      $bbc7
+        .alias  fac1_to_string  $bddd
+        .alias  ld_fac1_mem     $bba2
+        .alias  ld_fac2_mem     $ba8c
+        .alias  fac1_sign       $bc2b
+        .alias  f_subtract_op   $b853
+        .alias  f_divide_op     $bb12
+        .alias  f_add_mem       $b867
+        .alias  f_subtract_mem  $b850
+        .alias  f_multiply_mem  $ba28
+        .alias  f_divide_mem    $bb0f
+        .alias  f_0_5           $bf11           ;  0.5
+        .alias  f_1             $b9bc           ;  1.0
+        .alias  f_pi            $aea8           ;  3.1415926
+        .alias  f_10            $baf9           ; 10.0
+
+;; Copy 5-byte values around in memory without touching the FACs.
+.macro  f_move
+        ldx     #$00
+_fmvlp: lda     _2,x
+        sta     _1,x
+        inx
+        cpx     #$05
+        bne     _fmvlp
+.macend
+
+;;; These next few macros really exist just to save us the trouble of loading
+;;; addresses into registers
+.macro  print_str
+        lda     #<_1
+        ldy     #>_1
+        jsr     strout
+.macend
+
+.macro  ld_fac2
+        lda     #<_1
+        ldy     #>_1
+        jsr     ld_fac2_mem
+.macend
+
+.macro  fp_load
+        lda     #<_1
+        ldy     #>_1
+        jsr     ld_fac1_mem
+.macend
+
+.macro  fp_store
+        lda     #<_1
+        ldy     #>_1
+        jsr     fac1_to_mem
+.macend
+
+.macro  fp_print
+        `fp_load _1
+        jsr     fac1out
+.macend
+
+.macro  fp_add
+        lda     #<_1
+        ldy     #>_1
+        jsr     f_add_mem
+.macend
+
+;;; Transferring FAC1 directly to FAC2 seems to corrupt the state of
+;;; the FACs somehow. We bounce through $57 to stabilize it.
+.macro  fp_subtract
+        jsr     fac1_to_57
+        `fp_load _1
+        lda     #$57
+        ldy     #$00
+        jsr     f_subtract_mem
+.macend
+
+.macro  fp_multiply
+        lda     #<_1
+        ldy     #>_1
+        jsr     f_multiply_mem
+.macend
+
+;;; Division has the same issue subtraction does.
+.macro  fp_divide
+        jsr     fac1_to_57
+        `fp_load _1
+        lda     #$57
+        ldy     #$00
+        jsr     f_divide_mem
+.macend
+
+;;; Utility routine for converting the system clock to a floating point
+;;; value.
+ld_fac1_ti:
+        jsr     $ffde           ; RDTIM
+        sty     $63
+        stx     $64
+        sta     $65
+        ;; Once the requirements on .Y and $68 are better
+        ;; understood, this might be exportable as
+        ;; ld_fac1_s32, but there are still some dragons
+        ;; lurking
+        ldy     #$00            ; Clear out intermediary values
+        sta     $62
+        sta     $68
+        jmp     $bcd5
+
+;;; FAC1 can only be stored out to two locations. We'd prefer to be able
+;;; to store anywhere. This routine is a support routine that allows that.
+;;; It will normally only be called by the fp_store macro.
+fac1_to_mem:
+        sta     $fd
+        sty     $fe
+        jsr     fac1_to_5c
+        ldy     #$00
+*       lda     $5c,y
+        sta     ($fd),y
+        iny
+        cpy     #$05
+        bne     -
+        rts
+
+ld_fac1_string:
+        ldx     $7a
+        sta     $7a
+        txa
+        pha
+        lda     $7b
+        pha
+        sty     $7b
+        jsr     $79
+        jsr     $bcf3
+        pla
+        sta     $7b
+        pla
+        sta     $7a
+        rts
+
+;;; Print out the contents of FAC1.
+fac1out:
+        ldy     #$00            ; Clean out overflow
+        sty     $68
+        sty     $70
+        jsr     fac1_to_string
+        ldy     #$01
+        ;; Skip the first character if it's not "-"
+        lda     $100
+        sec
+        sbc     #$2d
+        beq     strout
+        lda     #$01
+        ;; Fall through to strout
+
+;;; The BASIC ROM already has a STROUT routine - $ab1e - but
+;;; it makes use of BASIC's own temporary string handling. We
+;;; don't want it to ever touch its notion of temporary strings
+;;; here, so we provide our own short routine to do this.
+strout: sta     $fd
+        sty     $fe
+        ldy     #$00
+*       lda     ($fd),y
+        beq     +
+        jsr     chrout
+        iny
+        bne     -
+*       rts
+
+;;; Execute RND(-TI), seeding the random number generator the traditional way.
+randomize:
+        jsr     ld_fac1_ti
+        lda     #$ff
+        sta     $66             ; Force sign negative
+        jmp     rnd_fac1        ; RND(-TI)
+
+
+;;; Return RND(1), a fresh random number between 0 and 1.
+rnd:    lda     #$01
+        jsr     ld_fac1_a
+        jmp     rnd_fac1
+
+;;; END OF BASIC INTERFACE
 
 ;;; Floating point constants
 f_0:    .byte $00,$00,$00,$00,$00
