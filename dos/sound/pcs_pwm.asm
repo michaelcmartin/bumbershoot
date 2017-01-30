@@ -12,7 +12,7 @@
         bits    16
         org     100h
 
-counter equ     0x1234DC / 16000
+counter equ     (0x1234DC / 16000) & 0xfffe
         segment .bss
 biostick: resb  4
 dataptr: resb   4
@@ -44,7 +44,7 @@ dataptr: resb   4
 
         ;; Reprogram PIT Channel 0 to fire IRQ0 at 16kHz
         cli
-        mov     al, 0x34
+        mov     al, 0x36
         out     0x43, al
         mov     ax, counter
         out     0x40, al
@@ -96,7 +96,7 @@ tick:   push    ds              ; Save flags
         jnz     .intend         ; If so, nothing left to do
         mov     ax, 1           ; Otherwise, mark it done...
         mov     [done], ax
-        mov     al, 0x34        ; ... and slow the timer back down
+        mov     al, 0x36        ; ... and slow the timer back down
         out     0x43, al        ; to 18.2 Hz
         xor     al, al
         out     0x40, al

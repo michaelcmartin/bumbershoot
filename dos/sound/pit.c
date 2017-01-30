@@ -26,6 +26,9 @@ PIT_configure(int hz, PIT_callback_t cb)
      * at 0x1234CD Hz, so... */
     long counter = 0x1234CD / hz;
 
+    /* PIT mode 3 is cleaner if the low bit of the counter is 0 */
+    counter &= ~1;
+
     /* Save and rewrite the BIOS tick routine, if necessary */
     if (!bios_tick) {
         bios_tick = getvect(8);
@@ -37,7 +40,7 @@ PIT_configure(int hz, PIT_callback_t cb)
     disable();
 
     /* Reprogram the PIT */
-    outportb(0x43, 0x34);
+    outportb(0x43, 0x36);
     outportb(0x40, counter & 0xff);
     outportb(0x40, (counter >> 8) & 0xff);
 
@@ -55,7 +58,7 @@ PIT_reset(void)
     /* Restore BIOS defaults for the PIT timer 0, and null out all the user-
      * supplied information */
     disable();
-    outportb(0x43, 0x34);
+    outportb(0x43, 0x36);
     outportb(0x40, 0x00);
     outportb(0x40, 0x00);
     counter_unit = 0;
