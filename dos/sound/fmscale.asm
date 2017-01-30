@@ -49,31 +49,6 @@ done:   call    resetAdlib
         mov     ax, 0x4c00
         int     21h
 
-;;; microsleep: busywaits a set number of (almost) microseconds.
-;;;  Arguments: BX = number of ticks of the 1.193182 Mhz PIT timer
-;;;    Trashes: AX, BX, DX
-microsleep:
-        pushf
-        cli
-        mov     al, 0x04
-        out     0x43, al
-        in      al, 0x40
-        mov     dl, al
-        in      al, 0x40
-        mov     dh, al
-.lp:    mov     al, 0x04
-        out     0x43, al
-        in      al, 0x40
-        mov     ah, al
-        in      al, 0x40
-        xchg    ah, al
-        sub     ax, dx
-        neg     ax
-        cmp     ax, bx
-        jb      .lp
-        popf
-        ret
-
         ;; Waits for BX ticks of the 18.2 Hz system timer.
 waitTicks:
         xor     ax, ax
@@ -90,25 +65,31 @@ waitTicks:
         ;; called back to back.
 writeAdlib:
         push    ax
-        mov     al, ah
+        push    cx
+        push    dx
+        xchg    al, ah          ; Register first
         mov     dx, 0x0388
         out     dx, al
-        mov     bx, 4
-        push    dx
-        call    microsleep
-        pop     dx
-        pop     ax
+        ;; Read status 6 times after address for delay
+        mov     cx, 6
+.lp1:   in      al, dx
+        loop    .lp1
+
+        xchg    al, ah          ; Put data back in AL
         inc     dx
         out     dx, al
-        mov     bx, 21
-        call    microsleep
+        ;; Read status 35 times after data for delay
+        mov     cx, 35
+.lp2:   in      al, dx
+        loop    .lp2
+        pop     dx
+        pop     cx
+        pop     ax
         ret
 
 resetAdlib:
         xor     ax, ax
-.lp:    push    ax
-        call    writeAdlib
-        pop     ax
+.lp:    call    writeAdlib
         inc     ah
         or      ah, ah
         jnz     .lp

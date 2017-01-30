@@ -49,13 +49,13 @@ blast_reset:
         mov     dx, [SOUNDBLASTER_RESET]
         out     dx, al
         push    dx
-        mov     bx, 10
-        call    microsleep
+        mov     bx, 2
+        call    tick_wait
         pop     dx
         xor     al, al
         out     dx, al
-        mov     bx, 300
-        call    microsleep
+        mov     bx, 2
+        call    tick_wait
         mov     dx, [SOUNDBLASTER_DATA_AVAILABLE]
         in      al, dx
         test    al, 0x80
@@ -328,27 +328,22 @@ absolute_address:
         pop     bx
         ret
 
-;;; microsleep: busywaits a set number of (almost) microseconds.
-;;;  Arguments: BX = number of ticks of the 1.193182 Mhz PIT timer
-;;;    Trashes: AX, BX, DX
-microsleep:
-        pushf
-        cli
-        mov     al, 0x04
-        out     0x43, al
-        in      al, 0x40
-        mov     dl, al
-        in      al, 0x40
-        mov     dh, al
-.lp:    mov     al, 0x04
-        out     0x43, al
-        in      al, 0x40
-        mov     ah, al
-        in      al, 0x40
-        xchg    ah, al
-        sub     ax, dx
-        neg     ax
-        cmp     ax, bx
-        jb      .lp
-        popf
+;;; tick_wait: Wait for the specified number of ticks of the system timer.
+;;; Arguments: BX holds the number of ticks to wait.
+tick_wait:
+        push    ax
+        push    bx
+        push    cx
+        push    dx
+        xor     ax, ax
+        int     0x1a
+        add     bx, dx
+.lp:    xor     ax, ax
+        int     0x1a
+        cmp     dx, bx
+        jne     .lp
+        pop     dx
+        pop     cx
+        pop     bx
+        pop     ax
         ret
