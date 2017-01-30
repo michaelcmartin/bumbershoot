@@ -24,10 +24,8 @@
         mov     dx, msg3
         int     21h
         mov     ax, cs
-        shl     ax, 1
-        shl     ax, 1
-        shl     ax, 1
-        shl     ax, 1
+        mov     cl, 4
+        shl     ax, cl
         add     ax, data
         add     ax, datasize
         jc      twopage
@@ -84,35 +82,17 @@ sb_ok:  db      "Sound Blaster detected OK!",13,10,'$'
 
 printhex:
         mov     bx, ax
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
+        mov     cl, 12
+        shr     bx, cl
         call    hexit
         mov     bx, ax
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
+        mov     cl, 8
+        shr     bx, cl
         call    hexit
 printhex_8:
         mov     bx, ax
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
-        shr     bx, 1
+        mov     cl, 4
+        shr     bx, cl
         call    hexit
         mov     bx, ax
         ; Fall through to hexit
