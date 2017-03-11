@@ -1,3 +1,9 @@
+        ;; Check memory size, and quit with error if it's under 2KB.
+        ld      hl, no_mem_err
+        ld      a, ($4005)
+        cp      a, $48
+        jr      c, m_0
+
         call    draw_board
         ;; Seed RNG
         ld      hl, ($4034)     ; frame count since power on
@@ -38,14 +44,7 @@ m_won:  call    get_key
         jr      nz, m_won
 
         ;; All done. Say goodbye properly.
-m_quit: ld      hl, ($400c)
-        ;; Home the cursor
-        inc     hl
-        ld      ($400e),hl
-        dec     hl
-        ;; Clear the screen to spaces
-        ld      bc, $1800
-        call    fill_lines
+m_quit: call    $0a2a           ; CLS
 
         ;; Print farewell message
         ld      hl, farewell_msg
@@ -59,6 +58,16 @@ m_0:    ld      a, (hl)
         jr      m_0
 
 draw_board:
+        ;; Create an expanded display file
+        ;; Copied, more or less, from the ROM
+        ld      b, $18
+        res     1, (IY+1)
+        ld      c, $21
+        push    bc
+        call    $0918
+        pop     bc
+        call    $0a3e           ; (Continue with CLS from there)
+
         ;; Fill the screen with darkness
         ld      hl, ($400c)
         push    hl
@@ -327,7 +336,11 @@ win_again_msg:
         defb    $B5,$B1,$A6,$BE,$80,$A6,$AC,$A6,$AE,$B3,$80,$90,$BE,$98,$B3,$91
         defb    $8F,$FF
 
-;;; Unpositioned; this one is for printing with RST 10 after play.
+;;; Unpositioned; these are for printing with RST 10 after play.
+no_mem_err:
+        defb    $1E,$30,$27,$15,$00,$37,$26,$32,$00,$37,$2A,$36,$3A,$2E
+        defb    $37,$2A,$29,$1A,$00,$38,$34,$37,$37,$3E,$FF
+
 farewell_msg:
         defb    $00,$00,$00,$00,$00,$00,$88,$88,$80,$80,$00,$31,$2E,$2C,$2D,$39
         defb    $38,$00,$34,$3A,$39,$00,$80,$80,$88,$88,$76,$00,$00,$00,$27,$3A
