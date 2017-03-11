@@ -8,6 +8,7 @@
 _next:  .word   0
 .scend
 
+        jsr     srnd            ; Reset seed
         lda     #64
         sta     count
 mainlp: jsr     rnd
@@ -50,9 +51,17 @@ printhex:
 hexits: .byte   "0123456789ABCDEF"
 
         .scope
-_x:      .word   1
+_x:     .word   1
 rndval:
-_y:      .word   1
+_y:     .word   1
+
+srnd:   ldx     #$01
+        stx     _x
+        stx     _y
+        dex
+        stx     _x+1
+        stx     _y+1
+        rts
 
         ;; x ^= x << 5
 rnd:    lda     _x
