@@ -39,10 +39,9 @@ hexout_4:
         ret
 
         ;; XORSHIFT RND routine follows
-rnd_x:  defw    $0001
-rnd_y:  defw    $0001
 rnd:    ;; t = x ^ (x << 5)  [t = DE]
-        ld      de, (rnd_x)
+        defb    $11             ; LD DE, **
+rnd_x:  defw    $0001
         ld      a, e
         ld      c, d
         ld      b, 5
@@ -66,7 +65,8 @@ rnd_1:  srl     a
         xor     a, e
         ld      e, a
         ;; x = y        [t = DE, y = HL]
-        ld      hl, (rnd_y)
+        defb    $21             ; LD HL, **
+rnd_y:  defw    $0001
         ld      (rnd_x), hl
         ;; y ^= (y >> 1) ^ t [t = DE, y = HL]
         ld      a, h
