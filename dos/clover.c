@@ -69,6 +69,10 @@ void line_inc(int x1, int y1, int x2, int y2)
     }
 }
 
+/* Draw the clover image itself by drawing a circle of radius r
+ * converging on the center. We need to hit each pixel in the circle
+ * exactly once, so we solve x^2+y^2=r^2 in the first octant and then
+ * mirror the rest. */
 void draw_display(int r)
 {
     int x;
@@ -91,7 +95,10 @@ void draw_display(int r)
 /* Our palette sequence, with buffers for intro and overlaps */
 unsigned char palette[2877];
 
-/* Some macros to save us some repetition */
+/* Set up the palette. The first 256 entries are for the original
+ * palette, which we will fade to black, and then the rest cycle
+ * through our series of hues. That gets tedious very fast, so we use
+ * some macros to make our life easier. */
 #define SET_RED(block, val)     palette[((block)*64+i)*3]   = val
 #define SET_GREEN(block, val)   palette[((block)*64+i)*3+1] = val
 #define SET_BLUE(block, val)    palette[((block)*64+i)*3+2] = val
@@ -115,6 +122,8 @@ void init_palette(void)
         SET_RED(10, 63);
         SET_BLUE(10, 63-i);
     }
+    /* Then we copy the beginning of the sequence to the end, so that
+     * we can smoothly loop. */
     memcpy(palette+2112, palette+960, 765);
 }
 
