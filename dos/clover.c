@@ -13,6 +13,7 @@
 #include <dos.h>
 #include <math.h>
 #include <string.h>
+#include "pit.h"
 
 /* Select a graphics mode via the BIOS interrupt. */
 void set_mode(unsigned char mode)
@@ -175,20 +176,14 @@ void clover_frame(void)
 int main(int argc, char **argv)
 {
     set_mode(0x13);                     /* 320x200x256 graphics */
-    draw_display(1000);
-
-    init_palette();
-
-    while (!kbhit()) {
-        clover_frame();
-        delay(20);
-    }
-
-    while (kbhit()) getch();            /* Consume key */
+    draw_display(1000);                 /* Create the display */
+    init_palette();                     /* Prepare the colors */
+    PIT_configure(50, clover_frame);    /* Begin the animation */
+    getch();                            /* Wait for a key */
+    PIT_reset();                        /* Shut down the animation */
     set_mode(0x03);                     /* 80x25 color text */
 
-    (void) argc;
+    (void) argc;                        /* Ignore the arguments */
     (void) argv;
     return 0;
 }
-
