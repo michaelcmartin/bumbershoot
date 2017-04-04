@@ -106,7 +106,14 @@ unsigned char palette[2877];
 void init_palette(void)
 {
     int i;
+    /* Start with all zeros */
     memset(palette, 0, 2880);
+    /* Then load the first 256 entries with the default palette */
+    outportb(0x3c7, 0);
+    for (i = 0; i < 768; ++i) {
+        palette[i] = inportb(0x3c9);
+    }
+    /* Then create all of our gradients after that */
     for (i = 0; i < 64; ++i) {
         SET_RED(4, i);
         SET_RED(5, 63);
@@ -122,48 +129,58 @@ void init_palette(void)
         SET_RED(10, 63);
         SET_BLUE(10, 63-i);
     }
-    /* Then we copy the beginning of the sequence to the end, so that
+    /* Finally copy the beginning of the sequence to the end, so that
      * we can smoothly loop. */
     memcpy(palette+2112, palette+960, 765);
 }
 
-int main(int argc, char **argv)
+/* Our periodic update routine. We start in fade mode and then move
+ * into cycle mode. */
+
+#define FADE_MODE  0
+#define CYCLE_MODE 1
+
+static int current_mode    = FADE_MODE;
+static int current_counter = 0;
+
+void clover_frame(void)
 {
     int i, j;
-    set_mode(0x13);                     /* 320x200x256 graphics */
-    draw_display(1000);
-
-    /* Harvest the VGA palette */
-    init_palette();
-    outportb(0x3c7, 0);
-    for (i = 0; i < 768; ++i) {
-        palette[i] = inportb(0x3c9);
-    }
-
-    /* Fade to black */
-    for (i = 0; i < 64; ++i) {
+    if (current_mode==FADE_MODE) {
+        i = 0;
         for (j = 0; j < 768; ++j) {
             if (palette[j] > 0) {
                 --palette[j];
             }
         }
-        outportb(0x3c8, 0);
-        for (j = 0; j < 768; ++j) {
-            outportb(0x3c9, palette[j]);
+        ++current_counter;
+        if (current_counter >= 64) {
+            current_mode = CYCLE_MODE;
+            current_counter = 0;
         }
-        delay(20);
+    } else {
+        /* Cycle mode */
+        i = current_counter;
+        current_counter += 3;
+        if (current_counter > 2109) {
+            current_counter = 960;
+        }
     }
+    outportb(0x3c8, 0);
+    for (j = 0; j < 768; ++j) {
+        outportb(0x3c9, palette[i+j]);
+    }
+}
 
-    i = 0;
+int main(int argc, char **argv)
+{
+    set_mode(0x13);                     /* 320x200x256 graphics */
+    draw_display(1000);
+
+    init_palette();
+
     while (!kbhit()) {
-        outportb(0x3c8, 0);
-        for (j = 0; j < 768; ++j) {
-            outportb(0x3c9, palette[i+j]);
-        }
-        i += 3;
-        if (i > 2109) {
-            i = 960;
-        }
+        clover_frame();
         delay(20);
     }
 
