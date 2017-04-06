@@ -40,15 +40,16 @@ printhex:
         lsr
         lsr
         lsr
-        tax
-        lda     hexits,x
-        jsr     $ffd2
+        jsr     print4
         pla
         and     #$0f
-        tax
-        lda     hexits,x
-        jmp     $ffd2
-hexits: .byte   "0123456789ABCDEF"
+        ;; Fall through to print4
+print4: clc
+        adc     #$30
+        cmp     #$3a
+        bcc     +
+        adc     #$06
+*       jmp     $ffd2
 
         .scope
 _x:     .word   1
