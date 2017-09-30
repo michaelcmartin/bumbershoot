@@ -1,6 +1,7 @@
 ' Directory Editor
 ' This is a C64List listing! petcat will not accept it.
 ' Update to the latest version of this file to create the program.
+
 {alpha:invert}
 {number:10}{step:10}
 
@@ -13,7 +14,7 @@
   dim sn%(17),de$(143),d%(17)
 
 {:initialize}
-  gosub {:selectdrive}:gosub {:readdir}:gosub {:listfiles}
+  gosub {:initdrive}:gosub {:listfiles}
 
 {nice:100}
   rem MAIN MENU LOOP
@@ -41,9 +42,14 @@
   end
 
 {nice:1000}
-{:readdir}
-  rem READ DIRECTORY INFORMATION
-  open 15,dv,15:open 3,dv,2,"#"
+{:initdrive}
+  rem SELECT AND READ DRIVE
+{:selectdrive}
+  input "which drive (8-11)";a$:dv=val(a$):if dv<8 or dv>11 then {:selectdrive}
+  open 15,dv,15,"i0":input#15,ec,em$,ft,fs
+  if ec<>0 then print "error code";ec;"on track";ft;"sector";fs:print em$
+  if ec<>0 then close 15:goto {:selectdrive}
+  open 3,dv,2,"#"
   t=18:s=1:ns=0
 {:readsector}
   sn%(ns)=s:print#15,"u1:";2;0;t;s
@@ -63,21 +69,6 @@
   for i=1 to ns*8
   print i;"{left}. ";mid$(de$(i-1),4,16)
   next i
-  return
-
-{nice:100}
-{:selectdrive}
-  rem SELECT DRIVE
-  input "which drive (8-11)";a$:dv=val(a$):if dv<8 or dv>11 then {:selectdrive}
-  open 15,dv,15,"i0":gosub {:checkerror}:close 15:if ec<>0 then {:selectdrive}
-  return
-
-{nice:100}
-{:checkerror}
-  rem REPORT DISK ERRORS
-  input#15,ec,em$,et,es
-  if ec=0 then return
-  print "error code";ec;"on track";et;"sector";es:print em$
   return
 
 {nice:100}
