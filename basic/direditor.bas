@@ -70,8 +70,8 @@
  2425 get a$
  2430 a=126-(a$="n")-2*(a$="d")-3*(a$="s")-4*(a$="p")-5*(a$="u")-6*(a$="r")
  2435 if a=126 then 2425
- 2440 c=a:gosub 2600:print c$
- 2445 if a=127 then a=0
+ 2440 if a=127 then a=0
+ 2445 c=a:gosub 2600:print c$
  2450 de$(i1-1)=chr$(a)+right$(de$(i1-1),29)
  2455 if oc=0 and a<>0 then eu=1
  2460 if oc<>0 and a=0 then es=1
