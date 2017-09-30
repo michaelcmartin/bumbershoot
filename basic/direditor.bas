@@ -1,45 +1,110 @@
-' Directory Editor
 ' This is a C64List listing! petcat will not accept it.
 ' Update to the latest version of this file to create the program.
-
 {alpha:invert}
 {number:10}{step:10}
 
   rem DIRECTORY EDITOR
   rem BUMBERSHOOT SOFTWARE, 2016
-' These arrays are all ZERO INDEXED.
-' SN%: Sector number on track 18 for directory blocks. Valid entries: 0 to NS-1
-' DE$: Array of 29-character strings for representing directory entries. Valid entries: 0 to 8*NS-1.
-' D%:  Dirty-bit array. If zero, this means that this chunk of 8 directory entries did not change.
+{step:1}
   dim sn%(17),de$(143),d%(17)
-
-{:initialize}
-  gosub {:initdrive}:gosub {:listfiles}
+  rem SN%=SECTOR NUMBER FOR EACH BLK
+  rem DE$=DIRECTORY ENTRIES
+  rem D%=DIRTY BITS
+  rem NS=NUMBER OF DIR SECTORS
+  rem DV=TARGET DRIVE (SET BELOW)
+{nice:10}{step:10}
+  gosub {:initdrive}:rem INIT DRIVE
+  gosub {:main}:rem MAIN PROGRAM
+  gosub {:writedir}:rem WRITE CHANGES
+  end
 
 {nice:100}
+{:listfiles}
+  rem LIST FILES
+  for i=1 to ns*8
+  print i;"{left}. ";mid$(de$(i-1),4,16)
+  next i
+  return
+
+{nice:100}
+{:exchangefiles}
+  rem EXCHANGE ENTRIES I1 AND I2
+  t$=de$(i1-1):de$(i1-1)=de$(i2-1):de$(i2-1)=t$
+  d%(int((i1-1)/8))=1:d%(int((i2-1)/8))=1
+  return
+
+
+{nice:1000}
+{:main}
   rem MAIN MENU LOOP
+  gosub {:listfiles}:rem LIST FILES
 {:mainmenu}
   print "{rvrs on}l{rvrs off}ist files"
   print "{rvrs on}m{rvrs off}ove a file":print"e{rvrs on}x{rvrs off}change two files"
   print "change file {rvrs on}t{rvrs off}ype"
   print "{rvrs on}q{rvrs off}uit":print:print "which? ";
 {:mainmenu-keyloop}
-  get a$:a=-(a$="l")-2*(a$="m")-3*(a$="x")-4*(a$="t")-5*(a$="q")
-  on a goto {:list-option},{:move-option},{:exchange-option},{:type-option},{:quit-option}:goto {:mainmenu-keyloop}
+  get a$:if a$="q" then print "quit":return
+  a=-(a$="l")-2*(a$="m")-3*(a$="x")-4*(a$="t"):if a=0 then {:mainmenu-keyloop}
+  on a gosub {:list-option},{:move-option},{:exchange-option},{:type-option}
+  goto {:mainmenu}
+
+{nice:100}
 {:list-option}
-  print "list files":gosub {:listfiles}:goto {:mainmenu}
+  rem LIST FILE OPTION
+  print "list files"
+  gosub {:listfiles}
+  return
+
+{nice:100}
 {:move-option}
+  rem MOVE FILE OPTION
   print "move a file":input "from";i1:input "to";i2
-  gosub {:movefiles}:goto {:mainmenu}
+  i3=i2:di=-1:if i1<i3 then di=1
+{:movefiles-loop}
+  if i1=i3 then return
+  i2=i1+di:gosub {:exchangefiles}:i1=i1+di:goto {:movefiles-loop}
+  return
+
+{nice:100}
 {:exchange-option}
+  rem EXCHANGE FILES OPTION
   print "exchange two files":input "switch file";i1:input "with file";i2
-  gosub {:exchangefiles}:goto {:mainmenu}
+  gosub {:exchangefiles}
+  return
+
+{nice:100}
 {:type-option}
+  rem CHANGE FILE TYPE OPTION
   print "change file type":input "which file";i1
-  gosub {:changefiletype}:goto {:mainmenu}
-{:quit-option}
-  print "quit":gosub {:writedir}
-  end
+  print "{rvrs on}n{rvrs off}ot a file":print "{rvrs on}d{rvrs off}elimiter"
+  print "{rvrs on}s{rvrs off}equential":print "{rvrs on}p{rvrs off}rogram"
+  print "{rvrs on}u{rvrs off}ser":print "{rvrs on}r{rvrs off}elative"
+  oc=asc(de$(i1-1)):c=oc:gosub {:hr-filetype}:print "current file type: ";c$
+  print "which type? ";
+{:filetype-loop}
+  get a$
+  a=126-(a$="n")-2*(a$="d")-3*(a$="s")-4*(a$="p")-5*(a$="u")-6*(a$="r")
+  if a=126 then {:filetype-loop}
+  c=a:gosub {:hr-filetype}:print c$
+  if a=127 then a=0
+  de$(i1-1)=chr$(a)+right$(de$(i1-1),29)
+  if oc=0 and a<>0 then eu=1
+  if oc<>0 and a=0 then es=1
+  if oc<>a then d%(int((i1-1)/8))=1
+  return
+
+{nice:100}
+{:hr-filetype}
+  rem HUMAN-READABLE FILE TYPE
+  if c=0 then c$="not a file":return
+  if c=128 then c$="delimiter":return
+  if c=129 then c$="sequential":return
+  if c=130 then c$="program":return
+  if c=131 then c$="user":return
+  if c=132 then c$="relative":return
+  c$="unknown ("+mid$(str$(c),2)+")"
+  return
 
 {nice:1000}
 {:initdrive}
@@ -63,15 +128,7 @@
   es=0:eu=0
   return
 
-{nice:100}
-{:listfiles}
-  rem LIST FILES
-  for i=1 to ns*8
-  print i;"{left}. ";mid$(de$(i-1),4,16)
-  next i
-  return
-
-{nice:100}
+{nice:1000}
 {:writedir}
   rem WRITE/VALIDATE DIRECTORY INFO
   vl=1:if eu=0 then {:write-never-unscratched}
@@ -111,51 +168,3 @@
   es=0:eu=0
 {:writedir-complete}
   close 15:return
-
-{nice:100}
-{:exchangefiles}
-  rem EXCHANGE ENTRIES I1 AND I2
-  t$=de$(i1-1):de$(i1-1)=de$(i2-1):de$(i2-1)=t$
-  d%(int((i1-1)/8))=1:d%(int((i2-1)/8))=1
-  return
-
-{nice:100}
-{:changefiletype}
-  rem CHANGE FILETYPE AT I1
-  print "{rvrs on}n{rvrs off}ot a file":print "{rvrs on}d{rvrs off}elimiter"
-  print "{rvrs on}s{rvrs off}equential":print "{rvrs on}p{rvrs off}rogram"
-  print "{rvrs on}u{rvrs off}ser":print "{rvrs on}r{rvrs off}elative"
-  oc=asc(de$(i1-1)):c=oc:gosub {:hr-filetype}:print "current file type: ";c$
-  print "which type? ";
-{:filetype-loop}
-  get a$
-  a=126-(a$="n")-2*(a$="d")-3*(a$="s")-4*(a$="p")-5*(a$="u")-6*(a$="r")
-  if a=126 then {:filetype-loop}
-  c=a:gosub {:hr-filetype}:print c$
-  if a=127 then a=0
-  de$(i1-1)=chr$(a)+right$(de$(i1-1),29)
-  if oc=0 and a<>0 then eu=1
-  if oc<>0 and a=0 then es=1
-  if oc<>a then d%(int((i1-1)/8))=1
-  return
-
-{nice:100}
-{:movefiles}
-  rem MOVE ENTRY I1 TO I2
-  i3=i2:di=-1:if i1<i3 then di=1
-{:movefiles-loop}
-  if i1=i3 then return
-  i2=i1+di:gosub {:exchangefiles}:i1=i1+di:goto {:movefiles-loop}
-  return
-
-{nice:100}
-{:hr-filetype}
-  rem HUMAN-READABLE FILE TYPE
-  if c=0 then c$="not a file":return
-  if c=128 then c$="delimiter":return
-  if c=129 then c$="sequential":return
-  if c=130 then c$="program":return
-  if c=131 then c$="user":return
-  if c=132 then c$="relative":return
-  c$="unknown ("+mid$(str$(c),2)+")"
-  return
