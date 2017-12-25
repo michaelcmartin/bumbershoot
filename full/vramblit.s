@@ -249,7 +249,80 @@ l0:     lda     #$21
 *       dex
         bpl     --
 
+        ;; Check for Up or Down inputs.
+        ldx     #$01
+        sta     $4016
+        dex
+        sta     $4016
+        lda     $4016
+        lda     $4016
+        lda     $4016
+        lda     $4016
+        lda     $4016
+        and     #$01
+        bne     next
+        lda     $4016
+        and     #$01
+        bne     prev
+        jmp     irq
+prev:   ldx     lines
+        dex
+        bne     +
+        inx
+*       stx     lines
+        bne     freeze
+next:   ldx     lines
+        inx
+        cpx     #$09
+        bne     +
+        dex
+*       stx     lines
+freeze: lda     #<vhold
+        sta     vector
+        lda     #>vhold
+        sta     vector+1
+        rti
+
+vhold:
+        ;; Draw number in place
+        lda     #$20
+        sta     $2006
+        lda     #$78
+        sta     $2006
+        lda     lines
+        clc
+        adc     #$30
+        sta     $2007
+        lda     #$00
+        sta     $2006
+        sta     $2006
+        sta     $2005
+        sta     $2005
+        ;; Quit, staying on vhold, if there's still any input
+        ldx     #$01
+        stx     $4016
+        dex
+        stx     $4016
+        ldx     #$08
+*       lda     $4016
+        and     #$01
+        bne     irq
+        dex
+        bne     -
+        ;; There isn't, so reset the vector based on "lines"
+        lda     lines
+        asl
+        tax
+        dex
+        dex
+        lda     vector_table, x
+        sta     vector
+        lda     vector_table+1, x
+        sta     vector+1
 irq:    rti
+
+vector_table:
+        .word   l0, l1, l2, l3, l4, l5, l6, l7
 
         .advance $fffa
         .word   vblank, reset, irq
