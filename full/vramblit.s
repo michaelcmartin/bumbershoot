@@ -11,7 +11,16 @@
         .org    $0000
         .byte $4e,$45,$53,$1a,$01,$01,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
+;;; RAM layout
+        .data
+        .org    $0000
+        .space  buffer  32
+        .space  vector  2
+        .space  lines   1
+        .space  start   1
+
 ;;; PRG-ROM
+        .text
         .org    $c000
 
 reset:  sei
@@ -81,7 +90,7 @@ reset:  sei
         cpx     #$20
         bne     -
 
-        ;; Step 3: Load the image into place.
+        ;; Step 3: Load the static text into place.
         lda     #$20
         sta     $2006
         lda     #$40
@@ -93,7 +102,15 @@ reset:  sei
         cpx     #$40
         bne     -
 
-        ;; Step 4: Enable video and hand control over to the test
+        ;; Step 4: Initialize control RAM.
+        lda     #$01
+        sta     lines
+        lda     #<l0
+        sta     vector
+        lda     #>l0
+        sta     vector+1
+
+        ;; Step 5: Enable video and hand control over to the test
         ;; code proper.
         bit     $2002
 *       bit     $2002
@@ -112,7 +129,7 @@ loop:   jmp     loop
 
         ;; Setup data
 msg:    .byte   "SIMULTANEOUS PER-FRAME VRAM BLIT"
-        .byte   "       NOW ATTEMPTING:  4       "
+        .byte   "       NOW ATTEMPTING:  1       "
 
 palette:
         .byte   $0e,$16,$00,$30,$0e,$02,$03,$01,$0e,$36,$00,$00,$0e,$25,$00,$00
@@ -120,43 +137,87 @@ palette:
 
 
 vblank:
-        ;; Line 3
-        lda     #$22
+        lda     #$07            ; Do a Sprite DMA
+        sta     $4014
+        jmp     (vector)        ; Then handle the rest of the display
+
+        ;; Line 7
+l7:     lda     #$22
         sta     $2006
         lda     #$c0
         sta     $2006
         ldx     #$1f
-*       lda     $00,x
+*       lda     buffer,x
         sta     $2007
         dex
         bpl     -
-        ;; Line 2
-        lda     #$22
+        ;; Line 6
+l6:     lda     #$22
         sta     $2006
         lda     #$80
         sta     $2006
         ldx     #$1f
-*       lda     $00,x
+*       lda     buffer,x
         sta     $2007
         dex
         bpl     -
-        ;; Line 1
-        lda     #$22
+        ;; Line 5
+l5:     lda     #$22
         sta     $2006
         lda     #$40
         sta     $2006
         ldx     #$1f
-*       lda     $00,x
+*       lda     buffer,x
         sta     $2007
         dex
         bpl     -
-        ;; Line 0
-        lda     #$22
+        ;; Line 4
+l4:     lda     #$22
         sta     $2006
         lda     #$00
         sta     $2006
         ldx     #$1f
-*       lda     $00,x
+*       lda     buffer,x
+        sta     $2007
+        dex
+        bpl     -
+        ;; Line 3
+l3:     lda     #$21
+        sta     $2006
+        lda     #$c0
+        sta     $2006
+        ldx     #$1f
+*       lda     buffer,x
+        sta     $2007
+        dex
+        bpl     -
+        ;; Line 2
+l2:     lda     #$21
+        sta     $2006
+        lda     #$80
+        sta     $2006
+        ldx     #$1f
+*       lda     buffer,x
+        sta     $2007
+        dex
+        bpl     -
+        ;; Line 1
+l1:     lda     #$21
+        sta     $2006
+        lda     #$40
+        sta     $2006
+        ldx     #$1f
+*       lda     buffer,x
+        sta     $2007
+        dex
+        bpl     -
+        ;; Line 0
+l0:     lda     #$21
+        sta     $2006
+        lda     #$00
+        sta     $2006
+        ldx     #$1f
+*       lda     buffer,x
         sta     $2007
         dex
         bpl     -
@@ -169,18 +230,18 @@ vblank:
         sta     $2005
 
         ;; Generate RAM to blit next frame.
-        ldx     $20
+        ldx     start
         inx
         cpx     #26
         bne     +
         ldx     #$00
-*       stx     $20
+*       stx     start
         txa
         clc
         adc     #$41
         tay
         ldx     #$1f
-*       sty     $00,x
+*       sty     buffer,x
         iny
         cpy     #$5b
         bne     +
