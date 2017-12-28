@@ -1,14 +1,14 @@
         .alias  chrout  $ffd2
         .alias  getin   $ffe4
         .alias  stop    $ffe1
-        
+
         .word   $0801
         .org    $0801
 
         .data
         .org    $4000
         .text
-        
+
         ;;  BASIC program that just calls our machine language code
 .scope
         .word   _next, 2015     ; Next line and current line number
@@ -16,7 +16,7 @@
 _next:  .word   0               ; End of program
 .scend
         jsr     randomize
-        
+
         ;; Black screen
         lda     #$00
         sta     $d020
@@ -53,6 +53,7 @@ _next:  .word   0               ; End of program
         lda     #<screen
         ldx     #>screen
         jsr     multistr
+        jsr     draw_letters
 
 maingo: lda     #<stclr
         ldx     #>stclr
@@ -93,7 +94,7 @@ winlp:  jsr     getin
         beq     maingo
         cmp     #'N
         bne     winlp
-        
+
         ;; Clean up and quit
 finis:  lda     #$0e            ; Light blue border
         sta     $d020
@@ -111,7 +112,7 @@ finis:  lda     #$0e            ; Light blue border
         jmp     ($a002)         ; Back to BASIC
 
         .scope
-initpuzzle:
+draw_letters:
         lda     #$d5
         sta     $fb
         lda     #$04
@@ -145,6 +146,10 @@ _lp:    inc     $fd
         sta     $fc
         dex
         bne     _lp
+        rts
+
+initpuzzle:
+        ldx     #$00
         stx     $4000
 _rlp:   lda     #$19
         jsr     get_rnd
@@ -185,7 +190,7 @@ _lp:    lda     $fd
         lda     $fd
         rts
 .scend
-        
+
 ;;; Functions about making moves
 .scope
 rowcol: ldx     #$00
@@ -299,7 +304,7 @@ move:   jsr     rowcol
         iny
         jmp     flip
 .scend
-        
+
 ;;; Utility functions
 .scope
 multistr:
