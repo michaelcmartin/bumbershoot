@@ -80,7 +80,7 @@ finis:  lda     #$0e            ; Light blue border
 
         .scope
 initpuzzle:
-        lda     #$ff
+        lda     #$d5
         sta     $fb
         lda     #$04
         sta     $fc
@@ -100,11 +100,12 @@ _lp:    inc     $fd
         sta     $fc
         iny
         iny
-        cpy     #$0a
+        iny
+        cpy     #$0f
         bne     _lp
         ldy     #$00
         clc
-        lda     #$50
+        lda     #$78
         adc     $fb
         sta     $fb
         lda     #$00
@@ -124,7 +125,7 @@ _rlp:   lda     #$19
         .scope
 ;;; ORs all the letter spots together. If it's positive, you've won!
 wonpuzzle:
-        lda     #$ff
+        lda     #$d5
         sta     $fb
         lda     #$04
         sta     $fc
@@ -136,11 +137,12 @@ _lp:    lda     $fd
         sta     $fd
         iny
         iny
-        cpy     #$0a
+        iny
+        cpy     #$0f
         bne     _lp
         ldy     #$00
         clc
-        lda     #$50
+        lda     #$78
         adc     $fb
         sta     $fb
         lda     #$00
@@ -166,14 +168,14 @@ _rcend: clc
         tax
         rts
 
-point:  lda     #$ff
+point:  lda     #$d5
         sta     $fb
         lda     #$04
         sta     $fc
         cpy     #$00
         beq     _px
 _pylp:  clc
-        lda     #$50
+        lda     #$78
         adc     $fb
         sta     $fb
         lda     #$00
@@ -183,6 +185,13 @@ _pylp:  clc
         bne     _pylp
 _px:    txa
         asl
+        clc
+        adc     $fb
+        sta     $fb
+        lda     #$00
+        adc     $fc
+        sta     $fc
+        txa
         clc
         adc     $fb
         sta     $fb
@@ -295,27 +304,29 @@ get_rnd:
         tya
         rts
 .scend
-        
+
+        ;; 207, 183, 208  - $cf, $b7, $d0
+        ;; 165,  32, 170  - $a5, $d0, $aa
+        ;; 204, 175, 186  - $cc, $af, $ba
 .scope
-screen: .word   _clr,_spc,_name,_spc,_top,_spc,_let,_mid,_spc
-        .word   _let,_mid,_spc,_let,_mid,_spc,_let,_mid,_spc
-        .word   _let,_bot,0
-stclr:  .word   _stat,_spc,_spc20,_spc,_spc20,_spc,_spc20,0
+screen: .word   _clr,_name,_row,_row,_row,_row,_row,0
+stclr:  .word   _stat,_spc38,_spc38,_spc38,0
 stinst: .word   _stat, _inst,0
 stwait: .word   _stat, _wait,0
 stwin:  .word   _stat, _win,0
 bye:    .word   _bye,0
 _clr:   .byte   147,13,0
-_name:  .byte   $97,"L",$98,"I",$9b,"G",$05,"HTS O"
+_name:  .byte   13,"              ",$97,"L",$98,"I",$9b,"G",$05,"HTS O"
         .byte   $9b,"U",$98,"T",$97,"!",13,13,$9b,0
-_let:   .byte   $dd,$20,$dd,$20,$dd,$20,$dd,$20,$dd,$20,$dd
-_spc:   .byte   13,"              ",0
-_mid:   .byte   $ab,$c0,$db,$c0,$db,$c0,$db,$c0,$db,$c0,$b3,0
-_top:   .byte   $b0,$c0,$b2,$c0,$b2,$c0,$b2,$c0,$b2,$c0,$ae,0
-_bot:   .byte   $ad,$c0,$b1,$c0,$b1,$c0,$b1,$c0,$b1,$c0,$bd,0
+_row:   .byte   "            "
+        .byte   $cf,$b7,$d0,$cf,$b7,$d0,$cf,$b7,$d0,$cf,$b7,$d0,$cf,$b7,$d0,13
+        .byte   "            "
+        .byte   $a5,$20,$aa,$a5,$20,$aa,$a5,$20,$aa,$a5,$20,$aa,$a5,$20,$aa,13
+        .byte   "            "
+        .byte   $cc,$af,$ba,$cc,$af,$ba,$cc,$af,$ba,$cc,$af,$ba,$cc,$af,$ba,13,0
 _stat:  .byte   $13,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d
         .byte   $0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,0
-_spc20: .byte   "                         ",0
+_spc38: .byte   13,"                                      ",0
 _inst:  .byte   13,"         PRESS LETTERS TO MOVE",13
         .byte   "        PRESS F1 FOR NEW PUZZLE",13
         .byte   "         PRESS RUN/STOP TO END",0
