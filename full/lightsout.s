@@ -205,20 +205,46 @@ flip:   cpx     #$05
         cpy     #$05
         bcs     _bad
         jsr     point
-        lda     ($fb),y
-        eor     #$80
-        sta     ($fb),y
+        ;; Subtract 41 from the "point" pointer to hit the upper left
+        sec
+        lda     $fb
+        sbc     #$29
+        sta     $fb
+        lda     $fc
+        sbc     #$00
+        sta     $fc
+        ;; Then flip all 9 characters.
+        jsr     _frow
+        ldy     #$28
+        jsr     _frow
+        ldy     #$50
+        jsr     _frow
+        ;; Then set the color of the center cell.
+        ldy     #$29
+        lda     ($fb), y
         bmi     _fon
         lda     #$0b
         .byte   $2c             ; BIT Absolute; skip next instruction
-_fon:   lda     #$0a
+_fon:   lda     #$0f
         pha
         lda     $fc
         eor     #$dc
         sta     $fc
         pla
         sta     ($fb),y
+        lda     $fc
+        eor     #$dc
+        sta     $fc
 _bad:   rts
+_frow:  jsr     _fchar
+        iny
+        jsr     _fchar
+        iny
+        ;; Fall through to _fchar
+_fchar: lda     ($fb),y
+        eor     #$80
+        sta     ($fb),y
+        rts
 
 move:   jsr     rowcol
         stx     $fd
