@@ -37,6 +37,7 @@ program_start:
         jr      nz, .ldlp
 
         ;; Create initial conditions
+        call    rnd_init
         call    life_init
         call    life_glider
 
@@ -45,13 +46,28 @@ program_start:
         ld      [$ff40], a
         ld      a, $01
         ld      [$ffff], a
+        xor     a
+        ldh     [last_input], a
         ei
 
 endlp:  ld      hl, $9800
         call    life_blit
         call    life_step
-        ld      b, 15
+        ld      b, 8
 delay:  halt
+        push    bc
+        call    check_input
+        bit     0, a
+        jr      z, .noa
+        call    life_scramble
+.noa:   bit     1, a
+        jr      z, .nob
+        call    life_glider
+.nob:   bit     3, a
+        jr      z, .nost
+        call    life_init
+.nost:  call    rnd
+        pop     bc
         dec     b
         jr      nz, delay
         jr      endlp
@@ -88,3 +104,27 @@ int_timer:
 int_serial:
 int_joypad:
         reti
+
+        SECTION "MAINRAM", HRAM
+last_input:     ds 1
+
+        SECTION "INPUT", ROM0
+check_input:
+        push    bc
+        ld      a, $df
+        ldh     [$ff00], a
+        ld      b, 8
+.l1:    ldh     a, [$ff00]
+        dec     b
+        jr      nz, .l1
+        xor     $ff
+        ld      b, a
+        ldh     a, [last_input]
+        xor     $ff
+        and     b
+        ld      c, a
+        ld      a, b
+        ldh     [last_input], a
+        ld      a, c
+        pop     bc
+        ret

@@ -1,12 +1,14 @@
-;;; life_init:   Clears the board. Zeroes ABC, trashes HL.
-;;; life_glider: Draws a glider in the upper left. Does NOT clear the
-;;;              board. Trashes A.
-;;; life_step:   Executes a simulation step. Trashes all registers.
-;;; life_blit:   Draws the simulation state to the screen starting at
-;;;              HL. VBLANK interrupts must be enabled; this takes 4
-;;;              frames to render.
+;;; life_init:     Clears the board.
+;;; life_glider:   Draws a glider in the upper left. Does NOT clear the
+;;;                board.
+;;; life_scramble: Randomizes the board.
+;;; life_step:     Executes a simulation step. Trashes all registers.
+;;; life_blit:     Draws the simulation state to the screen starting at
+;;;                HL. VBLANK interrupts must be enabled; this takes 4
+;;;                frames to render.
         EXPORT  life_init
         EXPORT  life_glider
+        EXPORT  life_scramble
         EXPORT  life_step
         EXPORT  life_blit
 
@@ -23,6 +25,9 @@ neighbors:
 
         SECTION "LIFE",ROM0
 life_init:
+        push    af
+        push    bc
+        push    hl
         xor     a
         ld      hl, state
         ld      b, LS_H
@@ -32,15 +37,46 @@ life_init:
         jr      nz, .lp1b
         dec     b
         jr      nz, .lp1a
+        pop     hl
+        pop     bc
+        pop     af
         ret
 
 life_glider:
+        push    af
         ld      a, 1
         ld      [state+2], a
         ld      [state+LS_W],a
         ld      [state+2+LS_W],a
         ld      [state+1+2*LS_W],a
         ld      [state+2+2*LS_W],a
+        pop     af
+        ret
+
+life_scramble:
+        push    af
+        push    bc
+        push    de
+        push    hl
+        ld      hl, state
+        ld      b, LS_H
+.lp1a:  ld      c, LS_W
+.lp1b:  push    bc
+        push    hl
+        call    rnd
+        ld      a, l
+        and     1
+        pop     hl
+        pop     bc
+        ld      [hl+], a
+        dec     c
+        jr      nz, .lp1b
+        dec     b
+        jr      nz, .lp1a
+        pop     hl
+        pop     de
+        pop     bc
+        pop     af
         ret
 
 life_step:

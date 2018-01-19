@@ -1,4 +1,4 @@
-LIFE_OBJS = life.o lifemain.o vector.o
+LIFE_OBJS = life.o lifemain.o xorshift.o vector.o
 RGBFIX_ARGS = -jv -k MB -l 0x33 -p 0x00
 
 all: gb_hello.gb life.gb
