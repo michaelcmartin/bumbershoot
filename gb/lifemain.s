@@ -40,6 +40,7 @@ program_start:
         call    rnd_init
         call    life_init
         call    life_glider
+        call    life_blit_init
 
         ;; Re-enable display and enable the VBLANK interrupt.
         ld      a, $91
@@ -50,9 +51,16 @@ program_start:
         ldh     [last_input], a
         ei
 
-endlp:  ld      hl, $9800
+endlp:  ld      b, 4
+render: halt
+        push    bc
         call    life_blit
+        pop     bc
+        dec     b
+        jr      nz, render
+        
         call    life_step
+
         ld      b, 8
 delay:  halt
         push    bc
@@ -70,6 +78,7 @@ delay:  halt
         pop     bc
         dec     b
         jr      nz, delay
+
         jr      endlp
 
         SECTION "HANDLERS",ROM0

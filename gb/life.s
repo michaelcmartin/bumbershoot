@@ -11,6 +11,7 @@
         EXPORT  life_scramble
         EXPORT  life_step
         EXPORT  life_blit
+        EXPORT  life_blit_init
 
         SECTION "LIFERAM",WRAM0
 LS_W    EQU     20
@@ -230,14 +231,33 @@ life_step:
 
         SECTION "BLITRAM", HRAM
 blit_phase:     ds 1
+blit_dest:      ds 2
+blit_src:       ds 2
 
         SECTION "BLIT", ROM0
+life_blit_init:
+        xor     a
+        ldh     [blit_dest], a
+        ld      a, LOW(state)
+        ldh     [blit_src], a
+        ld      a, $98
+        ldh     [blit_dest+1], a
+        ld      a, HIGH(state)
+        ldh     [blit_src+1], a
+        ld      a, LS_H/4
+        ldh     [blit_phase], a
+        ret
+        
 life_blit:
-        ld      a, LS_H/4       ; Only 4 lines can be blitted per frame
-        ld      de, state
-.frame: ldh     [blit_phase], a
+        ldh     a, [blit_src]
+        ld      e, a
+        ldh     a, [blit_src+1]
+        ld      d, a
+        ld      a, [blit_dest]
+        ld      l, a
+        ld      a, [blit_dest+1]
+        ld      h, a
         ld      b, 4
-        halt
 .lp0a:  ld      c, LS_W
 .lp0b:  ld      a, [de]
         ld      [hl+], a
@@ -252,7 +272,19 @@ life_blit:
         ld      h, a
         dec     b
         jr      nz, .lp0a
+        ;; Store out the current pointer state
+        ld      a, e
+        ldh     [blit_src], a
+        ld      a, d
+        ldh     [blit_src+1], a
+        ld      a, l
+        ldh     [blit_dest], a
+        ld      a, h
+        ldh     [blit_dest+1], a
+        ;; Decrement the phase count
         ldh     a, [blit_phase]
         dec     a
-        jr      nz, .frame
-        ret
+        ldh     [blit_phase], a
+        ret     nz
+        ;; A full frame has been drawn. Reset all the pointers for the next frame.
+        jp      life_blit_init
