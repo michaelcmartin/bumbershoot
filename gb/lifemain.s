@@ -108,6 +108,10 @@ rst_38:
         ret
 
 int_vblank:
+        push    af
+        ldh     a, [life_blit_scroll]
+        ldh     [$ff42], a
+        pop     af
 int_lcd_stat:
 int_timer:
 int_serial:

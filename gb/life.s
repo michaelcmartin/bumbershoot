@@ -12,6 +12,7 @@
         EXPORT  life_step
         EXPORT  life_blit
         EXPORT  life_blit_init
+        EXPORT  life_blit_scroll
 
         SECTION "LIFERAM",WRAM0
 LS_W    EQU     20
@@ -233,15 +234,21 @@ life_step:
 blit_phase:     ds 1
 blit_dest:      ds 2
 blit_src:       ds 2
+life_blit_scroll:       ds 1
 
         SECTION "BLIT", ROM0
 life_blit_init:
         xor     a
+        ldh     [life_blit_scroll], a
         ldh     [blit_dest], a
-        ld      a, LOW(state)
-        ldh     [blit_src], a
         ld      a, $98
         ldh     [blit_dest+1], a
+life_blit_next_frame:
+        ldh     a, [life_blit_scroll]
+        xor     a, $80
+        ldh     [life_blit_scroll], a
+        ld      a, LOW(state)
+        ldh     [blit_src], a
         ld      a, HIGH(state)
         ldh     [blit_src+1], a
         ld      a, LS_H/4
@@ -280,6 +287,7 @@ life_blit:
         ld      a, l
         ldh     [blit_dest], a
         ld      a, h
+        and     $fb             ; Stay in the $9800-$9BFF range
         ldh     [blit_dest+1], a
         ;; Decrement the phase count
         ldh     a, [blit_phase]
@@ -287,4 +295,4 @@ life_blit:
         ldh     [blit_phase], a
         ret     nz
         ;; A full frame has been drawn. Reset all the pointers for the next frame.
-        jp      life_blit_init
+        jp      life_blit_next_frame
