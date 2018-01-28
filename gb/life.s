@@ -39,6 +39,16 @@ life_init:
         jr      nz, .lp1b
         dec     b
         jr      nz, .lp1a
+        ld      a, 1
+        ;; Draw a "Beehive" pattern for the initial state
+        ld      [state+10+7*LS_W],a
+        ld      [state+9+8*LS_W],a
+        ld      [state+10+8*LS_W],a
+        ld      [state+11+8*LS_W],a
+        ld      [state+8+9*LS_W],a
+        ld      [state+9+9*LS_W],a
+        ld      [state+11+9*LS_W],a
+        ld      [state+12+9*LS_W],a
         pop     hl
         pop     bc
         pop     af

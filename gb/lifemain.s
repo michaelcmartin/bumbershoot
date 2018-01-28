@@ -56,7 +56,6 @@ program_start:
         ;; Create initial conditions
         call    rnd_init
         call    life_init
-        call    life_glider
         call    life_blit_init
         call    window_init
 
