@@ -1,8 +1,25 @@
         ;; Most of this is throwaway
         SECTION "DATA",ROM0
 fontbase:
-        db      $00,$3C,$7E,$7E,$7E,$7E,$3C,$00
+        db      $00,$3C,$7E,$7E,$7E,$7E,$3C,$00 ; Live cell
+        db      $00,$00,$00,$FF,$FF,$00,$00,$00 ; W-E
+        db      $00,$00,$00,$1F,$1F,$18,$18,$18 ; NW
+        db      $00,$00,$00,$F8,$F8,$18,$18,$18 ; NE
+        db      $18,$18,$18,$1F,$1F,$00,$00,$00 ; SW
+        db      $18,$18,$18,$F8,$F8,$00,$00,$00 ; SE
+        db      $00,$3C,$4E,$4E,$7E,$4E,$4E,$00 ; A
+        db      $00,$7E,$60,$7C,$60,$60,$7E,$00 ; E
+        db      $00,$7E,$60,$60,$7C,$60,$60,$00 ; F
+        db      $00,$3C,$66,$60,$6E,$66,$3E,$00 ; G
+        db      $00,$3C,$18,$18,$18,$18,$3C,$00 ; I
+        db      $00,$60,$60,$60,$60,$60,$7E,$00 ; L
+        db      $00,$46,$6E,$7E,$56,$46,$46,$00 ; M
+        db      $00,$3C,$66,$66,$66,$66,$3C,$00 ; O
 fontsize EQU (@-fontbase)
+
+winmsg: db      3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,4
+        db      0,0,0,0,0,0,0,0,0,0,0,0
+        db      5,2,2,0,10,7,13,8,0,14,9,0,12,11,9,8,0,2,2,6
 
         SECTION "MAIN",ROM0
         EXPORT  program_start
@@ -22,8 +39,8 @@ program_start:
         ld      [$ff40],a
         ;; Load font into BG Tile array
         ld      bc, fontsize
-        ld      de,fontbase
-        ld      hl,$8010
+        ld      de, fontbase
+        ld      hl, $8010
 .ldlp:  ld      a, [de]
         inc     de
         ldi     [hl], a
@@ -41,9 +58,10 @@ program_start:
         call    life_init
         call    life_glider
         call    life_blit_init
+        call    window_init
 
         ;; Re-enable display and enable the VBLANK interrupt.
-        ld      a, $91
+        ld      a, $f1
         ld      [$ff40], a
         ld      a, $01
         ld      [$ffff], a
@@ -58,7 +76,7 @@ render: halt
         pop     bc
         dec     b
         jr      nz, render
-        
+
         call    life_step
 
         ld      b, 8
@@ -140,4 +158,20 @@ check_input:
         ldh     [last_input], a
         ld      a, c
         pop     bc
+        ret
+
+        SECTION "WINDOW", ROM0
+window_init:
+        ld      de, $9c00
+        ld      hl, winmsg
+        ld      b, 52
+.l1:    ld      a, [hl+]
+        ld      [de], a
+        inc     de
+        dec     b
+        jr      nz, .l1
+        ld      a, $80
+        ld      [$ff4a], a
+        ld      a, $07
+        ld      [$ff4b], a
         ret
