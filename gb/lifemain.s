@@ -86,26 +86,24 @@ program_start:
         ;; Re-enable display and enable the VBLANK interrupt.
         ld      a, $f1
         ld      [$ff40], a
+        ld      a, $05
+        ldh     [exec_phase], a
         ld      a, $01
+        ldh     [exec_stop], a
         ld      [$ffff], a
         xor     a
         ldh     [last_input], a
         ei
 
-endlp:  ld      b, 4
-render: halt
-        push    bc
-        call    life_blit
-        pop     bc
-        dec     b
-        jr      nz, render
-
+mainlp: halt
+        ldh     a, [exec_stop]
+        and     a
+        jr      nz, .inp
         call    life_step
+        ld      a, 1
+        ldh     [exec_stop], a
 
-        ld      b, 8
-delay:  halt
-        push    bc
-        call    check_input
+.inp:   call    check_input
         bit     0, a
         jr      z, .noa
         call    life_scramble
@@ -116,11 +114,8 @@ delay:  halt
         jr      z, .nost
         call    life_init
 .nost:  call    rnd
-        pop     bc
-        dec     b
-        jr      nz, delay
 
-        jr      endlp
+        jr      mainlp
 
         SECTION "HANDLERS",ROM0
         EXPORT rst_00
@@ -150,8 +145,25 @@ rst_38:
 
 int_vblank:
         push    af
+        ldh     a, [exec_phase]
+        cp      a, 5
+        jr      nc, .noblit
+        push    bc
+        push    de
+        push    hl
+        call    life_blit
+        pop     hl
+        pop     de
+        pop     bc
+.noblit:
         ldh     a, [life_blit_scroll]
         ldh     [$ff42], a
+.fin:   ldh     a, [exec_phase]
+        dec     a
+        jr      nz, .fin2
+        ldh     [exec_stop], a
+        ld      a, 15
+.fin2:  ldh     [exec_phase], a
         pop     af
 int_lcd_stat:
 int_timer:
@@ -161,6 +173,8 @@ int_joypad:
 
         SECTION "MAINRAM", HRAM
 last_input:     ds 1
+exec_phase:     ds 1
+exec_stop:      ds 1
 
         SECTION "INPUT", ROM0
 check_input:
