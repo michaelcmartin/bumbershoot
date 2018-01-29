@@ -109,12 +109,15 @@ mainlp: halt
         bit     0, a
         jr      z, .noa
         call    life_scramble
+        call    zap_snd
 .noa:   bit     1, a
         jr      z, .nob
         call    life_glider
+        call    high_snd
 .nob:   bit     3, a
         jr      z, .nost
         call    life_init
+        call    chord_snd
 .nost:  call    rnd
 
         jr      mainlp
@@ -227,4 +230,64 @@ window_init:
         ld      [$ff4a], a
         ld      a, $07
         ld      [$ff4b], a
+        ret
+
+        SECTION "SOUNDS", ROM0
+
+high_snd:
+        push    af
+        xor     a
+        ld      [$ff14], a
+        ld      [$ff17], a
+        ld      [$ff10], a
+        ld      a, $80
+        ld      [$ff11], a
+        ld      a, $f3
+        ld      [$ff12], a
+        ld      a, $b2
+        ld      [$ff13], a
+        ld      a, $86
+        ld      [$ff14], a
+        pop     af
+        ret
+
+chord_snd:
+        push    af
+        xor     a
+        ld      [$ff14], a
+        ld      [$ff19], a
+        ld      [$ff10], a
+        ld      a, $80
+        ld      [$ff11], a
+        ld      [$ff16], a
+        ld      a, $f3
+        ld      [$ff12], a
+        ld      [$ff17], a
+        ld      a, $0b
+        ld      [$ff13], a
+        ld      a, $63
+        ld      [$ff18], a
+        ld      a, $86
+        ld      [$ff14], a
+        dec     a
+        ld      [$ff19], a
+        pop     af
+        ret
+
+zap_snd:
+        push    af
+        xor     a
+        ld      [$ff14], a
+        ld      [$ff17], a
+        ld      a, $16
+        ld      [$ff10], a
+        ld      a, $80
+        ld      [$ff11], a
+        ld      a, $f3
+        ld      [$ff12], a
+        ld      a, $07
+        ld      [$ff13], a
+        ld      a, $87
+        ld      [$ff14], a
+        pop     af
         ret
