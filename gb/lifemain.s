@@ -93,6 +93,8 @@ program_start:
         ld      [$ffff], a
         xor     a
         ldh     [last_input], a
+        ld      a, $ff
+        ldh     [accum_input], a
         ei
 
 mainlp: halt
@@ -145,25 +147,39 @@ rst_38:
 
 int_vblank:
         push    af
+        push    bc
         ldh     a, [exec_phase]
         cp      a, 5
         jr      nc, .noblit
-        push    bc
         push    de
         push    hl
         call    life_blit
         pop     hl
         pop     de
-        pop     bc
 .noblit:
+        ;; Set scroll for main screen
         ldh     a, [life_blit_scroll]
         ldh     [$ff42], a
-.fin:   ldh     a, [exec_phase]
+        ;; Check inputs
+        ld      a, $df
+        ldh     [$ff00], a
+        ld      b, 8
+.l1:    ldh     a, [$ff00]
+        dec     b
+        jr      nz, .l1
+        ld      c, a
+        ldh     a, [accum_input]
+        and     c
+        ldh     [accum_input], a
+        ;; Update exec phase
+        ldh     a, [exec_phase]
         dec     a
-        jr      nz, .fin2
+        jr      nz, .fin
+        ;; End of a cycle; reset and signal main thread to act
         ldh     [exec_stop], a
         ld      a, 15
-.fin2:  ldh     [exec_phase], a
+.fin:   ldh     [exec_phase], a
+        pop     bc
         pop     af
 int_lcd_stat:
 int_timer:
@@ -173,20 +189,20 @@ int_joypad:
 
         SECTION "MAINRAM", HRAM
 last_input:     ds 1
+accum_input:    ds 1
 exec_phase:     ds 1
 exec_stop:      ds 1
 
         SECTION "INPUT", ROM0
 check_input:
         push    bc
-        ld      a, $df
-        ldh     [$ff00], a
-        ld      b, 8
-.l1:    ldh     a, [$ff00]
-        dec     b
-        jr      nz, .l1
+        ;; Read and reset accum_input
+        ldh     a, [accum_input]
         xor     $ff
         ld      b, a
+        ld      a, $ff
+        ldh     [accum_input], a
+        ;; Reset last input and create the rising-edge reading
         ldh     a, [last_input]
         xor     $ff
         and     b
