@@ -93,6 +93,7 @@ program_start:
         ld      [$ffff], a
         xor     a
         ldh     [last_input], a
+        ldh     [zap_phase], a
         ld      a, $ff
         ldh     [accum_input], a
         ei
@@ -109,7 +110,8 @@ mainlp: halt
         bit     0, a
         jr      z, .noa
         call    life_scramble
-        call    zap_snd
+        ld      a, 20
+        ldh     [zap_phase], a
 .noa:   bit     1, a
         jr      z, .nob
         call    life_glider
@@ -174,6 +176,8 @@ int_vblank:
         ldh     a, [accum_input]
         and     c
         ldh     [accum_input], a
+        ;; manage the zap sound
+        call    zap_tick
         ;; Update exec phase
         ldh     a, [exec_phase]
         dec     a
@@ -195,6 +199,7 @@ last_input:     ds 1
 accum_input:    ds 1
 exec_phase:     ds 1
 exec_stop:      ds 1
+zap_phase:      ds 1
 
         SECTION "INPUT", ROM0
 check_input:
@@ -274,6 +279,15 @@ chord_snd:
         pop     af
         ret
 
+zap_tick:
+        ldh     a, [zap_phase]
+        and     a
+        ret     z
+        dec     a
+        ldh     [zap_phase], a
+        and     3
+        cp      3
+        ret     nz
 zap_snd:
         push    af
         xor     a
