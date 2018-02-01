@@ -33,12 +33,7 @@ fontbase:
 fontsize EQU (@-fontbase)
 
 winmsg: db      2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
-        db      0,0,0,0,0,0,0,0,0,0,0,0
-        db      0,0,0,0,15,9,19,13,0,21,14,0,18,17,14,13,0,0,0,0
-
-        ;; Condition this out for now; this is the real message we'll
-        ;; eventually be scrolling along
-        IF 0
+        db      2,2,2,2,2,2,2,2,2,2,2,2
         db      11,21,20,28,9,29,3,24,0,15,9,19,13,0,21,14,0,18,17,14
         db      13,0,0,0,0,0,22,23,13,24,13,20,25,13,12,0,10,29,0,10
         db      26,19,10,13,23,24,16,21,21,25,0,24,21,14,25,28,9,23,13
@@ -48,7 +43,6 @@ winmsg: db      2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
         db      23,0,0,0,0,0,22,23,13,24,24,0,24,25,9,23,25,0,25,21,0
         db      23,13,24,13,25,0,10,21,9,23,12,0,25,21,0,10,13,13,16
         db      17,27,13,0,22,9,25,25,13,23,20,0,0,0,0,0
-        ENDC
 
         SECTION "MAIN",ROM0
         EXPORT  program_start
@@ -90,6 +84,7 @@ program_start:
         ldh     [exec_phase], a
         ld      a, $01
         ldh     [exec_stop], a
+        ld      a, $03
         ld      [$ffff], a
         xor     a
         ldh     [last_input], a
@@ -163,8 +158,12 @@ int_vblank:
         pop     de
 .noblit:
         ;; Set scroll for main screen
+        ld      a, $91
+        ldh     [$ff40], a
         ldh     a, [life_blit_scroll]
         ldh     [$ff42], a
+        xor     a
+        ldh     [$ff43], a
         ;; Check inputs
         ld      a, $df
         ldh     [$ff00], a
@@ -176,6 +175,8 @@ int_vblank:
         ldh     a, [accum_input]
         and     c
         ldh     [accum_input], a
+        ;; Update scroll
+        call    window_tick
         ;; manage the zap sound
         call    zap_tick
         ;; Update exec phase
@@ -188,7 +189,17 @@ int_vblank:
 .fin:   ldh     [exec_phase], a
         pop     bc
         pop     af
+        reti
+
 int_lcd_stat:
+        push    af
+        ld      a, $99
+        ld      [$ff40], a
+        xor     a
+        ld      [$ff42], a
+        ldh     a, [x_scroll]
+        ld      [$ff43], a
+        pop     af
 int_timer:
 int_serial:
 int_joypad:
@@ -200,6 +211,8 @@ accum_input:    ds 1
 exec_phase:     ds 1
 exec_stop:      ds 1
 zap_phase:      ds 1
+x_scroll:       ds 1
+x_phase:        ds 1
 
         SECTION "INPUT", ROM0
 check_input:
@@ -223,18 +236,33 @@ check_input:
 
         SECTION "WINDOW", ROM0
 window_init:
-        ld      de, $9c00
+        ld      de, $9e00
         ld      hl, winmsg
-        ld      b, 52
+        ld      b, 64
 .l1:    ld      a, [hl+]
         ld      [de], a
         inc     de
         dec     b
         jr      nz, .l1
         ld      a, $80
-        ld      [$ff4a], a
-        ld      a, $07
-        ld      [$ff4b], a
+        ld      [$ff45], a
+        ld      a, $40
+        ld      [$ff41], a
+        xor     a
+        ldh     [x_scroll], a
+        ldh     [x_phase], a
+        ret
+
+window_tick:
+        ldh     a, [x_phase]
+        inc     a
+        ldh     [x_phase], a
+        and     1
+        ret     nz
+        ldh     a, [x_scroll]
+        inc     a
+        ldh     [x_scroll], a
+        ;; TODO: Update text when this value is divisible by 8
         ret
 
         SECTION "SOUNDS", ROM0
