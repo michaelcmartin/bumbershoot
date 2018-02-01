@@ -32,8 +32,7 @@ fontbase:
         db      $00,$62,$62,$3C,$18,$18,$18,$00 ; Y
 fontsize EQU (@-fontbase)
 
-winmsg: db      2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
-        db      2,2,2,2,2,2,2,2,2,2,2,2
+scrolltext:
         db      11,21,20,28,9,29,3,24,0,15,9,19,13,0,21,14,0,18,17,14
         db      13,0,0,0,0,0,22,23,13,24,13,20,25,13,12,0,10,29,0,10
         db      26,19,10,13,23,24,16,21,21,25,0,24,21,14,25,28,9,23,13
@@ -43,6 +42,7 @@ winmsg: db      2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
         db      23,0,0,0,0,0,22,23,13,24,24,0,24,25,9,23,25,0,25,21,0
         db      23,13,24,13,25,0,10,21,9,23,12,0,25,21,0,10,13,13,16
         db      17,27,13,0,22,9,25,25,13,23,20,0,0,0,0,0
+        db      255
 
         SECTION "MAIN",ROM0
         EXPORT  program_start
@@ -78,7 +78,7 @@ program_start:
         call    window_init
 
         ;; Re-enable display and enable the VBLANK interrupt.
-        ld      a, $f1
+        ld      a, $91
         ld      [$ff40], a
         ld      a, $05
         ldh     [exec_phase], a
@@ -149,14 +149,12 @@ rst_38:
 int_vblank:
         push    af
         push    bc
+        push    de
+        push    hl
         ldh     a, [exec_phase]
         cp      a, 5
         jr      nc, .noblit
-        push    de
-        push    hl
         call    life_blit
-        pop     hl
-        pop     de
 .noblit:
         ;; Set scroll for main screen
         ld      a, $91
@@ -165,6 +163,8 @@ int_vblank:
         ldh     [$ff42], a
         xor     a
         ldh     [$ff43], a
+        ;; Update scroll
+        call    window_tick
         ;; Check inputs
         ld      a, $df
         ldh     [$ff00], a
@@ -176,8 +176,6 @@ int_vblank:
         ldh     a, [accum_input]
         and     c
         ldh     [accum_input], a
-        ;; Update scroll
-        call    window_tick
         ;; manage the zap sound
         call    zap_tick
         ;; Update exec phase
@@ -188,6 +186,8 @@ int_vblank:
         ldh     [exec_stop], a
         ld      a, 15
 .fin:   ldh     [exec_phase], a
+        pop     hl
+        pop     de
         pop     bc
         pop     af
         reti
@@ -214,6 +214,8 @@ exec_stop:      ds 1
 zap_phase:      ds 1
 x_scroll:       ds 1
 x_phase:        ds 1
+text_src:       ds 2
+text_dest:      ds 2
 
         SECTION "INPUT", ROM0
 check_input:
@@ -237,14 +239,20 @@ check_input:
 
         SECTION "WINDOW", ROM0
 window_init:
-        ld      de, $9e00
-        ld      hl, winmsg
-        ld      b, 64
-.l1:    ld      a, [hl+]
-        ld      [de], a
-        inc     de
+        ld      hl, $9e00
+        ld      b, 32
+        ld      a, 2
+.l1:    ld      [hl+], a
         dec     b
         jr      nz, .l1
+        ld      a, 53
+        ldh     [text_dest], a
+        ld      a, h
+        ldh     [text_dest+1], a
+        ld      a, LOW(scrolltext)
+        ldh     [text_src], a
+        ld      a, HIGH(scrolltext)
+        ldh     [text_src+1], a
         ld      a, $80
         ld      [$ff45], a
         ld      a, $40
@@ -252,6 +260,7 @@ window_init:
         xor     a
         ldh     [x_scroll], a
         ldh     [x_phase], a
+
         ret
 
 window_tick:
@@ -263,7 +272,33 @@ window_tick:
         ldh     a, [x_scroll]
         inc     a
         ldh     [x_scroll], a
-        ;; TODO: Update text when this value is divisible by 8
+        and     7
+        ret     nz
+        ldh     a, [text_dest]
+        ld      l, a
+        ldh     a, [text_dest+1]
+        ld      h, a
+        ldh     a, [text_src]
+        ld      e, a
+        ldh     a, [text_src+1]
+        ld      d, a
+        ld      a, [de]
+        bit     7, a
+        jr      z, .ready
+        ;; Wrap the text around if needed
+        ld      de, scrolltext
+        ld      a, [de]
+.ready: ld      [hl+], a
+        inc     de
+        ld      a, e
+        ldh     [text_src], a
+        ld      a, d
+        ldh     [text_src+1], a
+        ld      a, l
+        ;; Keep the value between $9e20 and $9e3f
+        and     $3f
+        or      $20
+        ldh     [text_dest], a
         ret
 
         SECTION "SOUNDS", ROM0
