@@ -96,12 +96,13 @@ program_start:
 mainlp: halt
         ldh     a, [exec_stop]
         and     a
-        jr      nz, .inp
+        jr      nz, mainlp
+
         call    life_step
         ld      a, 1
         ldh     [exec_stop], a
 
-.inp:   call    check_input
+        call    check_input
         bit     0, a
         jr      z, .noa
         call    life_scramble
