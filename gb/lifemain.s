@@ -1,5 +1,5 @@
-        ;; Most of this is throwaway
         SECTION "DATA",ROM0
+        ;; Graphics and font
 fontbase:
         db      $00,$3C,$7E,$7E,$7E,$7E,$3C,$00 ; Live cell
         db      $00,$00,$00,$FF,$FF,$00,$00,$00 ; Divider
@@ -32,6 +32,7 @@ fontbase:
         db      $00,$62,$62,$3C,$18,$18,$18,$00 ; Y
 fontsize EQU (@-fontbase)
 
+        ;; Scrolltext message
 scrolltext:
         db      11,21,20,28,9,29,3,24,0,15,9,19,13,0,21,14,0,18,17,14
         db      13,0,0,0,0,0,22,23,13,24,13,20,25,13,12,0,10,29,0,10
@@ -60,7 +61,7 @@ program_start:
         ;; Shut off display
         xor     a,a
         ld      [$ff40],a
-        ;; Load font into BG Tile array
+        ;; Load font and graphics into BG Tile array
         ld      b, fontsize
         ld      de, fontbase
         ld      hl, $8010
@@ -76,21 +77,21 @@ program_start:
         call    life_init
         call    life_blit_init
         call    window_init
-
-        ;; Re-enable display and enable the VBLANK interrupt.
-        ld      a, $91
-        ld      [$ff40], a
         ld      a, $05
         ldh     [exec_phase], a
         ld      a, $01
         ldh     [exec_stop], a
-        ld      a, $03
-        ld      [$ffff], a
         xor     a
         ldh     [last_input], a
         ldh     [zap_phase], a
         ld      a, $ff
         ldh     [accum_input], a
+
+        ;; Re-enable display and enable the VBLANK and LCDSTAT interrupts.
+        ld      a, $91
+        ld      [$ff40], a
+        ld      a, $03
+        ld      [$ffff], a
         ei
 
 mainlp: halt
@@ -98,11 +99,14 @@ mainlp: halt
         and     a
         jr      nz, mainlp
 
+        call    check_input
+        push    af
+
         call    life_step
         ld      a, 1
         ldh     [exec_stop], a
 
-        call    check_input
+        pop     af
         bit     0, a
         jr      z, .noa
         call    life_scramble
