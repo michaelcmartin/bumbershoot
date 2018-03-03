@@ -50,7 +50,7 @@ RESET:  tst.l   $a10008
         moveq   #$07,d2
 @ZFill: move.b  (a5)+,(a0)+
         dbra    d2,@ZFill
-        
+
         ;; Give control back to Z80
         move.w  d0,(a2)
         move.w  d0,(a1)
@@ -73,7 +73,7 @@ RESET:  tst.l   $a10008
         moveq   #$13,d4
 @VSClr: move.l  d0,(a3)
         dbra    d4,@VSClr
-        
+
         ;; Reset the PSG
         moveq   #$03,d5
 @PSGLp: move.b  (a5)+,$0011(a3)
@@ -114,4 +114,3 @@ RESET:  tst.l   $a10008
 ;;; -----------------------------------------------------
 
 @main:  ;; Program start follows!
-

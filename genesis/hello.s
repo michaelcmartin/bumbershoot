@@ -49,7 +49,7 @@
         dc.b "                                        "
         ;; Permissible regions: Japan, US, Europe
         dc.b "JUE             "
-        
+
         include "reset.s"
 
         movea.l #$C00000, a0
@@ -83,7 +83,7 @@
 
         ;; Enable the display
         move.w  #$8144, 4(a0)
-        
+
 freeze: bra.s    freeze
 
         ;; This code assumes a0 is already c00000 and that the
@@ -98,30 +98,29 @@ strout: ori     #$4000, d0
         move.w  d0, (a0)
         bra.s   @lp
 @done:  rts
-        
+
         align   2
-font:   
+font:
         include "sinestra.s"
 fontend:
-        
+
 msg1:   dc.b    "HELLO FROM",0
 msg2:   dc.b    "BUMBERSHOOT SOFTWARE",0
-        
-        
+
+
 ;;; Exceptions and interrupts all get ignored.
 BUS_ERROR:
 ADDR_ERROR:
 ILLEGAL_INST:
-ZERO_DIV:       
+ZERO_DIV:
 CHK_INST:
 TRAPV_INST:
 PRIV_VIOLATION:
-TRACE:  
+TRACE:
 LINE_1010:
 LINE_1111:
-EXTINT: 
+EXTINT:
 INT:
 HBL:
 VBL:
 	rte
-        
