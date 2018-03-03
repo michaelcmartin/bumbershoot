@@ -109,7 +109,7 @@ RESET:  tst.l   $a10008
         hex     f3 ed 56 36 e9 e9
 
         ;; CRAM and VSRAM fill controls commands
-        dc.w    $8104, $8f01, $c000, $0000, $4000, $0010
+        dc.w    $8104, $8f02, $c000, $0000, $4000, $0010
 
         ;; PSG Reset commands
         dc.b    $9f, $bf, $df, $ff
