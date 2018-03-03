@@ -15,7 +15,7 @@ RESET:  tst.l   $a10008
         tst.w   $a1000c
 @SkipJoyDetect:
 	bne.s   @SkipSetup
-        lea     @InitData,a5
+        lea     @InitData(pc),a5
         movem.w (a5)+,d5-d7
         movem.l (a5)+,a0-a4
         ;; Appease lockout circuitry
@@ -44,7 +44,7 @@ RESET:  tst.l   $a10008
         move.w  d7,(a1)
         move.w  d7,(a2)
 @ZWait: btst    d0,(a1)
-	bne     @ZWait
+	bne.s   @ZWait
 
         ;; Load Z80 reset program
         moveq   #$25,d2
