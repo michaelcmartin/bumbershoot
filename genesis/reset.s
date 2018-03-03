@@ -47,7 +47,7 @@ RESET:  tst.l   $a10008
 	bne.s   @ZWait
 
         ;; Load Z80 reset program
-        moveq   #$25,d2
+        moveq   #$07,d2
 @ZFill: move.b  (a5)+,(a0)+
         dbra    d2,@ZFill
         
@@ -103,10 +103,8 @@ RESET:  tst.l   $a10008
         ;; VRAM fill target
         dc.w    $4000, $0080
 
-        ;; Z80 Initialization Code
-        hex     af 01 d9 1f 11 27 00 21 26 00 f9 77 ed b0 dd e1
-        hex     fd e1 ed 47 ed 4f d1 e1 f1 08 d9 c1 d1 e1 f1 f9
-        hex     f3 ed 56 36 e9 e9
+        ;; Z80 Initialization Code (Sets DI and IM 1 then loops)
+        hex     f3 ed 56 21 06 00 e9 00
 
         ;; CRAM and VSRAM fill controls commands
         dc.w    $8104, $8f02, $c000, $0000, $4000, $0010
