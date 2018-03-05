@@ -9,5 +9,8 @@ bumberlogo.s37: reset.s logogfx.s
 %.s37: %.s
 	asm68k -w -e -s37 -o $@ $<
 
+%.lst: %.s
+	asm68k -w -e -l $@ $<
+
 %.smd: %.s37
 	tools/srec2smd.py $< $@
