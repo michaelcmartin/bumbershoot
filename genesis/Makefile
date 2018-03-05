@@ -1,10 +1,11 @@
-all: hello.smd bumberlogo.smd
+all: hello.smd bumberlogo.smd sprcont.smd
 
 clean:
 	rm -f *.s37 *.smd
 
 hello.s37: reset.s sinestra.s
 bumberlogo.s37: reset.s logogfx.s
+sprcont.s37: reset.s sinestra.s text.s joystick.s
 
 %.s37: %.s
 	asm68k -w -e -s37 -o $@ $<
