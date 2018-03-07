@@ -74,7 +74,9 @@ VBL:
         include "text.s"
         include "joystick.s"
 
-main:   move.l  #sinestra, -(sp)
+main:   subq    #8, sp          ; Reserve space for fn args
+
+        move.l  #sinestra, (sp)
         bsr     LoadFont
 
         move.l  #(CRAM_WRITE << 16), (sp)
@@ -113,35 +115,30 @@ mainlp: move.l  VRAM_CONTROL(pc), a0
         move.w  (a2)+, d4
         lsr     #1, d2
         bcc.s   @dnxt
-        add.l   a3, d4
-        move.l  d4, (sp)
-        bsr.s   DrawString
+        move.w  (a3, d4.w), (sp)
+        move.w  #0, 2(sp)
+        lea     2(a3, d4.w), a0
+        move.l  a0, 4(sp)
+        bsr     WriteStr
 @dnxt:  dbra    d3, @dlp
 
         ;; Back to main loop
         addq.b  #1, d7
         bra     mainlp
 
-DrawString:
-        move.l  4(sp), a0
-        move.w  (a0)+, d0
-        move.l  a0, -(sp)
-        move.w  #0, -(sp)
-        move.w  d0, -(sp)
-        bsr     WriteStr
-        addq.l  #8, sp
-        rts
-
 DrawStrings:
         move.l  4(sp), a0
-@lp:    move.w  (a0), d0
+        subq    #8, sp
+        move.w  #0, 2(sp)
+@lp:    move.w  (a0)+, d0
         beq.s   @done
-        move.l  a0, -(sp)
-        bsr.s   DrawString
-        addq.l  #4, sp
+        move.w  d0, (sp)
+        move.l  a0, 4(sp)
+        bsr     WriteStr
         move.l  d0, a0
         bra.s   @lp
-@done:  rts
+@done:  addq    #8, sp
+        rts
 
 sinestra:
         include "sinestra.s"
