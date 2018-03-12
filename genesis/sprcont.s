@@ -1,3 +1,8 @@
+        seg data
+        org $ff0000
+ptr_y:  ds  2
+ptr_x:  ds  2
+
         seg text
         org 0
 
@@ -84,7 +89,7 @@ main:   subq    #8, sp          ; Reserve space for fn args
         move.l  #$00000eee, $c00000
 
         move.l  #headers, (sp)
-        bsr.s   DrawStrings
+        bsr     DrawStrings
 
         bsr     init_sprites
 
@@ -112,6 +117,7 @@ mainlp: move.l  VRAM_CONTROL(pc), a0
         lea     button_table(pc), a2
         bsr     ReadJoy1
         move.w  d0, d2
+        move.w  d0, d7
         moveq   #$7, d3
 @dlp:   moveq   #0, d4
         move.w  (a2)+, d4
@@ -123,6 +129,17 @@ mainlp: move.l  VRAM_CONTROL(pc), a0
         move.l  a0, 4(sp)
         bsr     WriteStr
 @dnxt:  dbra    d3, @dlp
+
+        ;; Now update the sprite position
+        move.w  d7, (sp)
+        bsr     move_cursor
+        move.l  #(VRAM_WRITE << 16) | $A820, (sp)
+        bsr     SetVRAMPtr
+        lea     ptr_y, a0
+        move.l  VRAM_DATA(pc), a1
+        move.w  (a0)+, (a1)
+        move.l  #$22002, (a1)   ; Replicating the middle sprite table bits
+        move.w  (a0), (a1)
 
         ;; Back to main loop
         addq.b  #1, d7
@@ -150,7 +167,7 @@ init_sprites:
         move.l  #(VRAM_WRITE << 16) | $0020, -(sp)
         bsr     SetVRAMPtr
         lea     sprite_img(pc), a0
-        moveq   #$07, d0
+        moveq   #$0f, d0
 @lp:    move.l  (a0)+, (a2)
         dbra    d0, @lp
         ;; Step 2: Load up our sprite colors
@@ -168,9 +185,46 @@ init_sprites:
         moveq   #$09, d0
 @lp3:   move.l  (a0)+, (a2)
         dbra    d0, @lp3
+        ;; Step 4: Load the initial cursor position into place
+        lea     ptr_y, a0
+        move.w  #128+112, (a0)+
+        move.w  #128+160, (a0)
         ;; Clean up on the way out
         addq.l  #4,sp
         move.l  (sp)+, a2
+        rts
+
+move_cursor:
+        move.w  4(sp), d0
+        lea     ptr_y, a0
+        move.w  (a0), d1
+@up:    lsr     #1, d0
+        bcc.s   @down
+        subq.w  #1, d1
+@down:  lsr     #1, d0
+        bcc.s   @ychk
+        addq    #1, d1
+@ychk:  cmp.w   #128, d1
+        bge.s   @ychk2
+        move.w  #128,d1
+@ychk2: cmp.w   #128+224, d1
+        blt.s   @left
+        move.w  #128+223, d1
+@left:  move.w  d1, (a0)+
+        move.w  (a0), d1
+        lsr     #1, d0
+        bcc.s   @right
+        subq.w  #1, d1
+@right: lsr     #1, d0
+        bcc.s   @xchk
+        addq.w  #1, d1
+@xchk:  cmp.w   #128, d1
+        bge.s   @xchk2
+        move.w  #128, d1
+@xchk2: cmp.w   #128+320, d1
+        blt.s   @done
+        move.w  #128+319, d1
+@done:  move.w  d1, (a0)
         rts
 
 sinestra:
@@ -223,9 +277,18 @@ sprite_img:
         dc.l    $07000070
         dc.l    $70000007
 
+        dc.l    $20000000
+        dc.l    $22000000
+        dc.l    $25200000
+        dc.l    $25520000
+        dc.l    $25552000
+        dc.l    $25222200
+        dc.l    $22000000
+        dc.l    $20000000
+
 sprite_attrs:
         dc.w    124, 1, $2001, 124
-        dc.w    124+224, 2, $2001, 124
+        dc.w    124+224, 4, $2001, 124
         dc.w    124, 3, $2001, 124+320
-        dc.w    124+224, 4, $2001, 124+320
-        dc.w    124+112, 0, $2001, 124+160
+        dc.w    124+224, 0, $2001, 124+320
+        dc.w    128+112, 2, $2002, 128+160
