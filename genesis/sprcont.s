@@ -86,6 +86,8 @@ main:   subq    #8, sp          ; Reserve space for fn args
         move.l  #headers, (sp)
         bsr.s   DrawStrings
 
+        bsr     init_sprites
+
         move.w  #$8144, $c00004
 
         moveq   #$0, d7
@@ -140,6 +142,37 @@ DrawStrings:
 @done:  addq    #8, sp
         rts
 
+init_sprites:
+        move.l  a2, -(sp)
+        ;; Step 1: Load up our sprite images
+        move.l  VRAM_DATA(pc), a2
+        move.w  #$8f02, 4(a2)
+        move.l  #(VRAM_WRITE << 16) | $0020, -(sp)
+        bsr     SetVRAMPtr
+        lea     sprite_img(pc), a0
+        moveq   #$07, d0
+@lp:    move.l  (a0)+, (a2)
+        dbra    d0, @lp
+        ;; Step 2: Load up our sprite colors
+        move.l  #(CRAM_WRITE << 16) | $0020, (sp)
+        bsr     SetVRAMPtr
+        moveq   #$07, d0
+        moveq   #$00, d1
+@lp2:   move.w  d1, (a2)
+        add     #$0022, d1
+        dbra    d0, @lp2
+        ;; Step 3: Load up our sprite attributes
+        move.l  #(VRAM_WRITE << 16) | $A800, (sp)
+        bsr     SetVRAMPtr
+        lea     sprite_attrs(pc), a0
+        moveq   #$09, d0
+@lp3:   move.l  (a0)+, (a2)
+        dbra    d0, @lp3
+        ;; Clean up on the way out
+        addq.l  #4,sp
+        move.l  (sp)+, a2
+        rts
+
 sinestra:
         include "sinestra.s"
 
@@ -179,3 +212,20 @@ ststr:  dc.w    $c000 + 128*13 + 60
 button_table:
         dc.w    upstr-upstr,dnstr-upstr,lfstr-upstr,rtstr-upstr
         dc.w    a_str-upstr,b_str-upstr,c_str-upstr,ststr-upstr
+
+sprite_img:
+        dc.l    $70000007
+        dc.l    $07000070
+        dc.l    $00700700
+        dc.l    $00077000
+        dc.l    $00077000
+        dc.l    $00700700
+        dc.l    $07000070
+        dc.l    $70000007
+
+sprite_attrs:
+        dc.w    124, 1, $2001, 124
+        dc.w    124+224, 2, $2001, 124
+        dc.w    124, 3, $2001, 124+320
+        dc.w    124+224, 4, $2001, 124+320
+        dc.w    124+112, 0, $2001, 124+160
