@@ -78,6 +78,7 @@ VBL:
 
         include "text.s"
         include "joystick.s"
+        include "psg.s"
 
 main:   subq    #8, sp          ; Reserve space for fn args
 
@@ -92,6 +93,8 @@ main:   subq    #8, sp          ; Reserve space for fn args
         bsr     DrawStrings
 
         bsr     init_sprites
+
+        bsr     SetupPSG
 
         move.w  #$8144, $c00004
 
