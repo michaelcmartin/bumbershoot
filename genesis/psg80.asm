@@ -1,5 +1,4 @@
         ;; Z80 PSG Sound Driver test.
-        ;; Manages a simple decay envelope while playing a C major scale.
         org     0
         defc    psg=$7f11
 
@@ -11,14 +10,16 @@ rst_lp: jr      rst_lp
 
         defs    $20-ASMPC
 
-ptr:    defw    notes
-vol:    defb    $1f
+ptr:    defw    song
+vol:    defb    $1f, $1f, $1f
 wait:   defb    $01
 
         defs    $38-ASMPC
 
 rst_38: push    af
+        push    de
         push    hl
+        ld      de, psg
         ld      hl, wait
         dec     (hl)
         jr      nz, decay
@@ -26,34 +27,78 @@ rst_38: push    af
         ld      a, (hl)
         and     a
         jr      nz, nolp
-        ld      hl, notes
+        ld      hl, song
         ld      a, (hl)
-nolp:   or      $80
-        ld      (psg), a
+nolp:   ld      (wait), a
         inc     hl
         ld      a, (hl)
-        ld      (psg), a
         inc     hl
-        ld      (ptr), hl
-        ld      a, 6
-        ld      (vol), a
-        ld      a, 36
-        ld      (wait), a
+        and     a
+        jr      z, v2
+        ;; Voice 1
+        ld      (de), a
+        ld      a, (hl)
+        inc     hl
+        ld      (de), a
+        ld      a, 7
+        ld      (vol),a
+        ;; Voice 2
+v2:     ld      a, (hl)
+        inc     hl
+        and     a
+        jr      z, v3
+        ld      (de), a
+        ld      a, (hl)
+        inc     hl
+        ld      (de), a
+        ld      a, 7
+        ld      (vol+1), a
+        ;; Voice 3
+v3:     ld      a, (hl)
+        inc     hl
+        and     a
+        jr      z, vdone
+        ld      (de), a
+        ld      a, (hl)
+        inc     hl
+        ld      (de), a
+        ld      a, 7
+        ld      (vol+2), a
+vdone:  ld      (ptr), hl
 decay:  ld      a, (vol)
         cp      a, $1f
-        jr      z, nodec
+        jr      z, nodec1
         inc     a
         ld      (vol), a
-nodec:  srl     a
+nodec1: srl     a
         or      $90
-        ld      (psg), a
+        ld      (de), a
+        ld      a, (vol+1)
+        cp      a, $1f
+        jr      z, nodec2
+        inc     a
+        ld      (vol+1), a
+nodec2: srl     a
+        or      $b0
+        ld      (de), a
+        ld      a, (vol+2)
+        cp      a, $1f
+        jr      z, nodec3
+        inc     a
+        ld      (vol+2), a
+nodec3: srl     a
+        or      $d0
+        ld      (de), a
 
-done:   pop     hl
+        pop     hl
+        pop     de
         pop     af
         ei
         ret
 
-notes:  defb    $0b,$1a, $0c,$17, $03,$15, $80,$14
-        defb    $0d,$11, $0e,$0f, $02,$0e, $05,$0d
-        defb    $02,$0e, $0e,$0f, $0d,$11, $80,$14
-        defb    $03,$15, $0c,$17, $00
+song:   defb    18,$8b,$1a,$00,$00
+        defb    18,$00,$a3,$15,$00
+        defb    18,$00,$00,$cd,$11
+        defb    18,$85,$0d,$00,$00
+        defb    72,$8b,$1a,$a3,$15,$cd,$11
+        defb    0
