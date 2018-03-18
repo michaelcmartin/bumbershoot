@@ -38,25 +38,25 @@ g-6-1 c-7-1 d-7-1 e-7-1 d-7-1 b-6-1 c-7-2
 g-6-2 e-6-1 f-6-1 g-6-2 c-7-2
 d-7-1 b-6-1 c-7-1 d-7-1 f-7-1 e-7-1 f-7-1 d-7-1
 
-f-2-2 a-3-2 g-2-2 g-3-2 c-2-2 a-3-2 a-1-2 a-3-2
-d-2-2 f-3-2 g-2-2 g-3-2 c-2-2 g-3-2 e-2-2 a#3-2
-f-2-2 a-3-2 g-2-2 g-3-2 c-2-2 a-3-2 a-2-2 a-3-2
-d-2-2 f-3-2 g-2-2 g-3-2 c-2-2 d-2-2 d#2-2 e-2-2
+f-3-2 a-4-2 g-3-2 g-4-2 c-3-2 a-4-2 a-3-2 a-4-2
+d-3-2 f-4-2 g-3-2 g-4-2 c-3-2 g-4-2 e-3-2 a#4-2
+f-3-2 a-4-2 g-3-2 g-4-2 c-3-2 a-4-2 a-3-2 a-4-2
+d-3-2 f-4-2 g-3-2 g-4-2 c-3-2 d-3-2 d#3-2 e-3-2
 
-f-2-2 a-3-2 g-2-2 g-3-2 c-2-2 a-3-2 a-1-2 a-3-2
-d-2-2 f-3-2 g-2-2 g-3-2 c-2-2 g-3-2 e-2-2 a#3-2
-f-2-2 a-3-2 g-2-2 g-3-2 c-2-2 a-3-2 a-2-2 a-3-2
-d-2-2 f-3-2 g-2-2 g-3-2 c-2-2 d-2-2 d#2-2 e-2-2
+f-3-2 a-4-2 g-3-2 g-4-2 c-3-2 a-4-2 a-3-2 a-4-2
+d-3-2 f-4-2 g-3-2 g-4-2 c-3-2 g-4-2 e-3-2 a#4-2
+f-3-2 a-4-2 g-3-2 g-4-2 c-3-2 a-4-2 a-3-2 a-4-2
+d-3-2 f-4-2 g-3-2 g-4-2 c-3-2 d-3-2 d#3-2 e-3-2
 
-f-2-2 a-3-2 c-2-2 a-3-2 e-2-2 g-3-2 a-2-2 g-3-2
-d-2-2 a-3-2 a-1-2 a-3-2 c-2-2 g-3-2 e-2-2 g-3-2
-f-2-2 a-3-2 c-2-2 a-3-2 e-2-2 g-3-2 a-2-2 g-3-2
-d-2-2 a-3-2 a-1-2 a-3-2 c-2-2 d-2-2 e-2-2 e-2-2
+f-3-2 a-4-2 c-3-2 a-4-2 e-3-2 g-4-2 a-3-2 g-4-2
+d-3-2 a-4-2 a-3-2 a-4-2 c-3-2 g-4-2 e-3-2 g-4-2
+f-3-2 a-4-2 c-3-2 a-4-2 e-3-2 g-4-2 a-3-2 g-4-2
+d-3-2 a-4-2 a-3-2 a-4-2 c-3-2 d-3-2 e-3-2 e-3-2
 
-f-2-2 a-3-2 c-2-2 a-3-2 e-2-2 g-3-2 a-2-2 g-3-2
-d-2-2 a-3-2 a-1-2 a-3-2 c-2-2 g-3-2 e-2-2 g-3-2
-f-2-2 a-3-2 c-2-2 a-3-2 e-2-2 g-3-2 a-2-2 g-3-2
-d-2-2 a-3-2 a-1-2 a-3-2 c-2-2 d-2-2 d#2-2 e-2-2""",
+f-3-2 a-4-2 c-3-2 a-4-2 e-3-2 g-4-2 a-3-2 g-4-2
+d-3-2 a-4-2 a-3-2 a-4-2 c-3-2 g-4-2 e-3-2 g-4-2
+f-3-2 a-4-2 c-3-2 a-4-2 e-3-2 g-4-2 a-3-2 g-4-2
+d-3-2 a-4-2 a-3-2 a-4-2 c-3-2 d-3-2 d#3-2 e-3-2""",
         """r-0-32
 
 a-3-2 f-4-2 r-0-2 d-4-2 r-0-2 d#4-2 r-0-2 g-4-2
@@ -109,7 +109,10 @@ def note_val(octave, freq):
     val = 4 * 12 + notes["a-"]
     target = octave * 12 + freq
     step = 2.0 ** (1.0 / 12)
-    return psg_val(hz * (step ** (target - val)))
+    result = psg_val(hz * (step ** (target - val)))
+    if result >= 1024:
+        raise ValueError, "Illegal note %d-%d -> %d" % (freq, octave, result)
+    return result
 
 song = []
 for voice in nyan:
@@ -135,7 +138,7 @@ while i < len(song):
     while i < len(song) and song[i] == (0, 0, 0):
         duration += 1
         i += 1
-    result.append(duration * 8)
+    result.append(duration * 7)
     for j in xrange(len(frame)):
         result.extend(psg_pokes(frame[j], j))
 result.append(0) # end of song
