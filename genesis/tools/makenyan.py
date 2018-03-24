@@ -150,7 +150,7 @@ for byt in result:
         if i == 0:
             val += 'song:   '
         elif i == loop_point:
-            val += '\nsignum: '
+            val += '\nsegno:  '
             i = 0
             loop_point = -1
         else:

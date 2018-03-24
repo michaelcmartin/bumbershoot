@@ -6,7 +6,7 @@
         ;; latching the pitch register requires setting bit 7, there will
         ;; never be any conflict between these forms.
         ;; When a zero byte is reached for a record length, the playback
-        ;; loops back to the "signum" label.
+        ;; loops back to the "segno" label.
         ;;
         ;; Notes that are played have their volume decay one tick every
         ;; other frame until they are silent.
@@ -38,7 +38,7 @@ rst_38: push    af
         ld      a, (hl)
         and     a
         jr      nz, nolp
-        ld      hl, signum
+        ld      hl, segno
         ld      a, (hl)
 nolp:   ld      (wait), a
         inc     hl
@@ -119,7 +119,7 @@ song:   defb    $07,$00,$a5,$05,$00,$07,$00,$a0,$05,$00,$0e,$00,$a7,$04,$00,$0e
         defb    $00,$a9,$03,$00,$07,$00,$a5,$03,$00,$07,$00,$a0,$03,$00,$07,$00
         defb    $a8,$02,$00,$07,$00,$aa,$02,$00,$07,$00,$a8,$02,$00,$07,$00,$a0
         defb    $03,$00
-signum: defb    $0e,$8f,$08,$a1,$28,$cd,$1f,$0e,$8f,$07,$ae,$0f,$c0,$14,$07,$8a
+segno:  defb    $0e,$8f,$08,$a1,$28,$cd,$1f,$0e,$8f,$07,$ae,$0f,$c0,$14,$07,$8a
         defb    $0a,$ab,$23,$00,$07,$8a,$0a,$00,$00,$07,$00,$ad,$11,$cd,$17,$07
         defb    $86,$0d,$00,$00,$07,$84,$0b,$a7,$35,$00,$07,$8e,$0b,$00,$00,$0e
         defb    $86,$0d,$ae,$0f,$c8,$16,$0e,$86,$0d,$ad,$1f,$00,$0e,$8e,$0b,$ae
