@@ -101,9 +101,16 @@
         ;; Enable the display
         move.w  #$8144, (a1)
 
-freeze: bra.s    freeze
+        ;; Set up the sample player
+        bsr     SetupDAC
 
-        align   2
+        ;; Sing a song
+        move.w  #logosong_end-logosong, -(sp)
+        move.l  #logosong, -(sp)
+        bsr     PlaySample
+
+freeze: bra.s   freeze
+
         include "logogfx.s"
 
 ;;; Exceptions and interrupts. Pull these out if you intend to
@@ -123,3 +130,12 @@ INT:
 HBL:
 VBL:
 	rte
+
+        include "8k_dac.s"
+
+        ;; Put our sound sample on a 32KB boundary so the Z80 can see
+        ;; it all at once
+        org     $8000
+logosong:
+        include "bumbersong.hex"
+logosong_end:
