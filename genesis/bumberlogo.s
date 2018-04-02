@@ -111,8 +111,6 @@
 
 freeze: bra.s   freeze
 
-        include "logogfx.s"
-
 ;;; Exceptions and interrupts. Pull these out if you intend to
 ;;; implement them yourself.
 BUS_ERROR:
@@ -131,8 +129,8 @@ HBL:
 VBL:
 	rte
 
+        include "logo.s"
         include "8k_dac.s"
-
         ;; Put our sound sample on a 32KB boundary so the Z80 can see
         ;; it all at once
         org     $8000

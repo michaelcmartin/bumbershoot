@@ -7,7 +7,7 @@ tidy:
 	rm -f *.s37 *.bin *.obj *.sym *.map *.s80 *.hex
 
 hello.s37: reset.s sinestra.s
-bumberlogo.s37: reset.s logogfx.s 8k_dac.s 8k_dac.s80
+bumberlogo.s37: reset.s logo.s 8k_dac.s 8k_dac.s80
 bumberlogo.s37: logogfx.hex bumbersong.hex
 sprcont.s37: reset.s sinestra.s text.s joystick.s psg.s psg80.s80
 
