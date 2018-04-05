@@ -43,3 +43,46 @@ InitFakeCGA:
 @CGAPal:
         dc.w    $0000,$0A00,$00A0,$0AA0,$000A,$0A0A,$004A,$0AAA
         dc.w    $0666,$0E66,$06E6,$0EE6,$066E,$0E6E,$06EE,$0EEE
+
+CGATestPattern:
+        ;; Prep pointers
+        movem.l d2-d3, -(sp)
+        movea.l #$C00000, a0
+        move.l  a0, a1
+        addq.l  #4, a1
+
+        ;; Start writing to C000 in VRAM
+        move.l  #$40000003, (a1)
+
+        ;; Fill Scroll A
+        moveq   #$01, d0
+        moveq   #63, d1         ; Row count
+@lp1:   moveq   #63, d2         ; Column count
+@lp2:   move.w  d0, (a0)
+        bsr.s   @nextbyte
+        dbra    d2, @lp2
+        bsr.s   @nextbyte       ; Skip an extra unit for the missed row
+        dbra    d1, @lp1
+
+        ;; Fill Scroll B
+        move.w  #$1012, d0
+        moveq   #63, d1         ; Row count
+@lp3:   moveq   #63, d2         ; Column count
+@lp4:   move.w  d0, (a0)
+        bsr.s   @nextbyte
+        dbra    d2, @lp4
+        bsr.s   @nextbyte       ; Skip an extra unit for the missed row
+        dbra    d1, @lp3
+
+        movem.l (sp)+, d2-d3
+        rts
+        ;; This miniroutine is part of CGATestPattern and trashes d3. Don't
+        ;; tell any other routines about this, it's a secret to everyone
+@nextbyte:
+        move.b  d0, d3
+        addq    #2, d3
+        and.b   #$F0, d0
+        and.b   #$0F, d3
+        or.b    d3, d0
+        add.b   #$20, d0
+        rts

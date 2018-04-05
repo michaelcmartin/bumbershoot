@@ -54,6 +54,7 @@
 
         bsr     BumbershootLogo
         bsr     InitFakeCGA
+        bsr     CGATestPattern
 
 freeze: bra.s   freeze
 
