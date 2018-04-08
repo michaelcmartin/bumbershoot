@@ -1,3 +1,15 @@
+        seg data
+        org $ff0000
+CCA_buf_0:
+        ds  $4000
+CCA_buf_1:
+        ds  $4000
+CCA_vram_mirror:
+        ds  $4000
+        ;; Lesser globals
+scroll_pos:
+        ds  4
+
         seg text
         org 0
 
