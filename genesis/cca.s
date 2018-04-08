@@ -68,6 +68,12 @@ scroll_pos:
         bsr     InitFakeCGA
         bsr     CGATestPattern
 
+        ;; Now that we've set up the VRAM intially, VRAM shall only be
+        ;; touched inside the VBLANK interrupt.
+        movea.l #$00c00004, a0
+        move.w  #$8164, (a0)    ; Enable VBLANK interrupt
+        move.w  #$2500, sr      ; Unmask interrupt level 6
+
 freeze: bra.s   freeze
 
 ;;; Exceptions and interrupts. Pull these out if you intend to
@@ -85,8 +91,41 @@ LINE_1111:
 EXTINT:
 INT:
 HBL:
-VBL:
 	rte
 
+VBL:    movem.l d0-d1/a0-a1, -(sp)
+        bsr     ReadJoy1
+        movea.l #$00c00000, a0
+        lea     scroll_pos, a1
+        move.w  #$8f02, 4(a0)
+        ;; VSRAM WRITE to $0000 (Vertical scroll table)
+        move.l  #$40000010, 4(a0)
+        move.w  (a1), d1
+        btst    #0, d0
+        beq.s   @noup
+        subq    #1, d1
+@noup:  btst    #1, d0
+        beq.s   @nodn
+        addq    #1, d1
+@nodn:  move.w  d1, (a0)
+        move.w  d1, (a0)
+        move.w  d1, (a1)
+        ;; VRAM WRITE to $AC00 (Horizontal scroll table)
+        move.l  #$6c000002, 4(a0)
+        addq    #2, a1
+        move.w  (a1), d1
+        btst    #2, d0
+        beq.s   @nolt
+        addq    #1, d1
+@nolt:  btst    #3, d0
+        beq.s   @nort
+        subq    #1, d1
+@nort:  move.w  d1, (a0)
+        move.w  d1, (a0)
+        move.w  d1, (a1)
+        movem.l (sp)+, d0-d1/a0-a1
+        rte
+
+        include "joystick.s"
         include "fakecga.s"
         include "logo.s"
