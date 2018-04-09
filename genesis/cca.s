@@ -67,6 +67,7 @@ scroll_pos:
         bsr     BumbershootLogo
         bsr     InitFakeCGA
         bsr     CGATestPattern
+        bsr     CCAInit
 
         ;; Now that we've set up the VRAM intially, VRAM shall only be
         ;; touched inside the VBLANK interrupt.
@@ -126,6 +127,8 @@ VBL:    movem.l d0-d1/a0-a1, -(sp)
         movem.l (sp)+, d0-d1/a0-a1
         rte
 
+        include "ccamain.s"
         include "joystick.s"
+        include "xorshift.s"
         include "fakecga.s"
         include "logo.s"
