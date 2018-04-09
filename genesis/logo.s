@@ -5,11 +5,11 @@
         include "8k_dac.s"
 
 BumbershootLogo:
-        movem.l d2/a2, -(sp)
+        movem.l d2/a2-a4, -(sp)
 
-        movea.l #$C00000, a0
-        movea.l a0, a1
-        addq    #4, a1
+        movea.l #$C00000, a3
+        movea.l a3, a4
+        addq    #4, a4
 
         ;; Load logo into VRAM normally
         ;;         move.w  #8f02, (a1)
@@ -20,44 +20,42 @@ BumbershootLogo:
         ;;         dbra    d0, @lp
 
         ;; Load logo into VRAM with BLAST PROCESSING
-        move.w  #$8114, (a1)    ; Enable DMA
-        move.w  #$8f02, (a1)    ; Word writes
-        move.w  #$9300 + (((@logoend-@logo) >> 1) & $ff), (a1)
-        move.w  #$9400 + ((@logoend-@logo) >> 9), (a1)
-        move.w  #$9500 + ((@logo >> 1) & $ff), (a1)
-        move.w  #$9600 + ((@logo >> 9) & $ff), (a1)
-        move.w  #$9700 + ((@logo >> 17) & $ff), (a1)
-        move.w  #$4020, (a1)
+        move.w  #$8114, (a4)    ; Enable DMA
+        move.w  #$8f02, (a4)    ; Word writes
+        move.w  #$9300 + (((@logoend-@logo) >> 1) & $ff), (a4)
+        move.w  #$9400 + ((@logoend-@logo) >> 9), (a4)
+        move.w  #$9500 + ((@logo >> 1) & $ff), (a4)
+        move.w  #$9600 + ((@logo >> 9) & $ff), (a4)
+        move.w  #$9700 + ((@logo >> 17) & $ff), (a4)
+        move.w  #$4020, (a4)
         move.w  #$0080, $ff0000
-        move.w  $ff0000, (a1)
-@dma:   btst    #3, (a1)
+        move.w  $ff0000, (a4)
+@dma:   btst    #3, (a4)
         bne.s   @dma
 
         ;; Load some colors into VRAM
-        move.l  #$c0000000, (a1)
+        move.l  #$c0000000, (a4)
         movea.l #@pal, a2
         moveq   #7, d0
-@lp2:   move.l  (a2)+, (a0)
+@lp2:   move.l  (a2)+, (a3)
         dbra    d0, @lp2
 
         ;; Lay out the logo, starting at (10, 1)
-        move.l  #$40940003, (a1)
+        move.l  #$40940003, (a4)
         moveq   #$1, d2         ; Tile counter
         moveq   #$18, d0        ; 25 rows
 @row:   moveq   #$13, d1        ; 20 columns
-@rlogo: move.w  d2, (a0)
+@rlogo: move.w  d2, (a3)
         addq    #1, d2
         dbra    d1, @rlogo
         moveq   #$2b, d1        ; 44 blanks to start of next row
-@rblnk: move.w  #$0000, (a0)
+@rblnk: move.w  #$0000, (a3)
         dbra    d1, @rblnk
         dbra    d0, @row
 
         ;; Enable the display
-        move.w  #$8144, (a1)
+        move.w  #$8144, (a4)
 
-        ;; Stash our addresses while we call the sound code
-        movem.l a0-a1, -(sp)
         ;; Set up the sample player
         bsr     SetupDAC
 
@@ -65,29 +63,26 @@ BumbershootLogo:
         move.w  #@logosong_end-@logosong, -(sp)
         move.l  #@logosong, -(sp)
         bsr     PlaySample
-
-        ;; Restore our VDP pointers
         addq    #6, sp
-        movem.l (sp)+, a0-a1
 
         ;; Wait 240 frames
         move.w  #240, d1
-@v1:    move.w  (a1), d0
+@v1:    move.w  (a4), d0
         btst    #3, d0          ; Wait for no VBLANK
         bne.s   @v1
-@v2:    move.w  (a1), d0
+@v2:    move.w  (a4), d0
         btst    #3, d0          ; Wait for VBLANK
         beq.s   @v2
         dbra    d1, @v1
 
         ;; Clear screen
-        move.l  #$40940003, (a1)
+        move.l  #$40940003, (a4)
         move.w  #$400, d1
         moveq   #$00, d0
-@cls:   move.l  d0, (a0)
+@cls:   move.l  d0, (a3)
         dbra    d1, @cls
 
-        movem.l (sp)+, d2/a2
+        movem.l (sp)+, d2/a2-a4
         rts
 
 @pal:   dc.w    $0000,$0422,$0442,$0642,$0666,$0884,$0864,$0A86
