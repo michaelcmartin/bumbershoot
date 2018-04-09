@@ -46,5 +46,6 @@ CCARender:
         add.w   #128, a0
         dbra    d0, @rows
         ;; Clean up, we're done
+        move.b  #2, mirror_ready
         move.l  (sp)+, d2
         rts

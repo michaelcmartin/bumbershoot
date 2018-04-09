@@ -9,6 +9,8 @@ CCA_vram_mirror:
         ;; Lesser globals
 scroll_pos:
         ds  4
+mirror_ready:
+        ds  1
 
         seg text
         org 0
@@ -94,11 +96,11 @@ INT:
 HBL:
 	rte
 
-VBL:    movem.l d0-d1/a0-a1, -(sp)
+VBL:    movem.l d0-d2/a0-a1, -(sp)
         bsr     ReadJoy1
         movea.l #$00c00000, a0
         lea     scroll_pos, a1
-        move.w  #$8f02, 4(a0)
+        move.l  #$81648f02, 4(a0) ; Word write, no DMA
         ;; VSRAM WRITE to $0000 (Vertical scroll table)
         move.l  #$40000010, 4(a0)
         move.w  (a1), d1
@@ -124,8 +126,26 @@ VBL:    movem.l d0-d1/a0-a1, -(sp)
 @nort:  move.w  d1, (a0)
         move.w  d1, (a0)
         move.w  d1, (a1)
-        movem.l (sp)+, d0-d1/a0-a1
+        ;; Check if we need to blit a layer
+        move.b  mirror_ready, d0
+        bne.s   @dma
+@done:  movem.l (sp)+, d0-d2/a0-a1
         rte
+@dma:   move.l  #$40000083, d1  ; Target DMA for first blit
+        move.l  #$9640977f, d2  ; Source RAM for first blit
+        subq    #1, d0          ; Is this the first blit?
+        bne.s   @first
+        move.l  #$60000083, d1  ; If not, adjust target and source
+        move.l  #$9650977f, d2  ; addresses as needed
+@first: move.b  d0, mirror_ready ; Either way, save new blits-remaining.
+        ;; Now enable DMA, load in length and source addresses.
+        ;; This assumes 512-byte alignment for each blit source, which we
+        ;; do in fact have.
+        move.l  #$81749300, 4(a0)
+        move.l  #$94109500, 4(a0)
+        move.l  d2, 4(a0)
+        move.l  d1, 4(a0)
+        bra     @done
 
         include "ccamain.s"
         include "joystick.s"
