@@ -68,7 +68,6 @@ mirror_ready:
 
         bsr     BumbershootLogo
         bsr     InitFakeCGA
-        bsr     CGATestPattern
         bsr     CCAInit
 
         ;; Now that we've set up the VRAM intially, VRAM shall only be
