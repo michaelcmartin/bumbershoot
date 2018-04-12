@@ -5,6 +5,7 @@ CurBuf: ds      4
 CCAInit:
         bsr     srnd
         move.l  #CCA_buf_0, CurBuf
+        move.b  #0, mirror_ready
         ;; Fall through to CCAReset
 
 CCAReset:
@@ -24,6 +25,8 @@ CCAReset:
         ;; TODO: This is unlikely to survive the full implementation
 
 CCARender:
+        move.b  mirror_ready, d0
+        bne     CCARender
         move.l  d2, -(sp)
         movea.l CurBuf, a0
         lea     CCA_vram_mirror, a1
