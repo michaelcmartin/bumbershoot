@@ -11,6 +11,7 @@ scroll_pos:
         ds  4
 mirror_ready:
         ds  1
+        align 2
 
         seg text
         org 0
