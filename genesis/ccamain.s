@@ -78,14 +78,29 @@ CCAStep:
         cmp.b   1(a0, d0), d5
         beq.s   @eat
         addq    #1, d0          ; 8-bit displacement means we can't offset 128!
-        cmp.b   127 (a0, d0), d5
+        cmp.b   127(a0, d0), d5
         bne.s   @next
 @eat:   move.b  d5, d4        
 @next:  move.b  d4, (a1, d6)
         dbra    d3, @lp2
         dbra    d2, @lp
+
+        ;; Now check the corners
+        move.w  #127, d6
+@lp3:   move.w  d6, d2
+        moveq   #0, d3
+        bsr.s   @dopt
+        exg     d2, d3
+        bsr.s   @dopt
+        move.w  #127, d2
+        bsr.s   @dopt
+        exg     d2, d3
+        bsr.s   @dopt
+        dbra    d6, @lp3
+        
         movem.l (sp)+, d2-d6/a0-a1
         rts
+        
 @index: move.w  d2, d0          ; d0 = (y & 0x7f) * 128
         lsl.w   #7, d0
         move.w  d3, d1          ; d1 = (x & 0x7f)
@@ -97,16 +112,27 @@ CCAStep:
         move.b  d5, d4
 @done:  rts
 
+@dopt:  bsr     @index
+        move.b  (a0, d0), d4    ; d4 = this cell's color
+        move.b  d4, d5
+        addq    #1, d5
+        and.b   #$0f, d5        ; d5 = (d4 + 1) & 0x0f = target color
         subq    #1, d2
+        and.w   #$7f, d2
         bsr.s   @check
         addq    #2, d2
+        and.w   #$7f, d2
         bsr.s   @check
         subq    #1, d2
+        and.w   #$7f, d2
         subq    #1, d3
+        and.w   #$7f, d3
         bsr.s   @check
         addq    #2, d3
+        and.w   #$7f, d3
         bsr.s   @check
         subq    #1, d3
+        and.w   #$7f, d3
         bsr.s   @index
         move.b  d4, (a1, d0)
-        
+        rts
