@@ -54,19 +54,49 @@ CCARender:
         rts
 
 CCAStep:
-        movem.l d2-d5/a0-a1, -(sp)
+        movem.l d2-d6/a0-a1, -(sp)
         movea.l CurBuf, a0      ; Source buffer
         move.l  a0, d0          ; Compute destination buffer by
         eor.w   #$4000, d0      ; flipping the $4000 bit
         move.l  d0, a1          ; Destination buffer
         move.l  a1, CurBuf      ; Which will be the next source buffer
-        move.w  #$127, d2       ; 128 rows
-@lp:    move.w  #$127, d3       ; 128 columns
+
+        ;; Check the internal points first
+        move.w  #125, d2       ; 126 non-edge rows
+@lp:    move.w  #125, d3       ; 126 non-edge columns
 @lp2:   bsr.s   @index
+        add.w   #129, d0
         move.b  (a0, d0), d4    ; d4 = this cell's color
         move.b  d4, d5
         addq    #1, d5
         and.b   #$0f, d5        ; d5 = (d4 + 1) & 0x0f = target color
+        move.w  d0, d6          ; Cache displacement
+        cmp.b   -128(a0, d0), d5
+        beq.s   @eat
+        cmp.b   -1(a0, d0), d5
+        beq.s   @eat
+        cmp.b   1(a0, d0), d5
+        beq.s   @eat
+        addq    #1, d0          ; 8-bit displacement means we can't offset 128!
+        cmp.b   127 (a0, d0), d5
+        bne.s   @next
+@eat:   move.b  d5, d4        
+@next:  move.b  d4, (a1, d6)
+        dbra    d3, @lp2
+        dbra    d2, @lp
+        movem.l (sp)+, d2-d6/a0-a1
+        rts
+@index: move.w  d2, d0          ; d0 = (y & 0x7f) * 128
+        lsl.w   #7, d0
+        move.w  d3, d1          ; d1 = (x & 0x7f)
+        or.w    d1, d0          ; d0 = ((y & 0x7f) * 128) + (x & 0x7f)
+        rts
+@check: bsr     @index
+        cmp.b   (a0, d0), d5
+        bne.s   @done
+        move.b  d5, d4
+@done:  rts
+
         subq    #1, d2
         bsr.s   @check
         addq    #2, d2
@@ -79,19 +109,4 @@ CCAStep:
         subq    #1, d3
         bsr.s   @index
         move.b  d4, (a1, d0)
-        dbra    d3, @lp2
-        dbra    d2, @lp
-        movem.l (sp)+, d2-d5/a0-a1
-        rts
-@index: move.w  d2, d0          ; d0 = (y & 0x7f) * 128
-        and.w   #$7f, d0
-        lsl.w   #7, d0
-        move.w  d3, d1          ; d1 = (x & 0x7f)
-        and.w   #$7f, d1
-        or.w    d1, d0          ; d0 = ((y & 0x7f) * 128) + (x & 0x7f)
-        rts
-@check: bsr     @index
-        cmp.b   (a0, d0), d5
-        bne.s   @done
-        move.b  d5, d4
-@done:  rts
+        
