@@ -77,7 +77,9 @@ mirror_ready:
         move.w  #$8164, (a0)    ; Enable VBLANK interrupt
         move.w  #$2500, sr      ; Unmask interrupt level 6
 
-freeze: bra.s   freeze
+mainlp: bsr     CCAStep
+        bsr     CCARender
+        bra     mainlp
 
 ;;; Exceptions and interrupts. Pull these out if you intend to
 ;;; implement them yourself.
