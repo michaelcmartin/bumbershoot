@@ -4,7 +4,7 @@ rnd_y:	ds	2
 
         seg text
 srnd:   lea     rnd_x, a0
-        move.l  #$10001, (a0)
+        move.l  #$a0001, (a0)
 	rts
 
 rnd:	movem.l	d2-d3, -(sp)
