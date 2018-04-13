@@ -80,7 +80,7 @@ CCAStep:
         addq    #1, d0          ; 8-bit displacement means we can't offset 128!
         cmp.b   127(a0, d0), d5
         bne.s   @next
-@eat:   move.b  d5, d4        
+@eat:   move.b  d5, d4
 @next:  move.b  d4, (a1, d6)
         dbra    d3, @lp2
         dbra    d2, @lp
@@ -97,10 +97,10 @@ CCAStep:
         exg     d2, d3
         bsr.s   @dopt
         dbra    d6, @lp3
-        
+
         movem.l (sp)+, d2-d6/a0-a1
         rts
-        
+
 @index: move.w  d2, d0          ; d0 = (y & 0x7f) * 128
         lsl.w   #7, d0
         move.w  d3, d1          ; d1 = (x & 0x7f)
