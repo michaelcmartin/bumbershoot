@@ -11,6 +11,9 @@ scroll_pos:
         ds  4
 mirror_ready:
         ds  1
+reset_requested:                ; Bit 0 = reset requested (START was pressed)
+        ds  1                   ; Bit 1 = reset needs acknowledgement
+                                ;         (START needs to be released)
         align 2
 
         seg text
@@ -77,7 +80,8 @@ mirror_ready:
         move.w  #$8164, (a0)    ; Enable VBLANK interrupt
         move.w  #$2500, sr      ; Unmask interrupt level 6
 
-mainlp: bsr     CCAStep
+mainlp: bsr     rnd             ; Tick the PRNG
+        bsr     CCAStep
         bsr     CCARender
         bra     mainlp
 
@@ -128,6 +132,19 @@ VBL:    movem.l d0-d2/a0-a1, -(sp)
 @nort:  move.w  d1, (a0)
         move.w  d1, (a0)
         move.w  d1, (a1)
+        ;; Process the START button and reset_requested
+        move.b  reset_requested, d1
+        btst    #7, d0
+        bne.s   @start_pressed
+        ;; START released. we can start respecting STARTs again.
+        bclr    #1, d1
+        bra.s   @start_processed
+@start_pressed:
+        btst    #1, d1          ; Is this the last reset's press?
+        bne.s   @start_processed
+        bset    #0, d1
+@start_processed:
+        move.b  d1, reset_requested
         ;; Check if we need to blit a layer
         move.b  mirror_ready, d0
         bne.s   @dma

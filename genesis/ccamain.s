@@ -5,7 +5,7 @@ CurBuf: ds      4
 CCAInit:
         bsr     srnd
         move.l  #CCA_buf_0, CurBuf
-        move.b  #0, mirror_ready
+        move.w  #0, mirror_ready ; Also clears reset_requested
         ;; Fall through to CCAReset
 
 CCAReset:
@@ -20,6 +20,9 @@ CCAReset:
         lsr.w   #4, d0
         dbra    d3, @cell
         dbra    d2, @lp
+        ;; A reset has happened. Don't allow new reset requests until
+        ;; START has been released for at least one frame.
+        move.b  #2, reset_requested
         movem.l (sp)+, d2-d3/a2
         ;; Fall through to CCARender
 
@@ -53,6 +56,11 @@ CCARender:
         rts
 
 CCAStep:
+        ;; Before anything else, check if we should reset instead
+        move.b  reset_requested, d0
+        btst    #0, d0
+        bne     CCAReset
+
         movem.l d2-d6/a0-a3, -(sp)
         movea.l CurBuf, a0      ; Source buffer
         move.l  a0, d0          ; Compute destination buffer by
