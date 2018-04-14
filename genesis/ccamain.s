@@ -22,7 +22,6 @@ CCAReset:
         dbra    d2, @lp
         movem.l (sp)+, d2-d3/a2
         ;; Fall through to CCARender
-        ;; TODO: This is unlikely to survive the full implementation
 
 CCARender:
         move.b  mirror_ready, d0
