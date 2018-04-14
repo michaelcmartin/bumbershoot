@@ -53,7 +53,7 @@ CCARender:
         rts
 
 CCAStep:
-        movem.l d2-d6/a0-a1, -(sp)
+        movem.l d2-d6/a0-a3, -(sp)
         movea.l CurBuf, a0      ; Source buffer
         move.l  a0, d0          ; Compute destination buffer by
         eor.w   #$4000, d0      ; flipping the $4000 bit
@@ -61,28 +61,34 @@ CCAStep:
         move.l  a1, CurBuf      ; Which will be the next source buffer
 
         ;; Check the internal points first
-        move.w  #125, d2       ; 126 non-edge rows
-@lp:    move.w  #125, d3       ; 126 non-edge columns
-@lp2:   bsr.s   @index
-        add.w   #129, d0
-        move.b  (a0, d0), d4    ; d4 = this cell's color
+        move.w  #(126*126-1), d2 ; 126 non-edge rows and non-edge columns
+        movea.l a0, a2          ; Point a2 to first cell, one cell SE of
+        add.w   #129, a2        ; upper left corner
+        movea.l a1, a3          ; And do the same with a3 and target
+        add.w   #129, a3        ; matrix
+@lp:    move.b  (a2), d4        ; d4 = this cell's color
         move.b  d4, d5
         addq    #1, d5
         and.b   #$0f, d5        ; d5 = (d4 + 1) & 0x0f = target color
-        move.w  d0, d6          ; Cache displacement
-        cmp.b   -128(a0, d0), d5
+        cmp.b   -128(a2), d5    ; Check N neighbor
         beq.s   @eat
-        cmp.b   -1(a0, d0), d5
+        cmp.b   -1(a2), d5      ; Check W neighbor
         beq.s   @eat
-        cmp.b   1(a0, d0), d5
+        cmp.b   1(a2), d5       ; Check E neighbor
         beq.s   @eat
-        addq    #1, d0          ; 8-bit displacement means we can't offset 128!
-        cmp.b   127(a0, d0), d5
+        cmp.b   128(a2), d5     ; Check S neighbor
         bne.s   @next
-@eat:   move.b  d5, d4
-@next:  move.b  d4, (a1, d6)
-        dbra    d3, @lp2
-        dbra    d2, @lp
+@eat:   move.b  d5, d4          ; Final color is one step up
+@next:  move.b  d4, (a3)        ; Store final (possibly initial) color in target
+        addq    #1, a2
+        addq    #1, a3
+        move.l  a2, d0          ; Are we at column 128?
+        and.w   #$7f, d0
+        cmp.w   #$7f, d0
+        bne.s   @lpend
+        addq    #2, a2          ; Skip the right and left edges
+        addq    #2, a3          ; on both our registers
+@lpend: dbra    d2, @lp
 
         ;; Now check the corners
         move.w  #127, d6
@@ -97,7 +103,7 @@ CCAStep:
         bsr.s   @dopt
         dbra    d6, @lp3
 
-        movem.l (sp)+, d2-d6/a0-a1
+        movem.l (sp)+, d2-d6/a0-a3
         rts
 
 @index: move.w  d2, d0          ; d0 = (y & 0x7f) * 128
