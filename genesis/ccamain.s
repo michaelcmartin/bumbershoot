@@ -69,7 +69,8 @@ CCAStep:
         move.l  a1, CurBuf      ; Which will be the next source buffer
 
         ;; Check the internal points first
-        move.w  #(126*126-1), d2 ; 126 non-edge rows and non-edge columns
+        move.w  #(126*128-3), d2 ; 126 non-edge rows and 128 columns, skipping
+                                 ; the first and last
         movea.l a0, a2          ; Point a2 to first cell, one cell SE of
         add.w   #129, a2        ; upper left corner
         movea.l a1, a3          ; And do the same with a3 and target
@@ -90,12 +91,6 @@ CCAStep:
 @next:  move.b  d4, (a3)        ; Store final (possibly initial) color in target
         addq    #1, a2
         addq    #1, a3
-        move.l  a2, d0          ; Are we at column 128?
-        and.w   #$7f, d0
-        cmp.w   #$7f, d0
-        bne.s   @lpend
-        addq    #2, a2          ; Skip the right and left edges
-        addq    #2, a3          ; on both our registers
 @lpend: dbra    d2, @lp
 
         ;; Now check the corners
