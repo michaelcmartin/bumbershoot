@@ -1,16 +1,12 @@
 #!/usr/bin/python
 
+conv_factor = 53693100.0 / 0x7e000000
+
 def ym2612_hz(fnum, block):
-    OSC1 = 53693100.0
-    fM_YM2612 = OSC1 / 14
-    fsam_YM2612 = fM_YM2612 / 72
-    return (fnum * fsam_YM2612 * (2 ** block)) / 2097152
+    return fnum * (2 ** block) * conv_factor
 
 def ym2612_vals(hz):
-    OSC1 = 53693100.0
-    fM_YM2612 = OSC1 / 14
-    fsam_YM2612 = fM_YM2612 / 72
-    fnum = hz * 2097152.0 / fsam_YM2612
+    fnum = hz / conv_factor
     block = 0
     while fnum >= 2048:
         fnum /= 2.0
