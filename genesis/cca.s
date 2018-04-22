@@ -73,6 +73,7 @@ reset_requested:                ; Bit 0 = reset requested (START was pressed)
         bsr     BumbershootLogo
         bsr     InitFakeCGA
         bsr     CCAInit
+        bsr     SetupFM
 
         ;; Now that we've set up the VRAM intially, VRAM shall only be
         ;; touched inside the VBLANK interrupt.
@@ -170,4 +171,5 @@ VBL:    movem.l d0-d2/a0-a1, -(sp)
         include "joystick.s"
         include "xorshift.s"
         include "fakecga.s"
+        include "simplefm.s"
         include "logo.s"
