@@ -66,31 +66,13 @@ def parse(song):
         elif cmd == '<':
             octave -= 1
         elif cmd == 'p':
-            result.append((0, 14400.0 * (1.5 ** dots) / (length * tempo)))
+            if arg is None:
+                arg = length
+            result.append((0, 14400.0 * (1.5 ** dots) / (arg * tempo)))
         elif cmd in notes:
-            result.append((notes[cmd] + 12*octave, 14400.0 * (1.5 ** dots) / (length * tempo)))
+            if arg is None:
+                arg = length
+            result.append((notes[cmd] + 12*octave, 14400.0 * (1.5 ** dots) / (arg * tempo)))
         else:
             print "Unknown command: ", cmd
     return result
-
-if __name__ == "__main__":
-    print parse("""T120O3L8GB>DG<A>F#G4<G4G4GB>DG<A>F#G4<G4G4
-L4O4EEE8G8DDD8G8CL8DC<B>C<A2.
-O3L8GB>DG<A>F#G4<G4G4GB>DG<A>F#G4<G4G4
-O4L8E4DC<BA>D4C<BAGL12AB>C<L4DF#G2.
-O3L8GABAGF#G4E4E4>GF#EGF#EF#4<B4B4
-O4L8GF#EGF#EL4F#<B>EL12F#GAL4<B>D#ED#8E8F#
-O4L8G4GF#EDE4EDC<B>C4C<BAGF#4EF#D4
-O3L4ADDBDD>CL8DC<B>C<A2.
-O3L8GB>DG<A>F#G4<G4G4GB>DG<A>F#G4<G4G4
-O4L8E4DC<BA>D4C<BAGABL4DF#G2.""")
-    print parse("""O2L8G2D4<GB>DGD<BG2>D4<GB>DGD<B
-O2L4CGC<B>G<BA>F#GL8DEF#DEF#
-O2L8G2D4<GB>DGD<BG2>D4<GB>DGD<B
-O2L4CEG<B>DGCDDGD<G
-O2L4ED#<B>E<BE>EGBL8<B>D#F#BF#D#
-O2L4EGB<B>AGAB<B>E2.
-O1L4B>DGCDE<AB>CD<AD
-O2L8F#DF#DF#DGDGDGDF#4D4G4DEF#DEF#
-O2L8G2D4<GB>DGD<BG2>D4<GB>DGD<B
-O2L4CEG<B>DGC2DGD<G""")
