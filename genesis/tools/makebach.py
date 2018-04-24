@@ -14,13 +14,12 @@ def ym2612_vals(hz):
     fnum = int(round(fnum))
     return (block << 11) | fnum
 
-def freq(noteval, octave):
-    val = 4 * 12 + 10  # A-440
-    target = octave * 12 + noteval
+def freq(noteval):
+    reference = 4 * 12 + 10  # A-440
     step = 2.0 ** (1.0 / 12)
-    return ym2612_vals(440.0 * (step ** (target - val)))
+    return ym2612_vals(440.0 * (step ** (noteval - reference)))
 
-notes = [freq(x, 4) for x in [1, 3, 5, 6, 8, 10, 12, 13]]
+notes = [freq(x + 12 * 4) for x in [1, 3, 5, 6, 8, 10, 12, 13]]
 print "        defb    $1F,$21,$30,$71,$34,$0D,$38,$33,$3C,$01"
 print "        defb    $40,$23,$44,$2D,$48,$26,$4C,$00,$50,$5F"
 print "        defb    $54,$99,$58,$5F,$5C,$94,$60,$05,$64,$05"
