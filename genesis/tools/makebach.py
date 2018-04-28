@@ -50,7 +50,7 @@ O3L4ADDBDD>CL8DC<B>C<A2.
 O3L8GB>DG<A>F#G4<G4G4GB>DG<A>F#G4<G4G4
 O4L8E4DC<BA>D4C<BAGABL4DF#G2."""
 
-voice2 = """O2L8G2D4<GB>DGD<BG2>D4<GB>DGD<B
+voice2 = """T120O2L8G2D4<GB>DGD<BG2>D4<GB>DGD<B
 O2L4CGC<B>G<BA>F#GL8DEF#DEF#
 O2L8G2D4<GB>DGD<BG2>D4<GB>DGD<B
 O2L4CEG<B>DGCDDGD<G
@@ -72,9 +72,16 @@ piano = [0x71, 0x0d, 0x33, 0x01, # Detune/Multiple
 
 score = [[]]
 set_instrument(score, piano, 0, 0)
+set_instrument(score, piano, 1, 0)
 t = 0
 for (n, v) in musicmacro.parse(voice1):
     set_note(score, 0, n, v, t)
+    t += v
+    while len(score) < t:
+        score.append([])
+t = 0
+for (n, v) in musicmacro.parse(voice2):
+    set_note(score, 1, n, v, t)
     t += v
     while len(score) < t:
         score.append([])
@@ -97,3 +104,4 @@ t = 0
 while t < len(collated):
     print ("        defb    $" + ",$".join(["%02X" % c for c in collated[t:t+16]]))
     t += 16
+print "        ;; %d bytes in song" % len(collated)
