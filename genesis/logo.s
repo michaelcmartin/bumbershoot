@@ -11,27 +11,13 @@ BumbershootLogo:
         movea.l a3, a4
         addq    #4, a4
 
-        ;; Load logo into VRAM normally
-        ;;         move.w  #8f02, (a1)
-        ;;         move.l  #$40200000, (a1)
-        ;;         movea.l #logo, a2
-        ;;         move.w  #((logoend-logo) / 4)-1,d0
-        ;; @lp:    move.l  (a2)+, (a0)
-        ;;         dbra    d0, @lp
-
-        ;; Load logo into VRAM with BLAST PROCESSING
-        move.w  #$8114, (a4)    ; Enable DMA
-        move.w  #$8f02, (a4)    ; Word writes
-        move.w  #$9300 + (((@logoend-@logo) >> 1) & $ff), (a4)
-        move.w  #$9400 + ((@logoend-@logo) >> 9), (a4)
-        move.w  #$9500 + ((@logo >> 1) & $ff), (a4)
-        move.w  #$9600 + ((@logo >> 9) & $ff), (a4)
-        move.w  #$9700 + ((@logo >> 17) & $ff), (a4)
-        move.w  #$4020, (a4)
-        move.w  #$0080, $ff0000
-        move.w  $ff0000, (a4)
-@dma:   btst    #3, (a4)
-        bne.s   @dma
+        ;; Load logo into VRAM
+        move.w  #$8f02, (a4)
+        move.l  #$40200000, (a4)
+        movea.l #@logo, a2
+        move.w  #((@logoend-@logo) / 4)-1,d0
+@lp:    move.l  (a2)+, (a3)
+        dbra    d0, @lp
 
         ;; Load some colors into VRAM
         move.l  #$c0000000, (a4)
