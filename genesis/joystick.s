@@ -2,6 +2,7 @@ ReadJoy1:
         moveq   #0, d0
         moveq   #0, d1
         movea.l #$a10003, a0
+        move.b  #$40, 6(a0)
         move.b  #$40, (a0)
         move.b  (a0), d0
         move.b  d0, d1
