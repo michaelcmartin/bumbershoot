@@ -80,5 +80,10 @@ for line in file(sys.argv[1]).readlines():
 cart.fix_sega_header()
 
 outfile = file(sys.argv[2], "wb")
-outfile.write(make_smd(cart.rom))
+if sys.argv[2].endswith(".smd"):
+    outfile.write(make_smd(cart.rom))
+    outfile.close()
+    outfile = file(sys.argv[2][:-3] + "bin", "wb")
+
+outfile.write("".join(chr(c) for c in cart.rom))
 outfile.close()
