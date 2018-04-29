@@ -49,12 +49,16 @@ rlp:    ld      a, (hl)
         ld      (ix+1), a
         djnz    rlp
         ld      (ptr), hl
-idone:  pop     hl
+        ;; The video interrupt is held for 64 microseconds. To make sure we
+        ;; don't end up double-dipping, spin for a bit before returning.
+idone:  ld      b, 64
+ilp:    djnz    ilp
+        pop     hl
         pop     ix
         pop     bc
         pop     af
         ei
-        ret
+        reti
 
 song:
 segno:  

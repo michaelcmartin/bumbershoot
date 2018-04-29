@@ -105,7 +105,7 @@ nodec3: srl     a
         pop     de
         pop     af
         ei
-        ret
+        reti
 
         ;; A Chiptune rendition of the Nyancat song, itself adapted from
         ;; Vincent Johnson's arrangement, as seen improvised upon by Tom
