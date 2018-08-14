@@ -13,7 +13,9 @@
         .alias  VSYNC   $0000
         .alias  VBLANK  $0001
         .alias  WSYNC   $0002
+        .alias  COLUPF  $0008
         .alias  COLUBK  $0009
+        .alias  CTRLPF  $000A
         .alias  PF0     $000D
         .alias  PF1     $000E
         .alias  PF2     $000F
@@ -88,6 +90,10 @@ frame:
 
         lda     #$40            ; Red background
         sta     COLUBK
+        lda     #$0E            ; White playfield
+        sta     COLUPF
+        lda     #$01            ; Mirrored playfield
+        sta     CTRLPF
         lda     #$00
         sta     GRP0            ; Invisible Players
         sta     GRP1
@@ -112,7 +118,41 @@ frame:
 ;;; --------------------------------------------------------------------------
 
         ;; 192 lines of main display
-        ldy     #$c0
+        ldy     #$20
+*       sta     WSYNC
+        dey
+        bne     -
+
+        ldy     #$08
+        lda     #$ff
+*       sta     WSYNC
+        sta     PF2
+        dey
+        bne     -
+
+        ldx     #$05
+*       lda     #$49
+        ldy     #$10
+*       sta     WSYNC
+        sta     PF2
+        dey
+        bne     -
+
+        ldy     #$08
+        lda     #$ff
+*       sta     WSYNC
+        sta     PF2
+        dey
+        bne     -
+
+        dex
+        bne     ---
+
+        lda     #$00
+        sta     WSYNC
+        sta     PF2
+
+        ldy     #$1F
 *       sta     WSYNC
         dey
         bne     -
