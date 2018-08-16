@@ -13,12 +13,18 @@
         .alias  VSYNC   $0000
         .alias  VBLANK  $0001
         .alias  WSYNC   $0002
+        .alias  NUSIZ0  $0004
+        .alias  NUSIZ1  $0005
+        .alias  COLUP0  $0006
+        .alias  COLUP1  $0007
         .alias  COLUPF  $0008
         .alias  COLUBK  $0009
         .alias  CTRLPF  $000A
         .alias  PF0     $000D
         .alias  PF1     $000E
         .alias  PF2     $000F
+        .alias  RESP0   $0010
+        .alias  RESP1   $0011
         .alias  GRP0    $001B
         .alias  GRP1    $001C
         .alias  ENAM0   $001D
@@ -88,15 +94,16 @@ frame:
 
         ;; Our actual frame-update logic
 
-        lda     #$40            ; Red background
+        lda     #$00            ; Black background
         sta     COLUBK
         lda     #$0E            ; White playfield
         sta     COLUPF
-        lda     #$01            ; Mirrored playfield
+        lda     #$05            ; High Priority mirrored playfield
         sta     CTRLPF
-        lda     #$00
-        sta     GRP0            ; Invisible Players
+        lda     #$DB
+        sta     GRP0            ; TEMP: Player are solid bars of color
         sta     GRP1
+        lda     #$00
         sta     ENAM0           ; Disable Missiles and Ball
         sta     ENAM1           ; (TODO: GRP0-ENABL are contiguous)
         sta     ENABL
@@ -104,6 +111,30 @@ frame:
         sta     PF1
         sta     PF2
 
+        ;; Place the players. Take the cycle X that STA RESPn begins
+        ;; after STA WSYNC ends, and the player is at pixel
+        ;;    3*X - 53  (minimum 1)
+        ;; Our target pixels are 52 and 76, so, we can place them perfectly
+        ;; if we strobe the reset-player registers on cycles 35 and 43.
+        sta     WSYNC
+        ;; Quad-size players
+        lda     #$07            ; +2 (2)
+        sta     NUSIZ0          ; +3 (5)
+        sta     NUSIZ1          ; +3 (8)
+        ;; That are a warm red
+        lda     #$42            ; +2 (10)
+        sta     COLUP0          ; +3 (13)
+        sta     COLUP1          ; +3 (16)
+
+        ldx     #$03            ; +2     (18)
+*       dex                     ; +2*3   (24)
+        bne     -               ; +3*2+2 (32)
+
+        cpx     $80             ; +3 (35)
+        sta     RESP0           ; +3 (38)
+        nop                     ; +2 (40)
+        cpx     $80             ; +3 (43)
+        sta     RESP1
 
         ;; Wait for VBLANK to finish
 *       lda     INTIM
