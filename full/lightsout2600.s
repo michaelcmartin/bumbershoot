@@ -166,6 +166,10 @@ frame:
         ldy     #$10
 *       sta     WSYNC
         sta     PF2
+        ;; Just for fun: add horizontal stripes to go with the vertical ones
+        lda     #$42
+        sta     COLUBK
+        lda     #$49
         dey
         bne     -
 
@@ -173,6 +177,10 @@ frame:
         lda     #$ff
 *       sta     WSYNC
         sta     PF2
+        ;; Just for fun: turn off the stripes
+        lda     #$00
+        sta     COLUBK
+        lda     #$ff
         dey
         bne     -
 
