@@ -25,11 +25,15 @@
         .alias  PF2     $000F
         .alias  RESP0   $0010
         .alias  RESP1   $0011
+        .alias  RESBL   $0014
         .alias  GRP0    $001B
         .alias  GRP1    $001C
         .alias  ENAM0   $001D
         .alias  ENAM1   $001E
         .alias  ENABL   $001F
+        .alias  HMBL    $0024
+        .alias  HMOVE   $002A
+        .alias  HMCLR   $002B
         .alias  INTIM   $0284
         .alias  TIM64T  $0296
 
@@ -38,7 +42,7 @@
 ;;; --------------------------------------------------------------------------
         .data
         .org    $0080
-        ;; No variables yet!
+        .space  crsr_x  1       ; Cursor X location (0-4, 0=left)
 
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
@@ -98,15 +102,17 @@ frame:
         sta     COLUBK
         lda     #$0E            ; White playfield
         sta     COLUPF
-        lda     #$05            ; High Priority mirrored playfield
+        lda     #$25            ; High Priority mirrored playfield, 4px Ball
         sta     CTRLPF
         lda     #$DB
         sta     GRP0            ; TEMP: Player are solid bars of color
         sta     GRP1
-        lda     #$00
-        sta     ENAM0           ; Disable Missiles and Ball
-        sta     ENAM1           ; (TODO: GRP0-ENABL are contiguous)
+        lda     #$02            ; TEMP: Enable Ball
         sta     ENABL
+        lda     #$00
+        sta     ENAM0           ; Disable Missiles
+        sta     ENAM1           ; (TODO: GRP0-ENABL are contiguous)
+
         sta     PF0             ; Invisible Playfield
         sta     PF1
         sta     PF2
@@ -135,6 +141,34 @@ frame:
         nop                     ; +2 (40)
         cpx     $80             ; +3 (43)
         sta     RESP1
+
+        ;; Now place the ball. Take the cycle X that STA RESBL begins after
+        ;; STA WSYNC ends, and the ball is at pixel
+        ;;   3*X - 55 (minimum 0)
+        ;; Our target pixels are defined by the values in the coarse and
+        ;; fine placement tables.
+        sta     WSYNC
+        ldy     crsr_x          ; +3 (3)
+        lda     coarse_loc, y   ; +4 (7)
+        tax                     ; +2 (9)
+*       dex                     ; +5N-1
+        bne     -               ; So X=5N+8 for coarse placement
+        sta     RESBL           ; for a pixel location of 15N-31
+        lda     fine_loc, y
+        sta     HMCLR
+        sta     HMBL
+        sta     WSYNC
+        sta     HMOVE
+
+        ;; TEMP: Advance the cursor to the right once per frame. This will
+        ;;       produce a flickery mess but it lets us test all the values
+        ;;       in a frame-by-frame debugger.
+        ldx     crsr_x
+        inx
+        cpx     #$05
+        bne     +
+        ldx     #$00
+*       stx     crsr_x
 
         ;; Wait for VBLANK to finish
 *       lda     INTIM
@@ -203,6 +237,21 @@ frame:
 ;;; --------------------------------------------------------------------------
 
         ;; None yet!
+
+;;; --------------------------------------------------------------------------
+;;; * DATA TABLES
+;;; --------------------------------------------------------------------------
+        ;; We want to ensure that all our table accesses never cross a page
+        ;; boundary, and the easiest way to ensure that is to stuff it all
+        ;; into the last page.
+        .advance $ff00
+
+        ;; Location data for the cursor. Our target pixels are, in order,
+        ;; 54,66,78,90,102.
+coarse_loc:
+        .byte   $06,$06,$07,$08,$09
+fine_loc:
+        .byte   $50,$90,$C0,$F0,$20
 
 ;;; --------------------------------------------------------------------------
 ;;; * INTERRUPT VECTORS
