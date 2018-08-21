@@ -43,6 +43,7 @@
         .data
         .org    $0080
         .space  crsr_x  1       ; Cursor X location (0-4, 0=left)
+        .space  crsr_y  1       ; Cursor Y location (0-4, 0=bottom)
 
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
@@ -74,7 +75,9 @@ reset:
 
         ;; Initial setup code
 
-        ;; None yet!
+        lda     #$02
+        sta     crsr_x
+        sta     crsr_y
 
 ;;; --------------------------------------------------------------------------
 ;;; * MAIN FRAME LOOP
@@ -107,11 +110,10 @@ frame:
         lda     #$DB
         sta     GRP0            ; TEMP: Player are solid bars of color
         sta     GRP1
-        lda     #$02            ; TEMP: Enable Ball
-        sta     ENABL
         lda     #$00
         sta     ENAM0           ; Disable Missiles
         sta     ENAM1           ; (TODO: GRP0-ENABL are contiguous)
+        sta     ENABL
 
         sta     PF0             ; Invisible Playfield
         sta     PF1
@@ -160,16 +162,6 @@ frame:
         sta     WSYNC
         sta     HMOVE
 
-        ;; TEMP: Advance the cursor to the right once per frame. This will
-        ;;       produce a flickery mess but it lets us test all the values
-        ;;       in a frame-by-frame debugger.
-        ldx     crsr_x
-        inx
-        cpx     #$05
-        bne     +
-        ldx     #$00
-*       stx     crsr_x
-
         ;; Wait for VBLANK to finish
 *       lda     INTIM
         bne     -
@@ -195,14 +187,38 @@ frame:
         dey
         bne     -
 
-        ldx     #$05
-*       lda     #$49
-        ldy     #$10
-*       sta     WSYNC
+        ldx     #$04
+grid_loop:
+        lda     #$49
+        sta     WSYNC
         sta     PF2
+
+        cpx     crsr_y
+        beq     draw_cursor
+        ;; No cursor in this row
+        ldy     #$0F
+*       sta     WSYNC
         dey
         bne     -
+        beq     next_solid
 
+draw_cursor:
+        lda     #$02
+        sta     WSYNC
+        sta     WSYNC
+        sta     WSYNC
+        sta     WSYNC
+        sta     ENABL
+        ldy     #$08
+*       sta     WSYNC
+        dey
+        bne     -
+        sty     ENABL
+        sta     WSYNC
+        sta     WSYNC
+        sta     WSYNC
+
+next_solid:
         ldy     #$08
         lda     #$ff
 *       sta     WSYNC
@@ -211,7 +227,7 @@ frame:
         bne     -
 
         dex
-        bne     ---
+        bpl     grid_loop
 
         lda     #$00
         sta     WSYNC
