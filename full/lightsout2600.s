@@ -44,6 +44,7 @@
         .org    $0080
         .space  crsr_x  1       ; Cursor X location (0-4, 0=left)
         .space  crsr_y  1       ; Cursor Y location (0-4, 0=bottom)
+        .space  grid    5       ; Grid data, one per row
 
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
@@ -78,6 +79,11 @@ reset:
         lda     #$02
         sta     crsr_x
         sta     crsr_y
+        ldx     #$04
+*       lda     grid_init,x
+        sta     grid,x
+        dex
+        bpl     -
 
 ;;; --------------------------------------------------------------------------
 ;;; * MAIN FRAME LOOP
@@ -107,10 +113,9 @@ frame:
         sta     COLUPF
         lda     #$25            ; High Priority mirrored playfield, 4px Ball
         sta     CTRLPF
-        lda     #$DB
-        sta     GRP0            ; TEMP: Player are solid bars of color
-        sta     GRP1
         lda     #$00
+        sta     GRP0            ; Players start blank
+        sta     GRP1
         sta     ENAM0           ; Disable Missiles
         sta     ENAM1           ; (TODO: GRP0-ENABL are contiguous)
         sta     ENABL
@@ -189,6 +194,18 @@ frame:
 
         ldx     #$04
 grid_loop:
+        ;; Decode and store player graphics
+        lda     grid,x
+        lsr
+        lsr
+        tay
+        lda     grid_decode,y
+        sta     GRP0
+        lda     grid,x
+        and     #$03
+        tay
+        lda     grid_decode,y
+        sta     GRP1
         lda     #$49
         sta     WSYNC
         sta     PF2
@@ -231,6 +248,8 @@ next_solid:
 
         lda     #$00
         sta     WSYNC
+        sta     GRP0
+        sta     GRP1
         sta     PF2
 
         ldy     #$1F
@@ -269,6 +288,10 @@ coarse_loc:
 fine_loc:
         .byte   $50,$90,$C0,$F0,$20
 
+grid_decode:
+        .byte   $00,$03,$18,$1B,$C0,$C3,$D8,$DB
+grid_init:
+        .byte   $1B,$15,$0E,$15,$1B
 ;;; --------------------------------------------------------------------------
 ;;; * INTERRUPT VECTORS
 ;;; --------------------------------------------------------------------------
