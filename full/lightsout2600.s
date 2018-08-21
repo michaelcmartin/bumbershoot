@@ -111,7 +111,7 @@ frame:
         sta     COLUBK
         lda     #$0E            ; White playfield
         sta     COLUPF
-        lda     #$25            ; High Priority mirrored playfield, 4px Ball
+        lda     #$15            ; High Priority mirrored playfield, 2px Ball
         sta     CTRLPF
         lda     #$00
         sta     GRP0            ; Players start blank
@@ -226,11 +226,28 @@ draw_cursor:
         sta     WSYNC
         sta     WSYNC
         sta     ENABL
-        ldy     #$08
-*       sta     WSYNC
-        dey
-        bne     -
-        sty     ENABL
+        sta     WSYNC
+        sta     HMCLR
+        lda     #$10
+        sta     HMBL
+        sta     WSYNC
+        sta     HMOVE
+        lda     #$25            ; High Priority mirrored playfield, 2px Ball
+        sta     CTRLPF
+        sta     WSYNC
+        sta     WSYNC
+        sta     WSYNC
+        sta     HMCLR
+        lda     #$F0
+        sta     HMBL
+        sta     WSYNC
+        sta     HMOVE
+        lda     #$15            ; High Priority mirrored playfield, 4px Ball
+        sta     CTRLPF
+        sta     WSYNC
+        sta     WSYNC
+        lda     #$00
+        sta     ENABL
         sta     WSYNC
         sta     WSYNC
         sta     WSYNC
@@ -286,7 +303,7 @@ next_solid:
 coarse_loc:
         .byte   $06,$06,$07,$08,$09
 fine_loc:
-        .byte   $50,$90,$C0,$F0,$20
+        .byte   $40,$80,$B0,$E0,$10
 
 grid_decode:
         .byte   $00,$03,$18,$1B,$C0,$C3,$D8,$DB
