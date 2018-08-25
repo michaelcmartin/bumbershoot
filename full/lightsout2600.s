@@ -34,6 +34,7 @@
         .alias  HMBL    $0024
         .alias  HMOVE   $002A
         .alias  HMCLR   $002B
+        .alias  SWCHB   $0282
         .alias  INTIM   $0284
         .alias  TIM64T  $0296
 
@@ -44,7 +45,9 @@
         .org    $0080
         .space  crsr_x  1       ; Cursor X location (0-4, 0=left)
         .space  crsr_y  1       ; Cursor Y location (0-4, 0=bottom)
+        .space  scrtch1 1       ; Spare byte to make moves simpler
         .space  grid    5       ; Grid data, one per row
+        .space  scrtch2 1       ; Spare byte to make moves simpler
 
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
@@ -75,15 +78,13 @@ reset:
         ;; where we want it.
 
         ;; Initial setup code
-
+        ;; Center cursor
         lda     #$02
         sta     crsr_x
         sta     crsr_y
-        ldx     #$04
-*       lda     grid_init,x
-        sta     grid,x
-        dex
-        bpl     -
+        ;; Seed RNG with .A=1, .X=0
+        lsr
+        jsr     srnd
 
 ;;; --------------------------------------------------------------------------
 ;;; * MAIN FRAME LOOP
@@ -106,6 +107,13 @@ frame:
         sta     TIM64T
 
         ;; Our actual frame-update logic
+        ;; Start by generating 32 bits of randomness
+        jsr     rnd
+        lda     rndval
+        sta     rndval+2
+        lda     rndval+1
+        sta     rndval+3
+        jsr     rnd
 
         lda     #$00            ; Black background
         sta     COLUBK
@@ -166,6 +174,12 @@ frame:
         sta     HMBL
         sta     WSYNC
         sta     HMOVE
+
+        ;; If RESET is pressed, randomize the board
+        lda     SWCHB
+        lsr
+        bcs     +
+        jsr     randomize_board
 
         ;; Wait for VBLANK to finish
 *       lda     INTIM
@@ -288,7 +302,67 @@ next_solid:
 ;;; * SUPPORT ROUTINES
 ;;; --------------------------------------------------------------------------
 
-        ;; None yet!
+        ;; Makes a move at (crsr_x, crsr_y).
+make_move:
+        ldx     crsr_y
+        ldy     crsr_x
+        lda     move_edge,y
+        eor     grid-1,x
+        sta     grid-1,x
+        lda     move_edge,y
+        eor     grid+1,x
+        sta     grid+1,x
+        lda     move_center,y
+        eor     grid,x
+        sta     grid,x
+        rts
+
+        .include "../asm/xorshift.s"
+        ;; We need four bytes for rndval here. We are relying on the fact
+        ;; that rndval is the last thing xorshift defines in its data
+        ;; segment, so rnd2 will be allocated right next to it.
+        .data
+        .space  rnd2    2
+        .text
+
+.scope
+        .data
+        .space  _index  1
+        .space  _count  1
+        .space  _curr   1
+        .text
+
+randomize_board:
+        ldx     #$01
+        stx     _count
+        dex
+        stx     _index
+        lda     #$04
+        sta     crsr_y
+_row:   lda     #$04
+        sta     crsr_x
+_cell:  dec     _count
+        bne     +
+        ;; Out of bits, reset counter, load next rndval
+        ldx     _index
+        lda     rndval,x
+        sta     _curr
+        lda     #$08
+        sta     _count
+        inc     _index
+*       lsr     _curr
+        bcc     +
+        jsr     make_move
+*       dec     crsr_x
+        bpl     _cell
+        dec     crsr_y
+        bpl     _row
+        ;; Reset cursor on the way out
+        lda     #$02
+        sta     crsr_x
+        sta     crsr_y
+        rts
+.scend
 
 ;;; --------------------------------------------------------------------------
 ;;; * DATA TABLES
@@ -307,8 +381,11 @@ fine_loc:
 
 grid_decode:
         .byte   $00,$03,$18,$1B,$C0,$C3,$D8,$DB
-grid_init:
-        .byte   $1B,$15,$0E,$15,$1B
+
+move_edge:
+        .byte   $10,$08,$04,$02,$01
+move_center:
+        .byte   $18,$1C,$0E,$07,$03
 ;;; --------------------------------------------------------------------------
 ;;; * INTERRUPT VECTORS
 ;;; --------------------------------------------------------------------------
