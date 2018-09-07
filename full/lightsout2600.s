@@ -370,7 +370,7 @@ _cell:  dec     _count
         ;; We want to ensure that all our table accesses never cross a page
         ;; boundary, and the easiest way to ensure that is to stuff it all
         ;; into the last page.
-        .advance $ff00
+        .advance $ff00,$ff
 
         ;; Location data for the cursor. Our target pixels are, in order,
         ;; 54,66,78,90,102.
@@ -389,5 +389,5 @@ move_center:
 ;;; --------------------------------------------------------------------------
 ;;; * INTERRUPT VECTORS
 ;;; --------------------------------------------------------------------------
-        .advance $FFFA
+        .advance $FFFA,$ff
         .word   reset, reset, reset
