@@ -205,6 +205,10 @@ frame:
         sta     HMBL
         sta     WSYNC
         sta     HMOVE
+        ;; In order for the timing on the player and ball placement to be
+        ;; correct, we need the backbranches to not have crossed any
+        ;; page boundaries. We need to make sure we're still in $F8xx land.
+        .checkpc $F900
 
         ;; If RESET is pressed, randomize the board
         lda     SWCHB
