@@ -20,6 +20,7 @@
         .alias  COLUPF  $0008
         .alias  COLUBK  $0009
         .alias  CTRLPF  $000A
+        .alias  INPT4   $000C
         .alias  PF0     $000D
         .alias  PF1     $000E
         .alias  PF2     $000F
@@ -34,6 +35,8 @@
         .alias  HMBL    $0024
         .alias  HMOVE   $002A
         .alias  HMCLR   $002B
+        .alias  SWCHA   $0280
+        .alias  SWACNT  $0281
         .alias  SWCHB   $0282
         .alias  INTIM   $0284
         .alias  TIM64T  $0296
@@ -180,10 +183,15 @@ frame:
         lsr
         bcs     +
         jsr     randomize_board
+        jmp     vblank_end
+
+        ;; Otherwise execute a gameplay frame.
+*       jsr     game_frame
 
         ;; Wait for VBLANK to finish
-*       lda     INTIM
-        bne     -
+vblank_end:
+        lda     INTIM
+        bne     vblank_end
         ;; We're on the final VBLANK line now. Wait for it to finish,
         ;; then turn it off. (.A is already zero from the branch.)
         sta     WSYNC
@@ -363,6 +371,51 @@ _cell:  dec     _count
         sta     crsr_y
         rts
 .scend
+
+game_frame:
+        ;; TODO: Trigger should only be read on falling edge, and joysticks
+        ;;       should have an 'autofire' that resets on input change
+        bit     INPT4
+        bmi     +
+        jsr     make_move
+*       lda     #$00            ; Force SWCHA to all input
+        sta     SWACNT
+        tax                     ; null out .X and .Y so we can use
+        tay                     ; them to represent dx/dy
+        lda     SWCHA
+        asl                     ; right bit in carry
+        bcs     +
+        inx
+*       asl                     ; left bit in carry
+        bcs     +
+        dex
+*       asl                     ; down bit in carry
+        bcs     +
+        dey
+*       asl                     ; up bit in carry
+        bcs     +
+        iny
+*       txa                     ; crsr_x += dx
+        clc
+        adc     crsr_x
+        ;; Bounds-check and wrap around if needed
+        bpl     +
+        lda     #$04
+*       cmp     #$05
+        bcc     +
+        lda     #$00
+*       sta     crsr_x
+        tya                     ; crsr_y += dy
+        clc
+        adc     crsr_y
+        ;; Bounds-check and wrap around if needed
+        bpl     +
+        lda     #$04
+*       cmp     #$05
+        bcc     +
+        lda     #$00
+*       sta     crsr_y
+        rts
 
 ;;; --------------------------------------------------------------------------
 ;;; * DATA TABLES
