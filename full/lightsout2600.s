@@ -55,11 +55,36 @@
         .space  lastrig 1       ; Previous trigger data
         .space  joytime 1       ; Frames until next move possible
 
+        .text
+        .org    $F800           ; 2KB cartridge image
+;;; --------------------------------------------------------------------------
+;;; * DATA TABLES
+;;; --------------------------------------------------------------------------
+        ;; We want to ensure that all our table accesses never cross a page
+        ;; boundary, and the easiest way to ensure that is to stuff it all
+        ;; right at the start.
+
+        ;; Location data for the cursor. Our target pixels are, in order,
+        ;; 54,66,78,90,102.
+coarse_loc:
+        .byte   $06,$06,$07,$08,$09
+fine_loc:
+        .byte   $40,$80,$B0,$E0,$10
+
+grid_decode:
+        .byte   $00,$03,$18,$1B,$C0,$C3,$D8,$DB
+
+move_edge:
+        .byte   $10,$08,$04,$02,$01
+move_center:
+        .byte   $18,$1C,$0E,$07,$03
+
+        ;; Enforce that we haven't crossed our page boundary.
+        .checkpc $F900
+
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
 ;;; --------------------------------------------------------------------------
-        .text
-        .org    $F800           ; 2KB cartridge image
         ;; RESET vector.
 reset:
         sei
@@ -436,28 +461,6 @@ game_frame:
 game_frame_end:
         rts
 
-;;; --------------------------------------------------------------------------
-;;; * DATA TABLES
-;;; --------------------------------------------------------------------------
-        ;; We want to ensure that all our table accesses never cross a page
-        ;; boundary, and the easiest way to ensure that is to stuff it all
-        ;; into the last page.
-        .advance $ff00,$ff
-
-        ;; Location data for the cursor. Our target pixels are, in order,
-        ;; 54,66,78,90,102.
-coarse_loc:
-        .byte   $06,$06,$07,$08,$09
-fine_loc:
-        .byte   $40,$80,$B0,$E0,$10
-
-grid_decode:
-        .byte   $00,$03,$18,$1B,$C0,$C3,$D8,$DB
-
-move_edge:
-        .byte   $10,$08,$04,$02,$01
-move_center:
-        .byte   $18,$1C,$0E,$07,$03
 ;;; --------------------------------------------------------------------------
 ;;; * INTERRUPT VECTORS
 ;;; --------------------------------------------------------------------------
