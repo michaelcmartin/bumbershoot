@@ -51,6 +51,9 @@
         .space  scrtch1 1       ; Spare byte to make moves simpler
         .space  grid    5       ; Grid data, one per row
         .space  scrtch2 1       ; Spare byte to make moves simpler
+        .space  lastjoy 1       ; Previous joystick data
+        .space  lastrig 1       ; Previous trigger data
+        .space  joytime 1       ; Frames until next move possible
 
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
@@ -373,16 +376,28 @@ _cell:  dec     _count
 .scend
 
 game_frame:
-        ;; TODO: Trigger should only be read on falling edge, and joysticks
-        ;;       should have an 'autofire' that resets on input change
+        bit     lastrig
+        bpl     +
         bit     INPT4
         bmi     +
         jsr     make_move
-*       lda     #$00            ; Force SWCHA to all input
+*       lda     INPT4
+        sta     lastrig
+        lda     #$00            ; Force SWCHA to all input
         sta     SWACNT
         tax                     ; null out .X and .Y so we can use
         tay                     ; them to represent dx/dy
         lda     SWCHA
+        and     #$F0            ; Only care about P0
+        cmp     lastjoy
+        sta     lastjoy
+        beq     +
+        stx     joytime         ; If joystick moved, react immediately
+*       lda     joytime
+        beq     +
+        dec     joytime
+        jmp     game_frame_end
+*       lda     lastjoy
         asl                     ; right bit in carry
         bcs     +
         inx
@@ -415,6 +430,10 @@ game_frame:
         bcc     +
         lda     #$00
 *       sta     crsr_y
+        ;; Finally, set a delay for autorepeat
+        lda     #$10
+        sta     joytime
+game_frame_end:
         rts
 
 ;;; --------------------------------------------------------------------------
