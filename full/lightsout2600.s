@@ -54,6 +54,9 @@
         .space  lastjoy 1       ; Previous joystick data
         .space  lastrig 1       ; Previous trigger data
         .space  joytime 1       ; Frames until next move possible
+        .space  idle    1       ; Zero if not in the screensaver mode
+        .space  idletim 1       ; Idle timer. Pick a new color when zero.
+        .space  idlemsk 1       ; Mask value to randomize colors.
 
         .text
         .org    $F800           ; 2KB cartridge image
@@ -113,6 +116,8 @@ reset:
         lda     #$02
         sta     crsr_x
         sta     crsr_y
+        ;; Start in idle mode
+        sta     idle
         ;; Seed RNG with .A=1, .X=0
         lsr
         jsr     srnd
@@ -147,8 +152,10 @@ frame:
         jsr     rnd
 
         lda     #$00            ; Black background
+        eor     idlemsk
         sta     COLUBK
         lda     #$0E            ; White playfield
+        eor     idlemsk
         sta     COLUPF
         lda     #$15            ; High Priority mirrored playfield, 2px Ball
         sta     CTRLPF
@@ -215,6 +222,20 @@ frame:
         lsr
         bcs     +
         jsr     randomize_board
+        lda     #$00
+        sta     idlemsk
+        sta     idle
+        jmp     vblank_end
+
+        ;; Otherwise if we're idle count down and pick a new mask if needed.
+*       lda     idle
+        beq     +
+        lda     #$06            ; Hide cursor
+        sta     crsr_y
+        dec     idletim
+        bne     vblank_end
+        lda     rndval
+        sta     idlemsk
         jmp     vblank_end
 
         ;; Otherwise execute a gameplay frame.
@@ -400,12 +421,19 @@ _cell:  dec     _count
         ;; Reset cursor on the way out
         lda     #$02
         sta     crsr_x
+        lda     #$06
         sta     crsr_y
         rts
 .scend
 
 game_frame:
-        bit     lastrig
+        lda     crsr_y          ; If cursor is offscreen, center it
+        cmp     #$05
+        bcc     +
+        lda     #$02
+        sta     crsr_y
+        sta     crsr_x
+*       bit     lastrig
         bpl     +
         bit     INPT4
         bmi     +
@@ -463,7 +491,17 @@ game_frame:
         lda     #$10
         sta     joytime
 game_frame_end:
-        rts
+        ;; Check for victory on the way out
+        ldx     #$04
+*       lda     grid, x
+        bne     +
+        dex
+        bpl     -
+        ;; We won! Back to the idle state.
+        lda     #$01
+        sta     idle
+        sta     idletim
+*       rts
 
 ;;; --------------------------------------------------------------------------
 ;;; * INTERRUPT VECTORS
