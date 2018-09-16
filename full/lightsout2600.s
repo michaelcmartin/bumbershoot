@@ -27,6 +27,9 @@
         .alias  RESP0   $0010
         .alias  RESP1   $0011
         .alias  RESBL   $0014
+        .alias  AUDC0   $0015
+        .alias  AUDF0   $0017
+        .alias  AUDV0   $0019
         .alias  GRP0    $001B
         .alias  GRP1    $001C
         .alias  ENAM0   $001D
@@ -57,6 +60,8 @@
         .space  idle    1       ; Zero if not in the screensaver mode
         .space  idletim 1       ; Idle timer. Pick a new color when zero.
         .space  idlemsk 1       ; Mask value to randomize colors.
+        .space  sndtype 1       ; SFX ID
+        .space  sndaux1 1
 
         .text
         .org    $F800           ; 2KB cartridge image
@@ -243,8 +248,9 @@ frame:
 
         ;; Wait for VBLANK to finish
 vblank_end:
-        lda     INTIM
-        bne     vblank_end
+        jsr     sound_update
+*       lda     INTIM
+        bne     -
         ;; We're on the final VBLANK line now. Wait for it to finish,
         ;; then turn it off. (.A is already zero from the branch.)
         sta     WSYNC
@@ -438,6 +444,7 @@ game_frame:
         bit     INPT4
         bmi     +
         jsr     make_move
+        jsr     make_ding
 *       lda     INPT4
         sta     lastrig
         lda     #$00            ; Force SWCHA to all input
@@ -502,6 +509,50 @@ game_frame_end:
         sta     idle
         sta     idletim
 *       rts
+
+make_ding:
+        ldx     crsr_y
+        lda     grid,x
+        ldx     crsr_x
+        and     move_edge,x
+        beq     low_ding
+        ;; Otherwise, high ding
+        lda     #$0a
+        bne     +
+low_ding:
+        lda     #$14
+*       ldx     #$00
+        stx     AUDV0
+        sta     AUDF0
+        lda     #$0c
+        sta     AUDC0
+        lda     #$01
+        sta     sndtype
+        lda     #$14
+        sta     sndaux1
+        rts
+
+sound_update:
+        ldx     sndtype
+        beq     no_sound
+        dex
+        beq     ding_update
+        dex
+        beq     whoop_update
+no_sound:
+whoop_update:
+        rts
+
+ding_update:
+        ldx     sndaux1
+        dex
+        stx     sndaux1
+        bne     +
+        stx     sndtype
+*       txa
+        lsr
+        sta     AUDV0
+        rts
 
 ;;; --------------------------------------------------------------------------
 ;;; * INTERRUPT VECTORS
