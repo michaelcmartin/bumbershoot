@@ -508,6 +508,7 @@ game_frame_end:
         lda     #$01
         sta     idle
         sta     idletim
+        jsr     make_whoop
 *       rts
 
 make_ding:
@@ -532,6 +533,18 @@ low_ding:
         sta     sndaux1
         rts
 
+make_whoop:
+        lda     #$00
+        sta     AUDV0
+        sta     AUDF0
+        lda     #$0F
+        sta     AUDC0
+        lda     #$02
+        sta     sndtype
+        lda     #$60
+        sta     sndaux1
+        rts
+
 sound_update:
         ldx     sndtype
         beq     no_sound
@@ -540,7 +553,6 @@ sound_update:
         dex
         beq     whoop_update
 no_sound:
-whoop_update:
         rts
 
 ding_update:
@@ -552,6 +564,24 @@ ding_update:
 *       txa
         lsr
         sta     AUDV0
+        rts
+
+whoop_update:
+        ldx     sndaux1
+        dex
+        dex
+        stx     sndaux1
+        bne     +
+        stx     sndtype
+        stx     AUDV0
+        rts
+*       txa
+        and     #$1F
+        sta     AUDF0
+        lda     #$0c
+        sta     AUDV0
+        lda     #$01
+        sta     idletim
         rts
 
 ;;; --------------------------------------------------------------------------
