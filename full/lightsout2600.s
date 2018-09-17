@@ -38,6 +38,8 @@
         .alias  HMP0    $0020
         .alias  HMP1    $0021
         .alias  HMBL    $0024
+        .alias  VDELP0  $0025
+        .alias  VDELP1  $0026
         .alias  HMOVE   $002A
         .alias  HMCLR   $002B
         .alias  SWCHA   $0280
@@ -101,12 +103,12 @@ move_edge:
 move_center:
         .byte   $18,$1C,$0E,$07,$03
 
-logo_0: .byte   1,2,3,4,5,6,7,8,9,10,11,12
-logo_1: .byte   1,2,3,4,5,6,7,8,9,10,11,12
-logo_2: .byte   1,2,3,4,5,6,7,8,9,10,11,12
-logo_3: .byte   1,2,3,4,5,6,7,8,9,10,11,12
-logo_4: .byte   1,2,3,4,5,6,7,8,9,10,11,12
-logo_5: .byte   1,2,3,4,5,6,7,8,9,10,11,12
+logo_0: .byte   $00,$00,$00,$00,$03,$02,$02,$02,$02,$02,$02,$02
+logo_1: .byte   $0e,$0a,$02,$02,$ae,$2a,$2a,$2a,$2e,$00,$20,$00
+logo_2: .byte   $00,$00,$00,$00,$a4,$a4,$a4,$a4,$e4,$84,$8e,$84
+logo_3: .byte   $00,$00,$00,$00,$e3,$22,$e2,$82,$e2,$02,$02,$03
+logo_4: .byte   $00,$00,$00,$00,$b9,$a9,$a9,$a9,$a9,$81,$83,$81
+logo_5: .byte   $00,$00,$00,$00,$20,$00,$20,$20,$20,$20,$a0,$20
         ;; Enforce that we haven't crossed our page boundary.
         `page_check rom_start
 
@@ -281,18 +283,41 @@ vblank_end:
         dey
         bne     -
 
-        lda     #$ff
-        sta     GRP0
-        sta     GRP1
-        ldy     #$0c
-*       sta     WSYNC
-        dey
-        bne     -
-        lda     #$00
-        sta     GRP0
-        sta     GRP1
+        lda     #$01
+        sta     VDELP0
+        sta     VDELP1
+        ldy     #$0b
+        sty     scrtch1
+*       ldy     scrtch1         ; +3 (65)
+        lda     logo_0,y        ; +4 (69)
+        sta     WSYNC           ; +3 (72->0)
+        sta     GRP0            ; +3 (3)
+        lda     logo_1,y        ; +4 (7)
+        sta     GRP1            ; +3 (10)
+        lda     logo_2,y        ; +4 (14)
+        sta     GRP0            ; +3 (17)
+        lda     logo_3,y        ; +4 (21)
+        sta     scrtch2         ; +3 (24)
+        lda     logo_4,y        ; +4 (28)
+        tax                     ; +2 (30)
+        lda     logo_5,y        ; +4 (34)
+        ldy     scrtch2         ; +3 (37)
+        nop                     ; +2 (39)
+        cpx     $80             ; +3 (42)
+        sty     GRP1            ; +3 (45)
+        stx     GRP0            ; +3 (48)
+        sta     GRP1            ; +3 (51)
+        sta     GRP0            ; +3 (54)
+        dec     scrtch1         ; +5 (59)
+        bpl     -               ; +3 (62)
 
-        ldy     #$0d
+        lda     #$00            ; +2 (63)
+        sta     GRP0            ; +3 (66)
+        sta     GRP1            ; +3 (69)
+        sta     VDELP0          ; +3 (72)
+        sta     VDELP1          ; +3 (75)
+
+        ldy     #$0c            ; +2 (77->1) -> one fewer WSYNC required here
 *       sta     WSYNC
         dey
         bne     -
