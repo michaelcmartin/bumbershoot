@@ -61,10 +61,22 @@
         .space  idletim 1       ; Idle timer. Pick a new color when zero.
         .space  idlemsk 1       ; Mask value to randomize colors.
         .space  sndtype 1       ; SFX ID
-        .space  sndaux1 1
+        .space  sndaux  1
 
+;;; --------------------------------------------------------------------------
+;;; * MACROS
+;;; --------------------------------------------------------------------------
+        ;; Trap if some timing-critical section of code crosses a page
+        ;; boundary. More precisely, asserts that the PC is either less than
+        ;; or just passed the page boundary past its argument. (If it's just
+        ;; past, then the _next_ byte is the one that will be out of bounds.)
+.macro  page_check
+        .checkpc [_1 & $FF00]+$100
+.macend
         .text
         .org    $F800           ; 2KB cartridge image
+        .advance $FC00,$FF      ; Only using 1KB of it
+rom_start:
 ;;; --------------------------------------------------------------------------
 ;;; * DATA TABLES
 ;;; --------------------------------------------------------------------------
@@ -87,8 +99,14 @@ move_edge:
 move_center:
         .byte   $18,$1C,$0E,$07,$03
 
+logo_0: .byte   1,2,3,4,5,6,7,8,9,10,11,12
+logo_1: .byte   1,2,3,4,5,6,7,8,9,10,11,12
+logo_2: .byte   1,2,3,4,5,6,7,8,9,10,11,12
+logo_3: .byte   1,2,3,4,5,6,7,8,9,10,11,12
+logo_4: .byte   1,2,3,4,5,6,7,8,9,10,11,12
+logo_5: .byte   1,2,3,4,5,6,7,8,9,10,11,12
         ;; Enforce that we haven't crossed our page boundary.
-        .checkpc $F900
+        `page_check rom_start
 
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
@@ -175,32 +193,7 @@ frame:
         sta     PF1
         sta     PF2
 
-        ;; Place the players. Take the cycle X that STA RESPn begins
-        ;; after STA WSYNC ends, and the player is at pixel
-        ;;    3*X - 53  (minimum 1)
-        ;; Our target pixels are 52 and 76, so, we can place them perfectly
-        ;; if we strobe the reset-player registers on cycles 35 and 43.
-        sta     WSYNC
-        ;; Quad-size players
-        lda     #$07            ; +2 (2)
-        sta     NUSIZ0          ; +3 (5)
-        sta     NUSIZ1          ; +3 (8)
-        ;; That are a warm red
-        lda     #$42            ; +2 (10)
-        sta     COLUP0          ; +3 (13)
-        sta     COLUP1          ; +3 (16)
-
-        ldx     #$03            ; +2     (18)
-*       dex                     ; +2*3   (24)
-        bne     -               ; +3*2+2 (32)
-
-        cpx     $80             ; +3 (35)
-        sta     RESP0           ; +3 (38)
-        nop                     ; +2 (40)
-        cpx     $80             ; +3 (43)
-        sta     RESP1
-
-        ;; Now place the ball. Take the cycle X that STA RESBL begins after
+        ;; Place the ball. Take the cycle X that STA RESBL begins after
         ;; STA WSYNC ends, and the ball is at pixel
         ;;   3*X - 55 (minimum 0)
         ;; Our target pixels are defined by the values in the coarse and
@@ -212,15 +205,12 @@ frame:
 *       dex                     ; +5N-1
         bne     -               ; So X=5N+8 for coarse placement
         sta     RESBL           ; for a pixel location of 15N-31
+        `page_check -           ; (keep that loop on one page)
         lda     fine_loc, y
         sta     HMCLR
         sta     HMBL
         sta     WSYNC
         sta     HMOVE
-        ;; In order for the timing on the player and ball placement to be
-        ;; correct, we need the backbranches to not have crossed any
-        ;; page boundaries. We need to make sure we're still in $F8xx land.
-        .checkpc $F900
 
         ;; If RESET is pressed, randomize the board
         lda     SWCHB
@@ -266,10 +256,38 @@ vblank_end:
         dey
         bne     -
 
-        ldy     #$08
         lda     #$ff
-*       sta     WSYNC
+        sta     WSYNC
         sta     PF2
+        ;; Place the players. Take the cycle X that STA RESPn begins
+        ;; after STA WSYNC ends, and the player is at pixel
+        ;;    3*X - 53  (minimum 1)
+        ;; Our target pixels are 52 and 76, so, we can place them perfectly
+        ;; if we strobe the reset-player registers on cycles 35 and 43.
+        sta     WSYNC
+        ;; Quad-size players
+        lda     #$07            ; +2 (2)
+        sta     NUSIZ0          ; +3 (5)
+        sta     NUSIZ1          ; +3 (8)
+        ;; That are a warm red
+        lda     #$42            ; +2 (10)
+        sta     COLUP0          ; +3 (13)
+        sta     COLUP1          ; +3 (16)
+
+        ldx     #$03            ; +2     (18)
+*       dex                     ; +2*3   (24)
+        bne     -               ; +3*2+2 (32)
+        ;; That loop isn't allowed to cross a page boundary.
+        `page_check -
+
+        cpx     $80             ; +3 (35)
+        sta     RESP0           ; +3 (38)
+        nop                     ; +2 (40)
+        cpx     $80             ; +3 (43)
+        sta     RESP1
+
+        ldy     #$06
+*       sta     WSYNC
         dey
         bne     -
 
@@ -530,7 +548,7 @@ low_ding:
         lda     #$01
         sta     sndtype
         lda     #$14
-        sta     sndaux1
+        sta     sndaux
         rts
 
 make_whoop:
@@ -542,7 +560,7 @@ make_whoop:
         lda     #$02
         sta     sndtype
         lda     #$60
-        sta     sndaux1
+        sta     sndaux
         rts
 
 sound_update:
@@ -556,9 +574,9 @@ no_sound:
         rts
 
 ding_update:
-        ldx     sndaux1
+        ldx     sndaux
         dex
-        stx     sndaux1
+        stx     sndaux
         bne     +
         stx     sndtype
 *       txa
@@ -567,10 +585,10 @@ ding_update:
         rts
 
 whoop_update:
-        ldx     sndaux1
+        ldx     sndaux
         dex
         dex
-        stx     sndaux1
+        stx     sndaux
         bne     +
         stx     sndtype
         stx     AUDV0
