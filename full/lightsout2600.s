@@ -35,6 +35,8 @@
         .alias  ENAM0   $001D
         .alias  ENAM1   $001E
         .alias  ENABL   $001F
+        .alias  HMP0    $0020
+        .alias  HMP1    $0021
         .alias  HMBL    $0024
         .alias  HMOVE   $002A
         .alias  HMCLR   $002B
@@ -193,6 +195,30 @@ frame:
         sta     PF1
         sta     PF2
 
+        ;; Place the title. Take the cycle X that STA RESPn begins after
+        ;; STA WSYNC ends, and the player is at pixel
+        ;;   3*X - 54 (minimum 0)
+        ;; Our target pixels are 56 and 64, which means cycles 37 and 40 will
+        ;; get us as close as we can reasonably get. However, if we drop to
+        ;; cycle 34 instead we can save a few bytes and just sneak into the
+        ;; HMOVE limits.
+        sta     WSYNC
+        lda     #$03            ; +2 (2)
+        sta     NUSIZ0          ; +3 (5)  Three copies close for P0 and P1
+        sta     NUSIZ1          ; +3 (8)
+        lda     #$1e            ; +2 (10)
+        eor     idlemsk         ; +3 (13)
+        sta     COLUP0          ; +3 (16)
+        sta     COLUP1          ; +3 (19)
+        sta     HMCLR           ; +3 (22)
+        lda     #$80            ; +2 (24)
+        sta     HMP0            ; +3 (27)
+        lda     #$90            ; +2 (29)
+        sta     HMP1            ; +3 (32)
+        nop                     ; +2 (34)
+        sta     RESP0           ; +3 (37)
+        sta     RESP1
+
         ;; Place the ball. Take the cycle X that STA RESBL begins after
         ;; STA WSYNC ends, and the ball is at pixel
         ;;   3*X - 55 (minimum 0)
@@ -207,7 +233,6 @@ frame:
         sta     RESBL           ; for a pixel location of 15N-31
         `page_check -           ; (keep that loop on one page)
         lda     fine_loc, y
-        sta     HMCLR
         sta     HMBL
         sta     WSYNC
         sta     HMOVE
@@ -251,7 +276,23 @@ vblank_end:
 ;;; --------------------------------------------------------------------------
 
         ;; 192 lines of main display
-        ldy     #$20
+        ldy     #$0d
+*       sta     WSYNC
+        dey
+        bne     -
+
+        lda     #$ff
+        sta     GRP0
+        sta     GRP1
+        ldy     #$0c
+*       sta     WSYNC
+        dey
+        bne     -
+        lda     #$00
+        sta     GRP0
+        sta     GRP1
+
+        ldy     #$0d
 *       sta     WSYNC
         dey
         bne     -
@@ -368,7 +409,7 @@ next_solid:
         sta     GRP1
         sta     PF2
 
-        ldy     #$1F
+        ldy     #$19
 *       sta     WSYNC
         dey
         bne     -
