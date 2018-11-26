@@ -21,7 +21,7 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>10.10</string>
+	<string>10.7</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2016-8 Bumbershoot Software. Published under the 2-clause BSD license.</string>
 	<key>NSPrincipalClass</key>
