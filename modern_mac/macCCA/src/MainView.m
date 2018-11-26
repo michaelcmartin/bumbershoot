@@ -34,13 +34,8 @@
         [self setTranslatesAutoresizingMaskIntoConstraints:NO];
         [self computeConstraints];
 
-        self.resetButton.target = self;
+        self.resetButton.target = self.ccaView;
         self.resetButton.action = @selector(resetModel);
-
-        NSClickGestureRecognizer *clickGR = [NSClickGestureRecognizer new];
-        clickGR.target = self;
-        clickGR.action = @selector(resetModel);
-        [self.ccaView addGestureRecognizer:clickGR];
     }
 
     return self;
@@ -48,7 +43,9 @@
 
 - (void) computeConstraints {
     if (self.constraints != nil) {
-        [NSLayoutConstraint deactivateConstraints:self.constraints];
+        for (NSLayoutConstraint *constraint in self.constraints) {
+            [self removeConstraint:constraint];
+        }
     }
     self.constraints = @[[NSLayoutConstraint constraintWithItem:self.ccaView attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:self attribute:NSLayoutAttributeTop multiplier:1.0 constant:8.0],
                          [NSLayoutConstraint constraintWithItem:self.ccaView attribute:NSLayoutAttributeLeading relatedBy:NSLayoutRelationEqual toItem:self attribute:NSLayoutAttributeLeading multiplier:1.0 constant:8.0],
@@ -59,17 +56,14 @@
                          [NSLayoutConstraint constraintWithItem:self.resetButton attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:self.ccaView attribute:NSLayoutAttributeBottom multiplier:1.0 constant:8.0],
                          [NSLayoutConstraint constraintWithItem:self attribute:NSLayoutAttributeBottom relatedBy:NSLayoutRelationEqual toItem:self.resetButton attribute:NSLayoutAttributeBottom multiplier:1.0 constant:8.0],
                          ];
-    [NSLayoutConstraint activateConstraints:self.constraints];
-}
-
-- (void)resetModel {
-    CCA_scramble(self.model);
+    for (NSLayoutConstraint *constraint in self.constraints) {
+        [self addConstraint:constraint];
+    }
 }
 
 - (void)tick:(NSTimer *)timer {
     if (timer.valid) {
-        CCA_step(self.model);
-        [self.ccaView setNeedsDisplay:YES];
+        [self.ccaView modelStep];
     }
 }
 

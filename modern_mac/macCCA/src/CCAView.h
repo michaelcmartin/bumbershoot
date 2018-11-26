@@ -13,4 +13,6 @@
 @property CCAContext *cca;
 
 - (instancetype) initWithFrame:(NSRect)frameRect model:(CCAContext *)model;
+- (void) resetModel;
+- (void) modelStep;
 @end

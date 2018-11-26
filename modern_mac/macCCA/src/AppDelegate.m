@@ -31,6 +31,7 @@
 - (void)applicationWillFinishLaunching:(NSNotification *)notification {
     NSMenu *menuBar, *appMenu;
     NSMenuItem *appMenuItem, *resetMenuItem, *quitMenuItem;
+    MainView *mainView;
     NSRect contentFrame = NSMakeRect(0.0, 0.0, 500.0, 500.0);
     NSUInteger windowStyleMask = NSTitledWindowMask | NSResizableWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask;
 
@@ -55,8 +56,9 @@
     self.displayWindow.title = @"The Cyclic Cellular Automaton";
     [self.displayWindow setStyleMask:windowStyleMask];
 
-    self.displayWindow.contentView = [[MainView alloc ]initWithFrame:contentFrame model:self.model];
-    resetMenuItem.target = self.displayWindow.contentView;
+    mainView = [[MainView alloc ]initWithFrame:contentFrame model:self.model];
+    self.displayWindow.contentView = mainView;
+    resetMenuItem.target = mainView.ccaView;
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {

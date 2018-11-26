@@ -14,6 +14,5 @@
 @property (nonatomic, nullable) CCAView *ccaView;
 @property (nonatomic, nullable) NSButton *resetButton;
 - (nullable instancetype) initWithFrame:(NSRect)frameRect model:(nonnull CCAContext *)model;
-- (void) resetModel;
 - (void) tick:(nonnull NSTimer *)timer;
 @end

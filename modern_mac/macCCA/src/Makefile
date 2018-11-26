@@ -1,7 +1,7 @@
 COBJS = CCA.o
 OBJCOBJS = AppDelegate.o CCAView.o MainView.o main.o
 
-CFLAGS = -O2 -Wall -mmacosx-version-min=10.10 -Wunguarded-availability
+CFLAGS = -O2 -Wall -mmacosx-version-min=10.7 -Wunguarded-availability
 OBJCFLAGS = $(CFLAGS) -ObjC -fobjc-arc
 
 CCA: $(COBJS) $(OBJCOBJS)

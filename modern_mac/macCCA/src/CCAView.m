@@ -43,7 +43,7 @@ static CGFloat palette[16][3] = {
 // An empty implementation adversely affects performance during animation.
 - (void)drawRect:(CGRect)rect {
     int y, x;
-    CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
+    CGContextRef ctx = [[NSGraphicsContext currentContext] graphicsPort];
     CGFloat x0 = self.bounds.origin.x;
     CGFloat y0 = self.bounds.origin.y;
     CGFloat boxWidth = self.bounds.size.width / CCA_WIDTH;
@@ -64,4 +64,20 @@ static CGFloat palette[16][3] = {
     }
 }
 
+- (void)resetModel {
+    if (self.cca) {
+        CCA_scramble(self.cca);
+    }
+}
+
+- (void)modelStep {
+    if (self.cca) {
+        CCA_step(self.cca);
+        [self setNeedsDisplay:YES];
+    }
+}
+
+- (void)mouseUp:(NSEvent *)event {
+    [self resetModel];
+}
 @end
