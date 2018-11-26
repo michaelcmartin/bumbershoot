@@ -25,8 +25,8 @@
         self.model = model;
 
         NSButton *resetButton = [NSButton new];
-        [resetButton setButtonType:NSButtonTypeMomentaryLight];
-        [resetButton setBezelStyle:NSBezelStyleRounded];
+        [resetButton setButtonType:NSMomentaryLightButton];
+        [resetButton setBezelStyle:NSRoundedBezelStyle];
         [resetButton setTranslatesAutoresizingMaskIntoConstraints:NO];
         [resetButton setTitle:@"Reset"];
         [self addSubview:resetButton];
@@ -66,9 +66,11 @@
     CCA_scramble(self.model);
 }
 
-- (void)tick {
-    CCA_step(self.model);
-    [self.ccaView setNeedsDisplay:YES];
+- (void)tick:(NSTimer *)timer {
+    if (timer.valid) {
+        CCA_step(self.model);
+        [self.ccaView setNeedsDisplay:YES];
+    }
 }
 
 @end

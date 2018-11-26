@@ -32,7 +32,7 @@
     NSMenu *menuBar, *appMenu;
     NSMenuItem *appMenuItem, *resetMenuItem, *quitMenuItem;
     NSRect contentFrame = NSMakeRect(0.0, 0.0, 500.0, 500.0);
-    NSUInteger windowStyleMask = NSWindowStyleMaskTitled | NSWindowStyleMaskResizable | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable;
+    NSUInteger windowStyleMask = NSTitledWindowMask | NSResizableWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask;
 
     menuBar = [NSMenu new];
     appMenuItem = [NSMenuItem new];
@@ -62,12 +62,7 @@
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     [NSApp activateIgnoringOtherApps:YES];
     [self.displayWindow makeKeyAndOrderFront:self];
-    AppDelegate __weak *weakSelf = self;
-    self.timer = [NSTimer timerWithTimeInterval:0.05 repeats:YES block:^(NSTimer *timer) {
-            if (timer.isValid) {
-                [(MainView *)[[weakSelf displayWindow] contentView] tick];
-            }
-    }];
+    self.timer = [NSTimer timerWithTimeInterval:0.05 target:self.displayWindow.contentView selector:@selector(tick:) userInfo:nil repeats:YES];
     [[NSRunLoop mainRunLoop] addTimer:self.timer forMode:NSDefaultRunLoopMode];
 }
 
