@@ -17,9 +17,7 @@ board:
         defb    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 
 init:   call    $0a2a                   ; CLS
-        ld      hl, title_msg
-        call    print_at
-        ld      hl, modes_msg
+        ld      hl, mode_select_msg
         call    print_at
 modelp: call    get_key
         cp      a, 29                   ; Selected (1)?
@@ -39,7 +37,7 @@ mode_done:
         call    $0a2a                   ; CLS
         ld      hl, board
 mode_0: ld      de, mandala_init
-        xor     a
+        ld      a,$1c                   ; Character for "0"
         ld      (human_score),a
         ld      (computer_score),a
         ld      c, 16
@@ -59,18 +57,10 @@ init_1: push    af
         jr      nz, init_0
         ;; Fall through to draw
 
-draw:   ld      hl,human_score_msg
+draw:   ld      hl,scores_msg
         call    print_at
-        ld      a,(human_score)
-        add     a,28
-        rst     $10
-        ld      hl,computer_score_msg
-        call    print_at
-        ld      a,(computer_score)
-        add     a,28
-        rst     $10
-        ld      bc,$1821
-        call    $0918                   ; Home cursor
+        ;; Printing the scores also homes the cursor, so we're ready
+        ;; to go with printing the screen
         call    draw_num_bar
         call    draw_bar
         ld      hl, board
@@ -149,6 +139,9 @@ draw_bar_0: rst $10
         rst     $10
         ret
 
+print_at_0:
+        inc     hl
+        ;; Entry point if we're opening with a screen location
 print_at:
         ld      c,(hl)
         inc     hl
@@ -157,13 +150,16 @@ print_at:
         push    hl
         call    $0918                   ; Set cursor location
         pop     hl
-print_at_0:
+        ;; Entry point if we *aren't* starting with a set-loc
+print:
         ld      a,(hl)
         cp      a,$ff
         ret     z
+        cp      a,$fe
+        jr      z,print_at_0
         rst     $10
         inc     hl
-        jr      print_at_0
+        jr      print
 
 get_key:
         ;; Wait for no key, then wait for key
@@ -188,20 +184,21 @@ mandala_init:
 chopper_init:
         defb    $ee,$ee,$bb,$bb,$ee,$ee,$33,$33
         defb    $cc,$cc,$77,$77,$dd,$dd,$77,$77
-title_msg:
-        defb    $19,$14,$38,$2a,$31,$2a,$28,$39,$00,$2c,$26,$32,$2a,$00,$32
-        defb    $34,$29,$2a,$ff
-modes_msg:
-        defb    $1b,$0c,$10,$1d,$11,$00,$32,$26,$33,$29,$26,$31,$26,$00,$28
-        defb    $2d,$2a,$28,$30,$2a,$37,$38,$76,$76,$00,$00,$00,$00,$00,$00
-        defb    $10,$1e,$11,$00,$28,$2d,$34,$35,$35,$2a,$37,$00,$28,$2d,$2a
-        defb    $28,$30,$2a,$37,$38,$ff
-human_score_msg:
-        defb    $0c,$18,$2d,$3a,$32,$26,$33,$0e,$00,$00,$00,$00,$ff
-computer_score_msg:
-        defb    $0c,$16,$28,$34,$32,$35,$3a,$39,$2a,$37,$0e,$00,$ff
 
+mode_select_msg:
+        defb    $19,$14,$38,$2a,$31,$2a,$28,$39,$00,$2c,$26,$32,$2a,$00,$32
+        defb    $34,$29,$2a,$fe,$1b,$0c,$10,$1d,$11,$00,$32,$26,$33,$29,$26
+        defb    $31,$26,$00,$28,$2d,$2a,$28,$30,$2a,$37,$38,$fe,$1b,$0a,$10
+        defb    $1e,$11,$00,$28,$2d,$34,$35,$35,$2a,$37,$00,$28,$2d,$2a,$28
+        defb    $30,$2a,$37,$38,$ff
+
+scores_msg:
+        defb    $0c,$18,$2d,$3a,$32,$26,$33,$0e,$00,$00,$00,$00
 human_score:
-        defb    $00
+        defb    $1c
+        ;; Computer score message
+        defb    $fe,$0c,$16,$28,$34,$32,$35,$3a,$39,$2a,$37,$0e,$00
 computer_score:
-        defb    $00
+        defb    $1c
+        ;; Home cursor after printing scores
+        defb    $fe,$21,$18,$ff
