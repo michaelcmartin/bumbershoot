@@ -195,16 +195,21 @@ human_move:
         call    print_at
         call    parse_square
         ld      b,a
+        call    read_square             ; Source square our piece?
+        cp      2
+        jr      nz,human_move
         push    bc
         ld      a,22                    ; CODE "-"
         rst     $10
         call    parse_square
         pop     bc
         ld      c,a
+        call    read_square             ; Target square blank?
+        and     a,a
+        jr      nz,human_move
         ;; Initial brain-dead implementation: no validity checking
-        ld      hl,board
-        add     l
-        ld      l,a
+        ld      a,c
+        call    read_square
         ld      (hl),2
         ld      a,board & 255
         add     b
@@ -259,6 +264,19 @@ parse_square_0:
         add     a,a
         pop     bc
         or      b
+        ret
+
+;;; --------------------------------------------------------------------------
+;;;   read_square: Locate and check a position on the board
+;;;    ARGUMENT: A holds the index to read.
+;;;    OUTPUT:   A holds the value at that square.
+;;;              HL holds the address of that square.
+;;; --------------------------------------------------------------------------
+read_square:
+        ld      h,board >> 8
+        add     a,board & 255
+        ld      l,a
+        ld      a,(hl)
         ret
 
 ;;; --------------------------------------------------------------------------
@@ -320,10 +338,6 @@ gk_0:   call    KEYBOARD
         ;; Tertiary loop variable for "draw" routine
 tile_offset:
         defb    8
-
-        ;; Start/end positions for move under consideration
-move_buffer:
-        defb    0,0
 
         ;; Initial board state for Mandala and Chopper
 mandala_init:
