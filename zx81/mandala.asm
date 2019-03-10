@@ -15,7 +15,7 @@
         defc    CLS=$0a2a               ; Clear screen
 
         ;; Skip the page-sensitive data block
-        jr      init
+        jr      main
 ;;; --------------------------------------------------------------------------
 ;;;   PAGE-SENSITIVE DATA BLOCK
 ;;;
@@ -37,6 +37,15 @@ board:
         defb    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
         defb    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
         defb    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+;;; --------------------------------------------------------------------------
+;;;   main: Main program loop.
+;;; --------------------------------------------------------------------------
+main:
+        call    init
+        call    human_move
+        call    draw
+        ret
 
 ;;; --------------------------------------------------------------------------
 ;;;   init: User sets game mode, and the board, score, and graphics tiles are
@@ -178,6 +187,81 @@ draw_bar_0:
         ret
 
 ;;; --------------------------------------------------------------------------
+;;;   human_move: Execute the human player's turn
+;;; --------------------------------------------------------------------------
+
+human_move:
+        ld      hl,move_prompt_msg
+        call    print_at
+        call    parse_square
+        ld      b,a
+        push    bc
+        ld      a,22                    ; CODE "-"
+        rst     $10
+        call    parse_square
+        pop     bc
+        ld      c,a
+        ;; Initial brain-dead implementation: no validity checking
+        ld      hl,board
+        add     l
+        ld      l,a
+        ld      (hl),2
+        ld      a,board & 255
+        add     b
+        ld      l,a
+        ld      (hl),0
+        ld      a,b
+        sub     c
+        jr      nc,human_move_0
+        neg
+human_move_0:
+        cp      a,7
+        ret     z
+        cp      a,9
+        ret     z
+        ld      a,b
+        add     c
+        srl     a
+        add     a,board & 255
+        ld      l,a
+        ld      (hl),0
+        ld      hl,human_score
+        inc     (hl)
+        ret
+
+;;; --------------------------------------------------------------------------
+;;;   parse_square: Read and echo a board location from the keyboard
+;;;     RETURNS: board index in A
+;;;     TRASHES: BCDEHL
+;;; --------------------------------------------------------------------------
+
+parse_square:
+        call    get_key
+        cp      a,38                    ; CODE "A"
+        jr      c,parse_square
+        cp      a,46                    ; CODE "I"
+        jr      nc,parse_square
+        rst     $10
+        sub     38
+        ld      b,a
+        push    bc
+parse_square_0:
+        call    get_key
+        cp      a,29                    ; CODE "1"
+        jr      c,parse_square_0
+        cp      a,37                    ; CODE "9"
+        jr      nc,parse_square_0
+        rst     $10
+        neg
+        add     36
+        add     a,a
+        add     a,a
+        add     a,a
+        pop     bc
+        or      b
+        ret
+
+;;; --------------------------------------------------------------------------
 ;;;   print:    Output a string
 ;;;   print_at: Output a string at a named screen location
 ;;;
@@ -237,6 +321,10 @@ gk_0:   call    KEYBOARD
 tile_offset:
         defb    8
 
+        ;; Start/end positions for move under consideration
+move_buffer:
+        defb    0,0
+
         ;; Initial board state for Mandala and Chopper
 mandala_init:
         defb    $ee,$ce,$bb,$33,$ee,$cc,$3b,$73
@@ -262,3 +350,8 @@ human_score:
         defb    $1c,$fe,$0c,$16,$28,$34,$32,$35,$3a,$39,$2a,$37,$0e,$00
 computer_score:
         defb    $1c,$fe,$21,$18,$ff
+
+        ;; Human move prompt
+move_prompt_msg:
+        defb    $0c,$0d,$3e,$34,$3a,$37,$00,$32,$34,$3b,$2a,$0f,$fe,$0a,$0c
+        defb    $00,$00,$00,$00,$00,$fe,$0a,$0c,$ff
