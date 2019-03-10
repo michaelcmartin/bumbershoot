@@ -187,12 +187,10 @@ draw_bar_0:
 ;;;             is ($18-row). The cursor may be repositioned mid-string with
 ;;;             an $FE byte followed by a new two-byte location code. The
 ;;;             string is terminated with $FF.
-;;;   TRASHES:  ABCDEHL.
+;;;   TRASHES:  ABCDEHL. A will always be $FF, and HL will point just past
+;;;             the string that was printed.
 ;;; --------------------------------------------------------------------------
 
-print_at_0:
-        inc     hl
-        ;; Entry point if we're opening with a screen location
 print_at:
         ld      c,(hl)
         inc     hl
@@ -201,15 +199,14 @@ print_at:
         push    hl
         call    LOCADDR
         pop     hl
-        ;; Entry point if we *aren't* starting with a set-loc
-print:
+print:  ;; Entry point if we don't start with a relocate
         ld      a,(hl)
+        inc     hl
         cp      a,$ff
         ret     z
         cp      a,$fe
-        jr      z,print_at_0
+        jr      z,print_at
         rst     $10
-        inc     hl
         jr      print
 
 ;;; --------------------------------------------------------------------------
