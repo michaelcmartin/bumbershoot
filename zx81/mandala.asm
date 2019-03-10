@@ -204,33 +204,10 @@ human_move:
         call    parse_square
         pop     bc
         ld      c,a
-        call    read_square             ; Target square blank?
-        and     a,a
-        jr      nz,human_move
-        ;; Initial brain-dead implementation: no validity checking
-        ld      a,c
-        call    read_square
-        ld      (hl),2
-        ld      a,board & 255
-        add     b
-        ld      l,a
-        ld      (hl),0
-        ld      a,b
-        sub     c
-        jr      nc,human_move_0
-        neg
-human_move_0:
-        cp      a,7
-        ret     z
-        cp      a,9
-        ret     z
-        ld      a,b
-        add     c
-        srl     a
-        add     a,board & 255
-        ld      l,a
-        ld      (hl),0
-        ld      hl,human_score
+        call    execute_move
+        jr      nz,human_move           ; If it was illegal, go back!
+        ret     nc                      ; If it wasn't a capture, done
+        ld      hl,human_score          ; If it was, give a point
         inc     (hl)
         ret
 
@@ -272,11 +249,111 @@ parse_square_0:
 ;;;    OUTPUT:   A holds the value at that square.
 ;;;              HL holds the address of that square.
 ;;; --------------------------------------------------------------------------
+
 read_square:
         ld      h,board >> 8
         add     a,board & 255
         ld      l,a
         ld      a,(hl)
+        ret
+
+;;; --------------------------------------------------------------------------
+;;;   is_legal_move: Check a potential move for legality
+;;;    ARGUMENT: B = offset of source square
+;;;              C = offset of destination square
+;;;    OUTPUT:   Zero flag set if move is legal
+;;;              Carry flag set if move is a capture
+;;;    TRASHES:  AHL
+;;;    PRECONDITIONS: B must be in the range 0-63 and refer to a square that
+;;;                   has one of the active player's pieces in it.
+;;; --------------------------------------------------------------------------
+
+is_legal_move:
+        ;; First ensure the destination is in bounds
+        ld      c,a
+        cp      64
+        jr      c,is_legal_move_0
+        xor     a                       ; Failure! But Z could be either set
+        cp      1                       ; or not, so force it off before
+        ret                             ; returning
+is_legal_move_0:
+        ;; Destination blank?
+        call    read_square
+        and     a,a
+        ret     nz                      ; If not, fail
+        ;; Non-capture move?
+        ld      a,b
+        sub     c
+        jr      nc,is_legal_move_1
+        neg
+is_legal_move_1:                        ; A is now ABS(B-C)
+        cp      a,7
+        jr      z, is_legal_move_2
+        cp      a,9
+        jr      nz, is_legal_move_3
+is_legal_move_2:
+        ;; Legal non-capture move. Zero flag is already set, so just need to
+        ;; clear the carry flag
+        scf
+        ccf
+        ret
+is_legal_move_3:
+        ;; Now check for capture moves
+        cp      a,14
+        jr      z,is_legal_move_4
+        cp      a,18
+        ret     nz                      ; Wasn't a 1-or-2 square move!
+is_legal_move_4:
+        ;; 2-square move. Confirm enemy piece is in the middle.
+        ld      a,b                     ; Check source piece
+        call    read_square
+        push    de
+        neg                             ; Flip player value
+        add     6
+        ld      d,a
+        ld      a,b                     ; Compute intermediate square
+        add     c
+        srl     a
+        call    read_square             ; Read it
+        cp      d                       ; Is it opposing player value?
+        pop     de                      ;  (restore value; no flag changes)
+        ret     nz                      ; Fail if it wasn't a valid jump!
+        ;; Valid capture move. Z is set by "cp d", so set carry and exit.
+        scf
+        ret
+
+;;; --------------------------------------------------------------------------
+;;;   execute_move: Check a potential move for legality
+;;;    ARGUMENT: B = offset of source square
+;;;              C = offset of destination square
+;;;    OUTPUT:   Zero flag set if move was legal
+;;;              Carry flag set if move was a capture
+;;;    TRASHES:  AHL
+;;;    PRECONDITIONS: B must be in the range 0-63 and refer to a square that
+;;;                   has one of the active player's pieces in it.
+;;; --------------------------------------------------------------------------
+
+execute_move:
+        ;; Quit right away if this was an illegal move
+        call    is_legal_move
+        ret     nz
+        push    af                      ; Remember flags for later
+        jr      nc, execute_move_0      ; Skip capture step for noncaptures
+        ld      a,b
+        add     c
+        srl     a
+        call    read_square             ; Clear captured square
+        ld      (hl),0
+execute_move_0:
+        ld      a,b
+        call    read_square
+        ld      (hl),0
+        push    af                      ; Save identity of moved piece
+        ld      a,c
+        call    read_square
+        pop     af
+        ld      (hl),a                  ; Put it at destination
+        pop     af                      ; Restore Z and C flags
         ret
 
 ;;; --------------------------------------------------------------------------
