@@ -8,11 +8,14 @@
 ;;; --------------------------------------------------------------------------
         org     $4090
 
-        ;; ROM routines and locations
+        ;; ROM routines
         defc    KEYBOARD=$02bb          ; Scan keyboard
         defc    DECODE=$07bd            ; Convert scancode to character
         defc    LOCADDR=$0918           ; Set cursor location
         defc    CLS=$0a2a               ; Clear screen
+
+        ;; System variables
+        defc    FRAMES=$4034            ; Frame count to seed RNG
 
         ;; Skip the page-sensitive data block
         jr      main
@@ -43,8 +46,40 @@ board:
 ;;; --------------------------------------------------------------------------
 main:
         call    init
+main_lp:
         call    human_move
         call    draw
+        call    check_game_over
+        jr      z,game_over
+        call    computer_move
+        call    draw
+        call    check_game_over
+        jr      nz,main_lp
+game_over:
+        ld      hl,win_suffix_msg
+        call    print
+game_over_lp:
+        call    get_key
+        cp      a,$3E                   ; CODE "Y"
+        jr      z,main
+        cp      a,$33                   ; CODE "N"
+        jr      nz,game_over_lp
+        ret
+
+check_game_over:
+        ld      a,(human_score)
+        cp      $23                     ; CODE "7"
+        jr      nz,check_game_over_0
+        ld      hl,human_wins_msg
+        jr      check_game_over_1
+check_game_over_0:
+        ld      a,(computer_score)
+        cp      $23                     ; CODE "7"
+        ret     nz
+        ld      hl,computer_wins_msg
+check_game_over_1:
+        call    print_at
+        xor     a                       ; Set zero flag
         ret
 
 ;;; --------------------------------------------------------------------------
@@ -77,6 +112,13 @@ gotmode_0:
 mode_done:
         ld      (mode_0+1), de
         ld      (mode_1+1), hl
+        ;; Seed RNG
+        ld      hl,(FRAMES)
+        ld      a,l
+        or      1
+        ld      l,a
+        ld      (rnd_x),hl
+        ld      (rnd_y),hl
         call    CLS
         ld      hl, board
 mode_0: ld      de, mandala_init
@@ -244,6 +286,47 @@ parse_square_0:
         ret
 
 ;;; --------------------------------------------------------------------------
+;;;   computer_move: Generate and execute a computer move. If the computer
+;;;                  has stalemated, it sets the player score to 7.
+;;; --------------------------------------------------------------------------
+computer_move:
+        ;; Look for a noncapture move with a flailing random search
+        ld      d,0
+computer_move_0:
+        call    rnd
+        ld      a,l
+        and     63
+        ld      b,a
+        call    read_square
+        cp      4
+        jr      nz,computer_move_0
+        ld      hl,move_priorities
+        ld      e,8
+computer_move_1:
+        ld      a,b
+        add     (hl)
+        ld      c,a
+        push    hl
+        call    execute_move
+        pop     hl
+        jr      z,computer_move_2
+        inc     hl
+        dec     e
+        jr      nz,computer_move_1
+        ;; Couldn't move that piece, find another
+        dec     d
+        jr      nz,computer_move_0
+        ;; Couldn't move pieces after 256 tries! Concede the game
+        ld      a,35                    ; CODE "7"
+        ld      (human_score),a
+        ret
+computer_move_2:
+        ret     nc
+        ld      hl,computer_score
+        inc     (hl)
+        ret
+
+;;; --------------------------------------------------------------------------
 ;;;   read_square: Locate and check a position on the board
 ;;;    ARGUMENT: A holds the index to read.
 ;;;    OUTPUT:   A holds the value at that square.
@@ -398,7 +481,8 @@ get_key:
         call    KEYBOARD
         inc     l
         jr      nz, get_key
-gk_0:   call    KEYBOARD
+gk_0:   call    rnd                     ; Advance RNG while you wait
+        call    KEYBOARD
         inc     l
         jr      z, gk_0
         dec     l
@@ -408,6 +492,8 @@ gk_0:   call    KEYBOARD
         ld      a, (hl)
         ret
 
+INCLUDE "xorshift.asm"
+
 ;;; --------------------------------------------------------------------------
 ;;;   DATA BLOCK
 ;;; --------------------------------------------------------------------------
@@ -415,6 +501,10 @@ gk_0:   call    KEYBOARD
         ;; Tertiary loop variable for "draw" routine
 tile_offset:
         defb    8
+
+        ;; Move priorities for AI: SE-SW-NE-NW, capture over non-capture
+move_priorities:
+        defb    $12,$0e,$f2,$ee,$09,$07,$f9,$f7
 
         ;; Initial board state for Mandala and Chopper
 mandala_init:
@@ -446,3 +536,16 @@ computer_score:
 move_prompt_msg:
         defb    $0c,$0d,$3e,$34,$3a,$37,$00,$32,$34,$3b,$2a,$0f,$fe,$0a,$0c
         defb    $00,$00,$00,$00,$00,$fe,$0a,$0c,$ff
+
+        ;; Human wins
+human_wins_msg:
+        defb    $1e,$02,$3e,$34,$3a,$ff
+
+        ;; Computer wins
+computer_wins_msg:
+        defb    $1d,$02,$2e,$ff
+
+        ;; Play again?
+win_suffix_msg:
+        defb    $00,$3c,$2e,$33,$0e,$00,$35,$31,$26,$3e,$00,$26,$2c,$26,$2e
+        defb    $33,$00,$10,$3e,$18,$33,$11,$0f,$ff
