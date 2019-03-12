@@ -64,6 +64,7 @@ game_over_lp:
         jr      z,main
         cp      a,$33                   ; CODE "N"
         jr      nz,game_over_lp
+        call    CLS
         ret
 
 check_game_over:
@@ -230,6 +231,7 @@ draw_bar_0:
 
 ;;; --------------------------------------------------------------------------
 ;;;   human_move: Execute the human player's turn
+;;;     TRASHES: ABCDEHL
 ;;; --------------------------------------------------------------------------
 
 human_move:
@@ -288,39 +290,48 @@ parse_square_0:
 ;;; --------------------------------------------------------------------------
 ;;;   computer_move: Generate and execute a computer move. If the computer
 ;;;                  has stalemated, it sets the player score to 7.
+;;;     TRASHES: ABCDEHL
 ;;; --------------------------------------------------------------------------
 computer_move:
+        ;; Look for a capture move, systematically
+        ld      b,64
+computer_move_0:
+        dec     b
+        ld      a,b
+        call    read_square
+        cp      4
+        jr      nz, computer_move_1     ; Not our piece
+        ld      hl,move_priorities
+        ld      e,4
+        call    attempt_move_from
+        jr      z, computer_move_3      ; Success!
+computer_move_1:
+        xor     a
+        or      b
+        jr      nz, computer_move_0
         ;; Look for a noncapture move with a flailing random search
         ld      d,0
-computer_move_0:
+computer_move_2:
         call    rnd
         ld      a,l
         and     63
         ld      b,a
         call    read_square
         cp      4
-        jr      nz,computer_move_0
+        jr      nz,computer_move_2
         ld      hl,move_priorities
         ld      e,8
-computer_move_1:
-        ld      a,b
-        add     (hl)
-        ld      c,a
-        push    hl
-        call    execute_move
-        pop     hl
-        jr      z,computer_move_2
-        inc     hl
-        dec     e
-        jr      nz,computer_move_1
+        call    attempt_move_from
+        jr      z, computer_move_3
         ;; Couldn't move that piece, find another
         dec     d
-        jr      nz,computer_move_0
+        jr      nz,computer_move_2
         ;; Couldn't move pieces after 256 tries! Concede the game
         ld      a,35                    ; CODE "7"
         ld      (human_score),a
-        ret
-computer_move_2:
+        ld      hl,computer_concedes_msg
+        jr      print_at
+computer_move_3:
         ret     nc
         ld      hl,computer_score
         inc     (hl)
@@ -406,11 +417,12 @@ is_legal_move_4:
         ret
 
 ;;; --------------------------------------------------------------------------
-;;;   execute_move: Check a potential move for legality
+;;;   execute_move: Attempt a move, failing if it is illegal
 ;;;    ARGUMENT: B = offset of source square
 ;;;              C = offset of destination square
 ;;;    OUTPUT:   Zero flag set if move was legal
 ;;;              Carry flag set if move was a capture
+;;;              Board array is updated if move was legal
 ;;;    TRASHES:  AHL
 ;;;    PRECONDITIONS: B must be in the range 0-63 and refer to a square that
 ;;;                   has one of the active player's pieces in it.
@@ -437,6 +449,35 @@ execute_move_0:
         pop     af
         ld      (hl),a                  ; Put it at destination
         pop     af                      ; Restore Z and C flags
+        ret
+
+;;; --------------------------------------------------------------------------
+;;;   attempt_move_from: Look for valid moves from a source square
+;;;    ARGUMENT: B  = offset of source square
+;;;              E  = length of potential move array
+;;;              HL = address of potential move array
+;;;    OUTPUT:   Zero flag set if move was legal
+;;;              Carry flag set if move was a capture
+;;;              C  = offset of destination square of target move
+;;;    TRASHES:  AHL
+;;;    PRECONDITIONS: B must be in the range 0-63 and refer to a square that
+;;;                   has one of the active player's pieces in it.
+;;; --------------------------------------------------------------------------
+
+attempt_move_from:
+        ld      a,b
+        add     (hl)
+        ld      c,a
+        push    hl
+        call    execute_move
+        pop     hl
+        ret     z
+        inc     hl
+        dec     e
+        jr      nz,attempt_move_from
+        ;; Failed. Force zero flag off before returning to indicate failure.
+        ld      a,1
+        and     a,a
         ret
 
 ;;; --------------------------------------------------------------------------
@@ -544,6 +585,11 @@ human_wins_msg:
         ;; Computer wins
 computer_wins_msg:
         defb    $1d,$02,$2e,$ff
+
+        ;; Computer concedes
+computer_concedes_msg:
+        defb    $1a,$03,$2e,$00,$28,$34,$33,$28,$2a,$29,$2a,$00,$39,$2d,$2a
+        defb    $00,$2c,$26,$32,$2a,$ff
 
         ;; Play again?
 win_suffix_msg:
