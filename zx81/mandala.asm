@@ -279,12 +279,47 @@ parse_square_0:
         jr      nc,parse_square_0
         rst     $10
         neg
-        add     36
+        add     36                      ; CODE "8"
         add     a,a
         add     a,a
         add     a,a
         pop     bc
         or      b
+        ret
+
+;;; --------------------------------------------------------------------------
+;;;   computer_tell_move: Display the computer's move
+;;;     ARGUMENT: B holds the starting index
+;;;               C holds the ending index
+;;;      TRASHES: ADEHL
+;;; --------------------------------------------------------------------------
+
+computer_tell_move:
+        push    bc
+        ld      hl,computer_move_msg
+        call    print_at
+        pop     bc
+        ld      a,b
+        call    computer_tell_one_move
+        ld      a,22                    ; CODE "-"
+        rst     $10
+        ld      a,c
+        ;; Fall through into computer-tell-one-move
+
+computer_tell_one_move:
+        push    af
+        and     a,7
+        add     a,38                    ; CODE "A"
+        rst     $10
+        pop     af
+        ;; Rotating A is shorter and faster than shifting it
+        rrca
+        rrca
+        rrca
+        and     a,7
+        neg
+        add     36                      ; CODE "8"
+        rst     $10
         ret
 
 ;;; --------------------------------------------------------------------------
@@ -332,6 +367,9 @@ computer_move_2:
         ld      hl,computer_concedes_msg
         jr      print_at
 computer_move_3:
+        push    af
+        call    computer_tell_move
+        pop     af
         ret     nc
         ld      hl,computer_score
         inc     (hl)
@@ -577,6 +615,10 @@ computer_score:
 move_prompt_msg:
         defb    $0c,$0d,$3e,$34,$3a,$37,$00,$32,$34,$3b,$2a,$0f,$fe,$0a,$0c
         defb    $00,$00,$00,$00,$00,$fe,$0a,$0c,$ff
+
+        ;; Computer move report
+computer_move_msg:
+        defb    $0b,$10,$32,$3e,$00,$32,$34,$3b,$2a,$0e,$fe,$0a,$0f,$ff
 
         ;; Human wins
 human_wins_msg:
