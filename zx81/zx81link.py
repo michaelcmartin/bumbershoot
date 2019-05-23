@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from __future__ import print_function
 
 import sys
 import os.path
@@ -26,18 +27,19 @@ sysvars = [ 0x00, 0x01, 0x00, None, None, None, None, None,
             0x00, 0x00, 0x00, 0x00 ];
 
 
-# BASIC stub for the command 10 RAND USER 16528. Your binary should be org $4090.
-basicstub4090 = [0x00, 0x0a, 0x0e, 0x00, 0xf9, 0xd4, 0x1d, 0x22,
-                 0x21, 0x1e, 0x24, 0x7e, 0x8f, 0x01, 0x20, 0x00,
-                 0x00, 0x76, 0xff]
+# BASIC stub for the command 10 RAND USER 16528. Your binary should be
+# org $4090.
+basicstub4090 = bytearray([0x00, 0x0a, 0x0e, 0x00, 0xf9, 0xd4, 0x1d,
+                           0x22, 0x21, 0x1e, 0x24, 0x7e, 0x8f, 0x01,
+                           0x20, 0x00, 0x00, 0x76, 0xff])
 
 
 def wrap(binary, compressed=False, autorun=False, ntsc=False):
-    wrapped = "".join([chr(c) for c in basicstub4090]) + binary
+    wrapped = basicstub4090 + binary
     if compressed:
-        display_file = '\x76' * 25
+        display_file = b'\x76' * 25
     else:
-        display_file = '\x76' + ((('\x00' * 32) + '\x76') * 24)
+        display_file = b'\x76' + (((b'\x00' * 32) + b'\x76') * 24)
     # Compute the various things we need.
     d_file = 16509+len(wrapped)
     df_cc = d_file + 1
@@ -61,10 +63,10 @@ def wrap(binary, compressed=False, autorun=False, ntsc=False):
         h = (v >> 8) & 0xff
         sysvars[o] = l
         sysvars[o+1] = h
-    output = "".join([chr(c) for c in sysvars]) # Sysvars
+    output = bytearray(sysvars) # Sysvars
     output += wrapped # The program itself
     output += display_file
-    output += '\x80' # Variable area
+    output += b'\x80' # Variable area
     return output
 
 if __name__ == "__main__":
@@ -91,14 +93,14 @@ if __name__ == "__main__":
         showHelp = True
 
     if showHelp:
-        print "Usage:\n    %s [options] binfile\n\nOptions:" % sys.argv[0]
-        print "    --autorun, -a       Program runs immediately on load"
-        print "    --compressed, -c    Use compressed display file"
-        print "    --ntsc, -n          Program acts as if saved on a TS1000"
-        print "\nBinary linked should have $4090 as its origin."
+        print("Usage:\n    %s [options] binfile\n\nOptions:" % sys.argv[0])
+        print("    --autorun, -a       Program runs immediately on load")
+        print("    --compressed, -c    Use compressed display file")
+        print("    --ntsc, -n          Program acts as if saved on a TS1000")
+        print("\nBinary linked should have $4090 as its origin.")
         sys.exit(1)
     outfile = os.path.splitext(infile)[0] + ".P"
-    output = wrap(file(infile, "rb").read(), ntsc=ntsc, compressed=compressed, autorun=autorun)
-    of = file(outfile, "wb")
+    output = wrap(open(infile, "rb").read(), ntsc=ntsc, compressed=compressed, autorun=autorun)
+    of = open(outfile, "wb")
     of.write(output)
     of.close()
