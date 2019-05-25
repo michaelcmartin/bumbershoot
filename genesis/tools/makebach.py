@@ -23,7 +23,7 @@ def freq(noteval):
 def set_instrument(score, instrument, voice, time):
     while len(score) <= time:
         score.append([])
-    for (register, val) in zip(range(0x30+voice, 0xa0, 4), instrument):
+    for (register, val) in zip(list(range(0x30+voice, 0xa0, 4)), instrument):
         score[time].append((register, val))
     score[time].append((0xb0, instrument[-2]))
     score[time].append((0xb4, instrument[-1]))
@@ -106,6 +106,6 @@ collated.append(0)
 
 t = 0
 while t < len(collated):
-    print ("        defb    $" + ",$".join(["%02X" % c for c in collated[t:t+16]]))
+    print(("        defb    $" + ",$".join(["%02X" % c for c in collated[t:t+16]])))
     t += 16
-print "        ;; %d bytes in song" % len(collated)
+print("        ;; %d bytes in song" % len(collated))

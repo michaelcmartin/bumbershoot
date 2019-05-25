@@ -111,7 +111,7 @@ def note_val(octave, freq):
     step = 2.0 ** (1.0 / 12)
     result = psg_val(hz * (step ** (target - val)))
     if result >= 1024:
-        raise ValueError, "Illegal note %d-%d -> %d" % (freq, octave, result)
+        raise ValueError("Illegal note %d-%d -> %d" % (freq, octave, result))
     return result
 
 song = []
@@ -125,7 +125,7 @@ for voice in nyan:
             track.extend([0] * (duration-1))
     song.append(track)
 
-song = zip(*song)
+song = list(zip(*song))
 result = []
 i = 0
 loop_point = None
@@ -139,7 +139,7 @@ while i < len(song):
         duration += 1
         i += 1
     result.append(duration * 7)
-    for j in xrange(len(frame)):
+    for j in range(len(frame)):
         result.extend(psg_pokes(frame[j], j))
 result.append(0) # end of song
     
@@ -160,6 +160,6 @@ for byt in result:
         val += ','
     val += '$%02x' % byt
     i += 1
-print val
+print(val)
 
     

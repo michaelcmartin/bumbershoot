@@ -50,17 +50,17 @@ def parse(song):
             if arg is not None:
                 octave = arg
             else:
-                print "Octave requires a value"
+                print("Octave requires a value")
         elif cmd == 'l':
             if arg is not None:
                 length = arg
             else:
-                print "Default length requires a value"
+                print("Default length requires a value")
         elif cmd == 't':
             if arg is not None:
                 tempo = arg
             else:
-                print "Tempo requires a value"
+                print("Tempo requires a value")
         elif cmd == '>':
             octave += 1
         elif cmd == '<':
@@ -74,5 +74,5 @@ def parse(song):
                 arg = length
             result.append((notes[cmd] + 12*octave, 14400.0 * (1.5 ** dots) / (arg * tempo)))
         else:
-            print "Unknown command: ", cmd
+            print("Unknown command: ", cmd)
     return result

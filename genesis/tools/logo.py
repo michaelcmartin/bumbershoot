@@ -17,7 +17,7 @@ pal = {" ": "#030405",
        "=": "#F0F6FA",
        "-": "#CAD4DD" }
 
-for c in pal.keys():
+for c in list(pal.keys()):
     v = pal[c]
     r = int(v[1:3], 16)
     g = int(v[3:5], 16)
@@ -45,14 +45,13 @@ for c in chars:
         finalpal[i] = pal[c]
         i += 1
 
-print "pal:    dc.w    $%s" % ",$".join(["%04X" % x for x in finalpal[:8]])
-print "        dc.w    $%s" % ",$".join(["%04X" % x for x in finalpal[8:]])
-print
-print "logo:"
+print("pal:    dc.w    $%s" % ",$".join(["%04X" % x for x in finalpal[:8]]))
+print("        dc.w    $%s" % ",$".join(["%04X" % x for x in finalpal[8:]]))
+print("\nlogo:")
 
 logolines = []
 active = False
-for l in file("logo.xpm").readlines():
+for l in open("logo.xpm").readlines():
     if not active:
         if "pixels */" in l:
             active = True
@@ -61,29 +60,29 @@ for l in file("logo.xpm").readlines():
             raster = l[l.index('"') + 1:l.rindex('"')]
             raster = "  " + raster + "  "
             if len(raster) % 8 != 0:
-                print "wat: ",len(raster)
+                print("wat: ",len(raster))
             logolines.append(raster)
 
 chars = []
-w = len(logolines[0]) / 8
-h = len(logolines) / 8
-for y in xrange(h):
+w = len(logolines[0]) // 8
+h = len(logolines) // 8
+for y in range(h):
     char_row = logolines[y*8:y*8+8]
-    for x in xrange(w):
+    for x in range(w):
         char = []
-        for scanline in xrange(8):
+        for scanline in range(8):
             char.append(char_row[scanline][x*8:x*8+8])
         chars.append(char)
 
 for char in chars:
     vals = []
     for scanline in char:
-        v = 0L
+        v = 0
         for c in scanline:
             v <<= 4
             v |= revmap[pal[c]]
         vals.append("$%08X" % v)
-    print "        dc.l    %s" % ",".join(vals[:4])
-    print "        dc.l    %s" % ",".join(vals[4:])
-print "logoend:"
+    print("        dc.l    %s" % ",".join(vals[:4]))
+    print("        dc.l    %s" % ",".join(vals[4:]))
+print("logoend:")
 
