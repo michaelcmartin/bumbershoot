@@ -14,10 +14,10 @@ def s_line(s):
         return None
     count = int(s[2:4],16)
     addr = int(s[4:start],16)
-    data = [int(s[i*2+2:i*2+4], 16) for i in xrange(count+1)]
+    data = bytearray([int(s[i*2+2:i*2+4], 16) for i in range(count+1)])
     if sum(data[:-1]) & 0xff != data[-1] ^ 0xff:
-        raise ValueError, "Checksum mismatch: " + s + repr((sum(data[:-1]) & 0xff, data[-1]^0xff))
-    return (addr, data[start/2-1:-1])
+        raise ValueError("Checksum mismatch: " + s + repr((sum(data[:-1]) & 0xff, data[-1]^0xff)))
+    return (addr, data[start//2-1:-1])
 
 
 def make_smd(rom):
@@ -26,15 +26,15 @@ def make_smd(rom):
     while len(rom) % chunksize != 0:
         self.rom.append(0xff)
     # SMD Header
-    smd = chr(len(rom) / chunksize)
-    smd += "\x03\x00\x00\x00\x00\x00\x00\xaa\xbb\x05\x00\x00\x00\x00\x00"
-    smd += "\x00" * 0x1F0
+    smd = bytearray([len(rom) // chunksize])
+    smd += b"\x03\x00\x00\x00\x00\x00\x00\xaa\xbb\x05\x00\x00\x00\x00\x00"
+    smd += b"\x00" * 0x1F0
     i = 0
     while i < len(rom):
-        for j in range(chunksize / 2):
-            smd += chr(rom[i+j*2+1])
-        for j in range(chunksize / 2):
-            smd += chr(rom[i+j*2])
+        for j in range(chunksize // 2):
+            smd.append(rom[i+j*2+1])
+        for j in range(chunksize // 2):
+            smd.append(rom[i+j*2])
         i += chunksize
     return smd
 
@@ -42,7 +42,9 @@ class Rom(object):
     def __init__(self, chunk_size=16384, fill_byte=255):
         self.chunk_size = chunk_size
         self.fill_byte = fill_byte
-        self.rom = [fill_byte] * chunk_size
+        self.rom = bytearray(chunk_size)
+        for i in range(chunk_size):
+            self.rom[i] = fill_byte
     def consume(self, s):
         try:
             dat = s_line(s)
@@ -75,15 +77,15 @@ class Rom(object):
 
 
 cart = Rom()
-for line in file(sys.argv[1]).readlines():
+for line in open(sys.argv[1]).readlines():
     cart.consume(line)
 cart.fix_sega_header()
 
-outfile = file(sys.argv[2], "wb")
+outfile = open(sys.argv[2], "wb")
 if sys.argv[2].endswith(".smd"):
     outfile.write(make_smd(cart.rom))
     outfile.close()
-    outfile = file(sys.argv[2][:-3] + "bin", "wb")
+    outfile = open(sys.argv[2][:-3] + "bin", "wb")
 
-outfile.write("".join(chr(c) for c in cart.rom))
+outfile.write(cart.rom)
 outfile.close()
