@@ -36,7 +36,7 @@
 
 .text
 .org	$F800
-
+.advance	$FF00
 	; Console reset
 reset:	sei
 	cld
@@ -85,10 +85,8 @@ reset:	sei
 frame:	lda	#$02
 	sta	WSYNC		; Three lines of VSYNC
 	sta	VSYNC
-	sta	WSYNC
-	sta	WSYNC
 	lsr
-	sta	WSYNC
+	jsr	sync3
 	sta	VSYNC
 
 	;; Set the VBLANK timer
@@ -117,26 +115,13 @@ frame:	lda	#$02
 	lda	col'0
 	ldx	col'1
 
-	;; Wait 56 lines for vertical placement...
-	ldy	#56
-*	sta	WSYNC
-	dey
-	bne	-
+	;; Wait for vertical placement...
+	jsr	edge
 
 	;; Draw the top bar and then seet the playfield to become the walls.
-	ldy	#$FF
-	sty	PF2
-	sty	WSYNC
-	sty	WSYNC
-	sty	WSYNC
-	sty	WSYNC
+	jsr	horizbar
 	ldy	#$01
-	sty	PF2
-	sty	WSYNC
-	sty	WSYNC
-	sty	WSYNC
-	sty	WSYNC
-		
+	jsr	pf2_4
 
 	;; And draw the text. This is a 4-line kernel, but
 	;; the colors update every line. To keep that working
@@ -147,9 +132,9 @@ frame:	lda	#$02
 *	sta	COLUP0
 	stx	COLUP1
 	sta	temp
-	lda	hgr-1, y
+	lda	lgr-1, y
 	sta	GRP0
-	lda	igr-1, y
+	lda	rgr-1, y
 	sta	GRP1
 
 	;; Now, to make the lines update cleanly, we want a fast
@@ -158,21 +143,9 @@ frame:	lda	#$02
 	;; by the graphics loads and so is available for this.
 	tya
 	ldy	temp
-	inx
-	iny
-	sta	WSYNC	; Go through three more lines,
-	sty	COLUP0	; updating the colors and bumping
-	stx	COLUP1	; the counters.
-	inx
-	iny
-	sta	WSYNC
-	sty	COLUP0
-	stx	COLUP1
-	inx
-	iny
-	sta	WSYNC
-	sty	COLUP0
-	stx	COLUP1
+	jsr	colorbump
+	jsr	colorbump
+	jsr	colorbump
 	inx		; .X is only touched here, so we
 	iny		; can keep it around, but .Y is
 	sty	temp	; our line count. Use temp again
@@ -188,37 +161,50 @@ frame:	lda	#$02
 	sta	GRP1
 
 	;; Close out our border box...
-	sta	WSYNC
-	sta	WSYNC
-	sta	WSYNC
-	sta	WSYNC
-	lda	#$FF
-	sta	PF2
-	sta	WSYNC
-	sta	WSYNC
-	sta	WSYNC
-	sta	WSYNC
+	jsr	sync4
+	jsr	horizbar
 	lda	#$00
 	sta	PF2
 
-	;; Wait 56 lines for the rest of the screen...
-	ldy	#56
-*	sta	WSYNC
-	dey
-	bne	-
+	;; Wait for the rest of the screen...
+	jsr	edge
 
 	;; Turn on VBLANK, do 30 lines of Overscan
 	lda	#$02
 	sta	VBLANK
 	ldy	#30
-*	sta	WSYNC
-	dey
-	bne	-
+	jsr	sync_n
 	jmp	frame	; And the frame is done, back to VSYNC.
 
+	;; Some heavily shared code for the midkernel.
+horizbar:
+	ldy	#$FF
+pf2_4:	sty	PF2
+sync4:	sty	WSYNC
+sync3:	sty	WSYNC
+	sty	WSYNC
+	sty	WSYNC
+	rts
+
+edge:	ldy	#54
+sync_n:	sta	WSYNC
+	dey
+	bne	sync_n
+	rts
+
+colorbump:
+	inx
+	iny
+	sta	WSYNC
+	sty	COLUP0
+	stx	COLUP1
+	rts
+
 	;; Graphics for the letters.
-hgr:	.byte	$E4,$4A,$2A,$AA,$44,$00,$53,$AA,$AB,$8A,$8B,$00,$8A,$8A,$AB,$AA,$D9
-igr:	.byte	$E2,$42,$46,$CA,$46,$00,$62,$12,$22,$42,$37,$00,$4C,$52,$D6,$50,$8C
+lgr:	.byte	$E4,$4A,$2A,$AA,$44,$00,$53,$AA,$AB,$8A,$8B,$00,$8A,$8A,$AB
+	.byte	$AA,$D9
+rgr:	.byte	$E2,$42,$46,$CA,$46,$00,$62,$12,$22,$42,$37,$00,$4C,$52,$D6
+	.byte	$50,$8C
 
 	;; Interrupt vectors.
 .advance $FFFA
