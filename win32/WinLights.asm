@@ -199,35 +199,19 @@ wndProc:
 	push	dword [ebp+8]
 	call	_BeginPaint@8
 	mov	ebx, eax
-	push	dword BLACK_PEN		; Select black pen
-	call	_GetStockObject@4
-	push	eax
-	push	ebx
-	call	_SelectObject@8
-	push	eax			; Save original pen
-	push	dword DC_BRUSH		; Select recolorable brush
-	call	_GetStockObject@4
-	push	eax
-	push	ebx
-	call	_SelectObject@8
-	push	eax			; Save original brush
-	push	dword 0xaa		; Red brush
-	push	ebx
-	call	_SetDCBrushColor@8
-	xor	eax, eax		; Draw a 30-px radius circle in upper left
+	;; Now draw the grid
+	push	dword 0x1bababb
+	xor	eax, eax
 	mov	al, 70
 	push	eax
+	mov	al, 60
 	push	eax
 	mov	al, 10
 	push	eax
 	push	eax
-	push	ebx
-	call	_Ellipse@20
+	call	paint_grid
 
-	push	ebx			; Restore original brush and pen
-	call	_SelectObject@8
-	push	ebx
-	call	_SelectObject@8
+	;; Restore EBX and end painting
 	pop	ebx
 	mov	edx, esp
 	push	edx
@@ -238,6 +222,98 @@ wndProc:
 	mov	esp, ebp
 	pop	ebp
 	ret	16
+
+;;; ----------------------------------------------------------------------
+;;;   Paint support routines
+;;;
+;;;   These routines all insist that EBX (which it preserves) holds the
+;;;   HDC. The drawing state of the HDC may be mutated by the functions.
+;;; ----------------------------------------------------------------------
+
+	;; paint_ellipse(left, top, right, bottom)
+	;; A more convenient wrapper around Ellipse that doesn't consume
+	;; its arguments. cdecl ABI, with EBX as the HDC.
+paint_ellipse:
+	xor	ecx, ecx	; Copy four stack elements from args
+	mov	cl, 4		; to our own frame
+.lp:	mov	eax, [esp+16]	; As we push entries on the stack,
+	push	eax		; this reads arguments in succession!
+	loop	.lp
+	push	ebx		; push HDC...
+	call	_Ellipse@20	; and then forward to Ellipse
+	ret
+
+	;; paint_grid(left, top, size, stride)
+	;; Draws a five-by-five grid of circles starting at (left, top),
+	;; with each circle SIZE pixels in diameter and with their center
+	;; points STRIDE apart. stdcall ABI, EBX holds the HDC.
+paint_grid:
+	push	ebp
+	mov	ebp, esp
+	;; Cache the original drawing state
+	push	dword BLACK_PEN		; Select black pen
+	call	_GetStockObject@4
+	push	eax
+	push	ebx
+	call	_SelectObject@8
+	push	eax		; Save original pen
+	push	dword DC_BRUSH		; Select recolorable brush
+	call	_GetStockObject@4
+	push	eax
+	push	ebx
+	call	_SelectObject@8
+	push	eax		; Save original brush
+	;; Local variables: left, top, right, bottom, col, row
+	sub	esp, 24
+
+	;; Initialize 'top' value (left, right, bottom are set at
+	;; start of each row)
+	mov	eax, [ebp+12]
+	mov	[esp+4], eax
+	;; Initialize row iterator to 5
+	xor	ecx, ecx
+	mov	cl, 5
+.y_lp:	mov	[esp+20], ecx
+	mov	edx, [ebp+16]	; EDX = size
+	mov	eax, [ebp+8]	; Reset left
+	mov	[esp], eax
+	add	eax, edx	; Reset right
+	mov	[esp+8], eax
+	mov	eax, [esp+4]	; top is set, so reset bottom
+	add	eax, edx	; based on it
+	mov	[esp+12], eax
+	xor	ecx, ecx	; Column iterator to 5
+	mov	cl, 5
+.x_lp:	mov	[esp+16], ecx
+	xor	eax, eax	; Red brush by default
+	mov	al, 0xaa
+	shr	dword [ebp+24], 1
+	jc	.t_set
+	mov	eax, 0x555555	; Dark grey brush if cell is off
+.t_set:	push	eax
+	push	ebx
+	call	_SetDCBrushColor@8
+	call	paint_ellipse
+	mov	edx, [ebp+20]	; EDX = stride
+	add	[esp], edx	; Advance left
+	add	[esp+8], edx	; Advance right
+	mov	ecx, [esp+16]
+	loop	.x_lp
+	;; One row done, prepare for next. EDX is already stride, so
+	;; add that to TOP, and the other three will be fixed at the
+	;; head of the loop.
+	add	[esp+4], edx
+	mov	ecx, [esp+20]
+	loop	.y_lp
+	;; All rows done. Clean up and ship out.
+	add	esp, 24
+	push	ebx			; Restore original brush and pen
+	call	_SelectObject@8
+	push	ebx
+	call	_SelectObject@8
+	pop	ebp
+	ret	20
+
 
 ;;; ----------------------------------------------------------------------
 ;;;   Program data
