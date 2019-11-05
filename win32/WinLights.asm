@@ -48,12 +48,31 @@ STRUC MSG
 	.pt		resb	POINT_size
 ENDSTRUC
 
+STRUC RECT
+	.left		resd	1
+	.top		resd	1
+	.right		resd	1
+	.bottom		resd	1
+ENDSTRUC
+
+STRUC PAINTSTRUCT
+	.hdc		resd	1
+	.fErase		resd	1
+	.rcPaint	resb	RECT_size
+	.fRestore	resd	1
+	.fIncUpdate	resd	1
+	.rgbReserved	resb	32
+ENDSTRUC
+
+	BLACK_PEN	equ	7
 	COLOR_WINDOW	equ	5
 	CS_VREDRAW	equ	1
 	CS_HREDRAW	equ	2
+	DC_BRUSH	equ	18
 	IDC_ARROW	equ	32512
 	SW_SHOWDEFAULT	equ	10
 	WM_DESTROY	equ	0x02
+	WM_PAINT	equ	0x0F
 	WM_QUIT		equ	0x12
 	WS_OVERLAPPEDWINDOW equ	0x0CF0000
 	WS_CLIPCHILDREN	equ	0x2000000
@@ -71,10 +90,14 @@ ENDSTRUC
 	EXTERN	_ExitProcess@4, _GetModuleHandleA@4
 
 	;; user32.lib
-	EXTERN	_CreateWindowExA@48, _DefWindowProcA@16, _DispatchMessageA@4
-	EXTERN	_GetMessageA@16, _LoadCursorA@8, _PostQuitMessage@4
-	EXTERN	_RegisterClassExA@4, _ShowWindow@8, _TranslateMessage@4
+	EXTERN	_BeginPaint@8, _CreateWindowExA@48, _DefWindowProcA@16
+	EXTERN	_DispatchMessageA@4, _EndPaint@8, _GetMessageA@16
+	EXTERN	_LoadCursorA@8, _PostQuitMessage@4, _RegisterClassExA@4
+	EXTERN	_ShowWindow@8, _TranslateMessage@4
 
+	;; gdi32.lib
+	EXTERN	_Ellipse@20, _GetStockObject@4, _SelectObject@8
+	EXTERN	_SetDCBrushColor@8
 
 ;;; ----------------------------------------------------------------------
 ;;;   Main Program
@@ -154,15 +177,66 @@ finis:	mov	eax, dword [ebx+MSG.wParam]
 ;;; ----------------------------------------------------------------------
 
 wndProc:
-	mov	eax, [esp+8]		; Load message into EAX
-	cmp	eax, WM_DESTROY		; Is this a destroy message?
+	push	ebp
+	mov	ebp, esp
+	mov	eax, [ebp+12]		; Load message into EAX
+	cmp	eax, WM_DESTROY		; Check for messages we know about
 	je	.destroy
+	cmp	eax, WM_PAINT
+	je	.paint
 	;; Otherwise we don't know what it is, so tailcall to default.
+	mov	esp, ebp
+	pop	ebp
 	jmp	_DefWindowProcA@16
 .destroy:
 	xor	eax, eax		; Return code 0
 	call	_PostQuitMessage@4	; ... and post a proper quit message
+	jmp	.fin
+.paint:	sub	esp, PAINTSTRUCT_size
+	mov	edx, esp
+	push	ebx			; EBX will hold HDC, save orig value
+	push	edx
+	push	dword [ebp+8]
+	call	_BeginPaint@8
+	mov	ebx, eax
+	push	dword BLACK_PEN		; Select black pen
+	call	_GetStockObject@4
+	push	eax
+	push	ebx
+	call	_SelectObject@8
+	push	eax			; Save original pen
+	push	dword DC_BRUSH		; Select recolorable brush
+	call	_GetStockObject@4
+	push	eax
+	push	ebx
+	call	_SelectObject@8
+	push	eax			; Save original brush
+	push	dword 0xaa		; Red brush
+	push	ebx
+	call	_SetDCBrushColor@8
+	xor	eax, eax		; Draw a 30-px radius circle in upper left
+	mov	al, 70
+	push	eax
+	push	eax
+	mov	al, 10
+	push	eax
+	push	eax
+	push	ebx
+	call	_Ellipse@20
+
+	push	ebx			; Restore original brush and pen
+	call	_SelectObject@8
+	push	ebx
+	call	_SelectObject@8
+	pop	ebx
+	mov	edx, esp
+	push	edx
+	push	dword [ebp+8]
+	call	_EndPaint@8
+	;; Fall through to routine finish
 .fin:	xor	eax, eax		; And report success handling the event
+	mov	esp, ebp
+	pop	ebp
 	ret	16
 
 ;;; ----------------------------------------------------------------------
