@@ -72,6 +72,7 @@ ENDSTRUC
 	IDC_ARROW	equ	32512
 	SW_SHOWDEFAULT	equ	10
 	WM_DESTROY	equ	0x02
+	WM_LBUTTONDOWN	equ	0x0201
 	WM_PAINT	equ	0x0F
 	WM_QUIT		equ	0x12
 	WS_OVERLAPPEDWINDOW equ	0x0CF0000
@@ -92,8 +93,8 @@ ENDSTRUC
 	;; user32.lib
 	EXTERN	_BeginPaint@8, _CreateWindowExA@48, _DefWindowProcA@16
 	EXTERN	_DispatchMessageA@4, _EndPaint@8, _GetMessageA@16
-	EXTERN	_LoadCursorA@8, _PostQuitMessage@4, _RegisterClassExA@4
-	EXTERN	_ShowWindow@8, _TranslateMessage@4
+	EXTERN	_InvalidateRect@12, _LoadCursorA@8, _PostQuitMessage@4
+	EXTERN	_RegisterClassExA@4, _ShowWindow@8, _TranslateMessage@4
 
 	;; gdi32.lib
 	EXTERN	_Ellipse@20, _GetStockObject@4, _SelectObject@8
@@ -104,7 +105,8 @@ ENDSTRUC
 ;;; ----------------------------------------------------------------------
 
 	section	.text
-_start:	sub	esp, WNDCLASSEX_size	; Reserve space for window class
+_start:	mov	[boardState], dword 0x1bababb	; TEMP: canned board data
+	sub	esp, WNDCLASSEX_size	; Reserve space for window class
 	mov	ebx, esp		; And store a pointer to it
 	mov	edi, ebx		; And zero it out
 	xor	eax, eax
@@ -184,6 +186,8 @@ wndProc:
 	je	.destroy
 	cmp	eax, WM_PAINT
 	je	.paint
+	cmp	eax, WM_LBUTTONDOWN
+	je	.lbuttondown
 	;; Otherwise we don't know what it is, so tailcall to default.
 	mov	esp, ebp
 	pop	ebp
@@ -200,7 +204,7 @@ wndProc:
 	call	_BeginPaint@8
 	mov	ebx, eax
 	;; Now draw the grid
-	push	dword 0x1bababb
+	push	dword [boardState]
 	xor	eax, eax
 	mov	al, 70
 	push	eax
@@ -217,6 +221,31 @@ wndProc:
 	push	edx
 	push	dword [ebp+8]
 	call	_EndPaint@8
+	jmp	.fin
+.lbuttondown:
+	xor	eax, eax
+	movsx	eax, word [ebp+22]	; Y
+	push	eax
+	movsx	eax, word [ebp+20]	; X
+	push	eax
+	xor	eax, eax
+	mov	al, 70
+	push	eax
+	mov	al, 60
+	push	eax
+	mov	al, 10
+	push	eax
+	push	eax
+	call	hit_test
+	or	eax, eax		; Has a cell been clicked?
+	jl	.fin			; If not, do nothing
+	mov	eax, [moveTable+4*eax]	; If so, load the move mask...
+	xor	[boardState], eax	; ... and make the move
+	xor	eax, eax		; Now force a repaint
+	push	eax			; bErase = FALSE
+	push	eax			; lpRect = NULL
+	push	dword [ebp+8]		; hWnd = hWnd
+	call	_InvalidateRect@12
 	;; Fall through to routine finish
 .fin:	xor	eax, eax		; And report success handling the event
 	mov	esp, ebp
@@ -316,6 +345,65 @@ paint_grid:
 
 
 ;;; ----------------------------------------------------------------------
+;;;   Game management routines
+;;; ----------------------------------------------------------------------
+
+	;; hit_test(left, top, size, stride, x, y) -> returns 0-24 if we
+	;; have hit a cell, or -1 if no target is hit.
+hit_test:
+	push	ebp
+	mov	ebp, esp
+	;; Local variables: index, test_top, row
+	xor	eax, eax
+	push	eax			; row (will be written before read)
+	push	dword [ebp+12]		; test_top (= top)
+	push	eax			; index (= 0)
+
+	xor	ecx, ecx		; Initialize row loop
+	mov	cl, 5
+.rowlp:	mov	[esp+8], ecx		; save loop variable
+	mov	eax, [ebp+28]		; EAX = y
+	sub	eax, [esp+4]		; EAX = point relative to test_top
+	jl	.r_no			; If negative, too far up
+	cmp	eax, [ebp+16]		; Test againt bottom (test_top+size)
+	jle	.r_yes
+
+	;; Y is not in the row; hit is impossible. Advance index by 5 and
+	;; skip directly to next row.
+.r_no:	add	dword [esp], 5
+	jmp	.next
+
+	;; Loop through columns testing X values for a hit
+.r_yes:	mov	edx, [ebp+8]		; test_left = left
+	xor	ecx, ecx
+	mov	cl, 5
+.collp:	mov	eax, [ebp+24]		; EAX = x
+	sub	eax, edx		; EAX = point relative to cell left
+	jl	.c_no			; If negative, too far left
+	cmp	eax, dword [ebp+16]	; Check against cell right
+	jle	.found
+.c_no:	inc	dword [esp]		; Next index
+	add	edx, dword [ebp+20]	; Advance test_left by stride
+	loop	.collp
+
+	;; No matches this row. Jump to next row.
+.next:	mov	eax, [ebp+20]		; EAX = stride...
+	add	[esp+4], eax		; ...add stride to test_top
+	mov	ecx, [esp+8]		; Restore loop variable
+	loop	.rowlp			; and try again
+
+	;; No matches at all. Return -1.
+	xor	eax, eax
+	dec	eax
+	jmp	.fin
+
+	;; Found a match! pop index into EAX as the return value.
+.found:	pop	eax
+.fin:	mov	esp, ebp
+	pop	ebp
+	ret	24
+
+;;; ----------------------------------------------------------------------
 ;;;   Program data
 ;;; ----------------------------------------------------------------------
 
@@ -325,3 +413,17 @@ classNameString:
 
 windowCaption:
 	db	"Lights Out!",0
+
+moveTable:
+	dd	0x0000023, 0x0000047, 0x000008e, 0x000011c, 0x0000218
+	dd	0x0000461, 0x00008e2, 0x00011c4, 0x0002388, 0x0004310
+	dd	0x0008c20, 0x0011c40, 0x0023880, 0x0047100, 0x0086200
+	dd	0x0118400, 0x0238800, 0x0471000, 0x08e2000, 0x10c4000
+	dd	0x0308000, 0x0710000, 0x0e20000, 0x1c40000, 0x1880000
+
+;;; ----------------------------------------------------------------------
+;;;   Uninitialized program data
+;;; ----------------------------------------------------------------------
+	segment	.bss
+boardState:
+	resd	1
