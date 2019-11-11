@@ -12,6 +12,9 @@
 ;;;    strictly wise. Let's get to it!
 ;;; ----------------------------------------------------------------------
 
+	cpu	386
+	bits	32
+
 ;;; ----------------------------------------------------------------------
 ;;;   Structure and constant definitions
 ;;;   These have either been lifted from Win32.inc by Tamas Kaproncai or
