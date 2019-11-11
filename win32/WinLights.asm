@@ -91,7 +91,7 @@ ENDSTRUC
 ;;; ----------------------------------------------------------------------
 
 	;; kernel32.lib
-	EXTERN	_ExitProcess@4, _GetModuleHandleA@4
+	EXTERN	_ExitProcess@4, _GetModuleHandleA@4, _GetTickCount@0
 
 	;; user32.lib
 	EXTERN	_BeginPaint@8, _CreateWindowExA@48, _DefWindowProcA@16
@@ -108,7 +108,11 @@ ENDSTRUC
 ;;; ----------------------------------------------------------------------
 
 	section	.text
-_start:	mov	[boardState], dword 0x1bababb	; TEMP: canned board data
+_start:	call	_GetTickCount@0
+	push	eax
+	call	seedRand32
+	call	initPuzzle
+
 	sub	esp, WNDCLASSEX_size	; Reserve space for window class
 	mov	ebx, esp		; And store a pointer to it
 	mov	edi, ebx		; And zero it out
@@ -348,7 +352,7 @@ paint_grid:
 
 
 ;;; ----------------------------------------------------------------------
-;;;   Game management routines
+;;;   Other routines
 ;;; ----------------------------------------------------------------------
 
 	;; hit_test(left, top, size, stride, x, y) -> returns 0-24 if we
@@ -406,6 +410,66 @@ hit_test:
 	pop	ebp
 	ret	24
 
+	;; void initPuzzle(): advance the PRNG and create a random
+	;; puzzle to solve. stdcall ABI.
+initPuzzle:
+	call	rand32
+	mov	edx, eax
+	xor	eax, eax
+	xor	ecx, ecx
+	mov	cl, 25
+.lp:	shr	edx, 1
+	jnc	.end
+	xor	eax, [moveTable+4*ecx-4]
+.end:	loop	.lp
+	;; Pretty darn unlikely, but just in case; did we create the
+	;; solved puzzle? If so, try again.
+	or	eax, eax
+	jz	initPuzzle
+	;; Otherwise, we have our puzzle.
+	mov	[boardState], eax
+	ret
+
+	;; DWORD rand32(): 32-bit Xorshift-Star PRNG. stdcall ABI.
+rand32:	push	ebx
+	mov	ebx, [rngState]
+	mov	ecx, [rngState+4]
+	mov	eax, ebx
+	mov	edx, ecx
+	shrd	eax, edx, 12
+	shr	edx, 12
+	xor	ebx, eax
+	xor	ecx, edx
+	mov	eax, ebx
+	mov	edx, ecx
+	shld	edx, eax, 25
+	shl	eax, 25
+	xor	ebx, eax
+	xor	ecx, edx
+	mov	eax, ebx
+	mov	edx, ecx
+	shrd	eax, edx, 27
+	shr	edx, 27
+	xor	ebx, eax
+	xor	ecx, edx
+	mov	[rngState], ebx
+	mov	[rngState+4], ecx
+	mov	eax, 0x4f6cdd1d
+	imul	ecx, eax
+	mul	ebx
+	add	ecx, edx
+	imul	eax, ebx, 0x2545f491
+	add	eax, ecx
+	pop	ebx
+	ret
+
+	;; void seedRand32(DWORD seed): seeds the rand32 PRNG. stdcall ABI.
+seedRand32:
+	mov	eax, [esp+4]
+	mov	[rngState], eax
+	mov	[rngState+4], eax
+	ret	4
+
 ;;; ----------------------------------------------------------------------
 ;;;   Program data
 ;;; ----------------------------------------------------------------------
@@ -430,3 +494,5 @@ moveTable:
 	segment	.bss
 boardState:
 	resd	1
+rngState:
+	resd	2
