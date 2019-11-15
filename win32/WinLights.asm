@@ -75,6 +75,8 @@ ENDSTRUC
 	IDC_ARROW	equ	32512
 	IDM_NEW		equ	0x0101
 	IDM_QUIT	equ	0x0102
+	IDYES		equ	6
+	MB_YESNO	equ	4
 	MF_POPUP	equ	0x0010
 	MF_SEPARATOR	equ	0x0800
 	SW_SHOWDEFAULT	equ	10
@@ -104,9 +106,9 @@ ENDSTRUC
 	EXTERN	_CreateMenu@0, _CreateWindowExA@48, _DefWindowProcA@16
 	EXTERN	_DestroyAcceleratorTable@4, _DispatchMessageA@4
 	EXTERN	_DrawMenuBar@4, _EndPaint@8, _GetMessageA@16
-	EXTERN	_InvalidateRect@12, _LoadCursorA@8, _PostQuitMessage@4
-	EXTERN	_RegisterClassExA@4, _SetMenu@8, _ShowWindow@8
-	EXTERN	_TranslateAcceleratorA@12, _TranslateMessage@4
+	EXTERN	_InvalidateRect@12, _LoadCursorA@8, _MessageBoxA@16
+	EXTERN	_PostQuitMessage@4, _RegisterClassExA@4, _SetMenu@8
+	EXTERN	_ShowWindow@8, _TranslateAcceleratorA@12, _TranslateMessage@4
 	;; gdi32.lib
 	EXTERN	_Ellipse@20, _GetStockObject@4, _SelectObject@8
 	EXTERN	_SetDCBrushColor@8
@@ -194,7 +196,25 @@ mainlp:	xor	eax, eax
 	call	_DispatchMessageA@4
 	mov	eax, dword [ebx+MSG.message]
 	cmp	eax, WM_QUIT		; Was this a quit message?
-	jne	mainlp			; If not, back to main loop
+	je	finis			; If so, we're done
+	mov	al, [gameState]		; Did we win?
+	cmp	al, 1
+	jne	mainlp			; If not, back to event loop
+	inc	byte [gameState]	; gameState to 2 (idle)
+	push	dword MB_YESNO		; Display a win message
+	push	dword windowCaption
+	push	dword winStr
+	push	esi
+	call	_MessageBoxA@16
+	cmp	eax, IDYES		; Did they say "Yes"?
+	jne	mainlp			; If not, stay idle
+	call	initPuzzle		; If so, do an immediate new puzzle
+	xor	eax, eax		; And then repaint the window
+	push	eax			; bErase = FALSE
+	push	eax			; lpRect = NULL
+	push	esi			; hWnd = hWnd
+	call	_InvalidateRect@12
+	jmp	mainlp
 
 	;; End of main program.
 finis:	mov	eax, dword [ebx+MSG.wParam]
@@ -265,6 +285,10 @@ wndProc:
 	call	_EndPaint@8
 	jmp	.fin
 .lbuttondown:
+	;; Ignore clicks if not in main game state
+	mov	al, [gameState]
+	or	al, al
+	jnz	.fin
 	xor	eax, eax
 	movsx	eax, word [ebp+22]	; Y
 	push	eax
@@ -281,9 +305,14 @@ wndProc:
 	call	hit_test
 	or	eax, eax		; Has a cell been clicked?
 	jl	.fin			; If not, do nothing
-	mov	eax, [moveTable+4*eax]	; If so, load the move mask...
-	xor	[boardState], eax	; ... and make the move
-	;; Then fall through to repaint
+	mov	ecx, [moveTable+4*eax]	; If so, load the move mask...
+	mov	eax, [boardState]	; ... and the board...
+	xor	eax, ecx		; ... make the move...
+	mov	[boardState], eax	; ... store it back...
+	or	eax, eax		; ... and see if we've won
+	jnz	.repaint		; If not, we're done
+	inc	byte [gameState]	; If so, game state from 0 to 1...
+					; ... then fall through to repaint
 .repaint:
 	xor	eax, eax
 	push	eax			; bErase = FALSE
@@ -498,11 +527,12 @@ hit_test:
 	;; puzzle to solve. stdcall ABI.
 initPuzzle:
 	call	rand32
-	mov	edx, eax
-	xor	eax, eax
-	xor	ecx, ecx
+	mov	edx, eax		; Move list is random
+	xor	eax, eax		; Board starts empty
+	mov	[gameState], al		; Start in game state 0 too
+	xor	ecx, ecx		; 25 bits to read
 	mov	cl, 25
-.lp:	shr	edx, 1
+.lp:	shr	edx, 1			; Move for each cell if bit is on
 	jnc	.end
 	xor	eax, [moveTable+4*ecx-4]
 .end:	loop	.lp
@@ -574,6 +604,9 @@ newGameStr:
 quitStr:
 	db	"&Quit",0
 
+winStr:
+	db	"Congratulations, you win!",13,10,13,10,"Play again?",0
+
 	align	4
 moveTable:
 	dd	0x0000023, 0x0000047, 0x000008e, 0x000011c, 0x0000218
@@ -593,3 +626,5 @@ boardState:
 	resd	1
 rngState:
 	resd	2
+gameState:
+	resb	1			; 0: in-game, 1: just won, 2: inert
