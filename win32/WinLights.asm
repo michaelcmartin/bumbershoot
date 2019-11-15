@@ -115,9 +115,10 @@ ENDSTRUC
 	EXTERN	_CreateMenu@0, _CreateWindowExA@48, _DefWindowProcA@16
 	EXTERN	_DestroyAcceleratorTable@4, _DispatchMessageA@4
 	EXTERN	_DrawMenuBar@4, _EndPaint@8, _GetClientRect@8, _GetMessageA@16
-	EXTERN	_InvalidateRect@12, _LoadCursorA@8, _MessageBoxA@16
-	EXTERN	_PostQuitMessage@4, _RegisterClassExA@4, _SetMenu@8
-	EXTERN	_ShowWindow@8, _TranslateAcceleratorA@12, _TranslateMessage@4
+	EXTERN	_InvalidateRect@12, _LoadCursorA@8, _LoadIconA@8
+	EXTERN	_MessageBoxA@16, _PostQuitMessage@4, _RegisterClassExA@4
+	EXTERN	_SetMenu@8, _ShowWindow@8, _TranslateAcceleratorA@12
+	EXTERN	_TranslateMessage@4
 
 	;; gdi32.lib
 	EXTERN	_Ellipse@20, _GetStockObject@4, _SelectObject@8
@@ -166,6 +167,10 @@ _start:	call	_GetTickCount@0
 	mov	dword [ebx+WNDCLASSEX.style], CS_HREDRAW | CS_VREDRAW
 	mov	dword [ebx+WNDCLASSEX.lpfnWndProc], wndProc
 	mov	[ebx+WNDCLASSEX.hInstance], eax
+	push	dword 1			; Argument to LoadIconA (res 1)
+	push	eax			; hInstance for LoadIconA
+	call	_LoadIconA@8		; EAX now the HICON
+	mov	[ebx+WNDCLASSEX.hIcon], eax
 	push	dword IDC_ARROW		; Argument to LoadCursor
 	push	esi
 	call	_LoadCursorA@8		; EAX now the HCURSOR
