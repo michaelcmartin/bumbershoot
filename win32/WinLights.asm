@@ -42,6 +42,14 @@ STRUC POINT
 	.y		resd	1
 ENDSTRUC
 
+STRUC MINMAXINFO
+	.ptReserved	resb	POINT_size
+	.ptMaxSize	resb	POINT_size
+	.ptMaxPosition	resb	POINT_size
+	.ptMinTrackSize	resb	POINT_size
+	.ptMaxTrackSize	resb	POINT_size
+ENDSTRUC
+
 STRUC MSG
 	.hWnd		resd	1
 	.message	resd	1
@@ -83,6 +91,7 @@ ENDSTRUC
 	VK_F2		equ	0x71
 	WM_COMMAND	equ	0x0111
 	WM_DESTROY	equ	0x02
+	WM_GETMINMAXINFO equ	0x24
 	WM_LBUTTONDOWN	equ	0x0201
 	WM_PAINT	equ	0x0F
 	WM_QUIT		equ	0x12
@@ -105,10 +114,11 @@ ENDSTRUC
 	EXTERN	_AppendMenuA@16, _BeginPaint@8, _CreateAcceleratorTableA@8
 	EXTERN	_CreateMenu@0, _CreateWindowExA@48, _DefWindowProcA@16
 	EXTERN	_DestroyAcceleratorTable@4, _DispatchMessageA@4
-	EXTERN	_DrawMenuBar@4, _EndPaint@8, _GetMessageA@16
+	EXTERN	_DrawMenuBar@4, _EndPaint@8, _GetClientRect@8, _GetMessageA@16
 	EXTERN	_InvalidateRect@12, _LoadCursorA@8, _MessageBoxA@16
 	EXTERN	_PostQuitMessage@4, _RegisterClassExA@4, _SetMenu@8
 	EXTERN	_ShowWindow@8, _TranslateAcceleratorA@12, _TranslateMessage@4
+
 	;; gdi32.lib
 	EXTERN	_Ellipse@20, _GetStockObject@4, _SelectObject@8
 	EXTERN	_SetDCBrushColor@8
@@ -240,6 +250,8 @@ wndProc:
 	je	.lbuttondown
 	cmp	eax, WM_COMMAND
 	je	.command
+	cmp	eax, WM_GETMINMAXINFO
+	je	.getminmaxinfo
 	;; Otherwise we don't know what it is, so tailcall to default.
 	mov	esp, ebp
 	pop	ebp
@@ -258,6 +270,12 @@ wndProc:
 	xor	eax, eax		; Return code 0
 	call	_PostQuitMessage@4	; ... and post a proper quit message
 	jmp	.fin
+.getminmaxinfo:
+	mov	edx, [ebp+20]		; MINMAXINFO structure in lParam
+	mov	eax, 200		; The minimum width and height
+	mov	[edx+MINMAXINFO.ptMinTrackSize+POINT.x], eax
+	mov	[edx+MINMAXINFO.ptMinTrackSize+POINT.y], eax
+	jmp	.fin
 .paint:	sub	esp, PAINTSTRUCT_size
 	mov	edx, esp
 	push	ebx			; EBX will hold HDC, save orig value
@@ -267,14 +285,9 @@ wndProc:
 	mov	ebx, eax
 	;; Now draw the grid
 	push	dword [boardState]
-	xor	eax, eax
-	mov	al, 70
-	push	eax
-	mov	al, 60
-	push	eax
-	mov	al, 10
-	push	eax
-	push	eax
+	sub	esp, 16			; Space for board geometry
+	push	dword [ebp+8]		; hWnd
+	call	size_board		; Fills x/y/size/stride, consumes hWnd
 	call	paint_grid
 
 	;; Restore EBX and end painting
@@ -294,14 +307,9 @@ wndProc:
 	push	eax
 	movsx	eax, word [ebp+20]	; X
 	push	eax
-	xor	eax, eax
-	mov	al, 70
-	push	eax
-	mov	al, 60
-	push	eax
-	mov	al, 10
-	push	eax
-	push	eax
+	sub	esp, 16			; Space for board geometry
+	push	dword [ebp+8]		; hWnd
+	call	size_board
 	call	hit_test
 	or	eax, eax		; Has a cell been clicked?
 	jl	.fin			; If not, do nothing
@@ -345,7 +353,7 @@ paint_ellipse:
 	call	_Ellipse@20	; and then forward to Ellipse
 	ret
 
-	;; paint_grid(left, top, size, stride)
+	;; paint_grid(left, top, size, stride, gameState)
 	;; Draws a five-by-five grid of circles starting at (left, top),
 	;; with each circle SIZE pixels in diameter and with their center
 	;; points STRIDE apart. stdcall ABI, EBX holds the HDC.
@@ -467,6 +475,54 @@ setupAccelerators:
 	push	dword acceleratorTable
 	call	_CreateAcceleratorTableA@8
 	ret
+
+	;; size_board(hWnd, out left, out top, out size, out stride)
+	;; Consumes only hWnd from stack. Uses hWnd's client rectangle
+	;; to give a centered, max-sized board.
+size_board:
+	push	ebp
+	mov	ebp, esp
+	lea	eax, [ebp+12]		; Use output area as a RECT
+	push	eax
+	push	dword [ebp+8]
+	call	_GetClientRect@8
+	mov	eax, [ebp+20]		; width
+	mov	ecx, [ebp+24]		; height
+	mov	[ebp+12], eax		; x = width
+	mov	[ebp+16], ecx		; y = width
+	cmp	eax, ecx		; wider or taller?
+	jle	.tallr
+	mov	eax, ecx		; eax = min(w, h)
+.tallr:	xor	edx, edx
+	mov	ecx, 5
+	div	ecx
+	mov	[ebp+24], eax		; stride = min(w, h)/5
+	push	eax			; save two copies
+	push	eax
+	shl	eax, 2
+	xor	edx, edx
+	div	ecx
+	mov	[ebp+20], eax		; eax = size = stride * 4 / 5
+	pop	edx			; edx = stride
+	sub	edx, eax		; edx = offset = stride-size
+	pop	eax			; eax = stride
+	push	edx			; save offset since mul destroys edx
+	mul	ecx			; edx = 0, eax = boardsize = stride*5
+	pop	edx			; restore edx = offset
+	sub	edx, eax		; offset - boardsize
+	;; At this point, size and stride are correctly set, and x and y
+	;; hold w and h, respectively. To produce the final left/top values
+	;; we need to add (offset - boardsize) to them, and then divide the
+	;; sum by two.
+	add	[ebp+12], edx
+	add	[ebp+16], edx
+	shr	dword [ebp+12], 1
+	shr	dword [ebp+16], 1
+	;; We're done. The last four arguments are the return value,
+	;; so we only consume hWnd on return.
+	mov	esp, ebp
+	pop	ebp
+	ret	4
 
 	;; hit_test(left, top, size, stride, x, y) -> returns 0-24 if we
 	;; have hit a cell, or -1 if no target is hit. stdcall ABI.
