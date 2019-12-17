@@ -81,14 +81,11 @@ ENDSTRUC
 	CS_HREDRAW	equ	2
 	DC_BRUSH	equ	18
 	IDC_ARROW	equ	32512
-	IDM_NEW		equ	0x0101
-	IDM_QUIT	equ	0x0102
 	IDYES		equ	6
 	MB_YESNO	equ	4
 	MF_POPUP	equ	0x0010
 	MF_SEPARATOR	equ	0x0800
 	SW_SHOWDEFAULT	equ	10
-	VK_F2		equ	0x71
 	WM_COMMAND	equ	0x0111
 	WM_DESTROY	equ	0x02
 	WM_GETMINMAXINFO equ	0x24
@@ -97,6 +94,14 @@ ENDSTRUC
 	WM_QUIT		equ	0x12
 	WS_OVERLAPPEDWINDOW equ	0x0CF0000
 	WS_CLIPCHILDREN	equ	0x2000000
+
+;;; ----------------------------------------------------------------------
+;;;   Resource constants. These match the #defines in WinLights.rc.
+;;; ----------------------------------------------------------------------
+	IDM_MENUBAR	equ	0x0100
+	IDM_NEW		equ	0x0101
+	IDM_QUIT	equ	0x0102
+	IDM_ACCELS	equ	0x0200
 
 ;;; ----------------------------------------------------------------------
 ;;;   Exports
@@ -111,14 +116,12 @@ ENDSTRUC
 	EXTERN	_ExitProcess@4, _GetModuleHandleA@4, _GetTickCount@0
 
 	;; user32.lib
-	EXTERN	_AppendMenuA@16, _BeginPaint@8, _CreateAcceleratorTableA@8
-	EXTERN	_CreateMenu@0, _CreateWindowExA@48, _DefWindowProcA@16
-	EXTERN	_DestroyAcceleratorTable@4, _DispatchMessageA@4
-	EXTERN	_DrawMenuBar@4, _EndPaint@8, _GetClientRect@8, _GetMessageA@16
-	EXTERN	_InvalidateRect@12, _LoadCursorA@8, _LoadIconA@8
-	EXTERN	_MessageBoxA@16, _PostQuitMessage@4, _RegisterClassExA@4
-	EXTERN	_SetMenu@8, _ShowWindow@8, _TranslateAcceleratorA@12
-	EXTERN	_TranslateMessage@4
+	EXTERN	_BeginPaint@8, _CreateWindowExA@48, _DefWindowProcA@16
+	EXTERN	_DispatchMessageA@4, _EndPaint@8, _GetClientRect@8
+	EXTERN	_GetMessageA@16, _InvalidateRect@12, _LoadAcceleratorsA@8
+	EXTERN	_LoadCursorA@8, _LoadIconA@8, _MessageBoxA@16
+	EXTERN	_PostQuitMessage@4, _RegisterClassExA@4, _ShowWindow@8
+	EXTERN	_TranslateAcceleratorA@12, _TranslateMessage@4
 
 	;; gdi32.lib
 	EXTERN	_Ellipse@20, _GetStockObject@4, _SelectObject@8
@@ -141,12 +144,14 @@ _start:	call	_GetTickCount@0
 	xor	ecx, ecx
 	mov	cl, WNDCLASSEX_size
 	rep	stosb
+	push	eax			; Reserve space for our hInstance
 	;; Now create the window and its class
 	xor	esi, esi		; We'll be using a lot of zeroes here
 	push	dword SW_SHOWDEFAULT	; Last arg to ShowWindow, later
 	push	esi			; Last arg to CreateWindowEx (lpParam)
 	push	esi			; Arg to GetModuleHandle(0)
 	call	_GetModuleHandleA@4	; EAX = our app's HINSTANCE
+	mov	[ebx-4], eax		; Save it out
 	push	eax			; ... used as arg to CreateWindowEx
 	push	esi			; CreateWindowEx: no menu
 	push	esi			; CreateWindowEx: no parent window
@@ -176,19 +181,22 @@ _start:	call	_GetTickCount@0
 	call	_LoadCursorA@8		; EAX now the HCURSOR
 	mov	[ebx+WNDCLASSEX.hCursor], eax
 	mov	dword [ebx+WNDCLASSEX.hbrBackground], COLOR_WINDOW+1
+	mov	dword [ebx+WNDCLASSEX.lpszMenuName], IDM_MENUBAR
 	mov	dword [ebx+WNDCLASSEX.lpszClassName], classNameString
 	push	ebx			; Push apibuf ptr to stack
 	call	_RegisterClassExA@4	; ... and register the class
 	push	eax			; Push retval as atom to register
 	push	esi			; No ExStyle
 	call	_CreateWindowExA@48
-	mov	esi, eax
-	push	eax
-	push	eax
-	call	setupMenu		; Consumes first hWnd
-	call	setupAccelerators	; Consumes nothing
+	mov	esi, eax		; Save HWND in esi
+	push	eax			; Save HWND for ShowWindow arg
+
+	push	dword IDM_ACCELS	; Accelerator handle
+	push	dword [ebx-4]		; HINSTANCE
+	call	_LoadAcceleratorsA@8	; Load accelerator table
 	mov	edi, eax		; Save off accel table
-	call	_ShowWindow@8
+
+	call	_ShowWindow@8		; Show the created window
 
 	;; Main event loop. ESI=hWnd, EDI=hAccelTable, EBX=pMsg
 mainlp:	xor	eax, eax
@@ -234,9 +242,6 @@ mainlp:	xor	eax, eax
 	;; End of main program.
 finis:	mov	eax, dword [ebx+MSG.wParam]
 	push	eax			; Forward retcode from quit msg
-	;; Destroy our accelerator table on the way out
-	push	edi
-	call	_DestroyAcceleratorTable@4
 	call	_ExitProcess@4
 
 ;;; ----------------------------------------------------------------------
@@ -434,53 +439,6 @@ paint_grid:
 ;;;   Other routines
 ;;; ----------------------------------------------------------------------
 
-	;; setupMenu(HWND hWnd). Creates and initializes the menu used
-	;; by hWnd.
-setupMenu:
-	push	ebx
-	call	_CreateMenu@0
-	mov	ebx, eax
-	push	dword newGameStr
-	push	dword IDM_NEW
-	xor	eax, eax
-	push	eax
-	push	ebx
-	call	_AppendMenuA@16
-	xor	eax, eax
-	push	eax
-	push	eax
-	push	dword MF_SEPARATOR
-	push	ebx
-	call	_AppendMenuA@16
-	push	dword quitStr
-	push	dword IDM_QUIT
-	xor	eax, eax
-	push	eax
-	push	ebx
-	call	_AppendMenuA@16
-	;; We've now created the Game Menu. Now we may create the menu
-	;; bar and add it to that.
-	call	_CreateMenu@0
-	push	eax			; Save result to pass to SetMenu
-	push	dword gameMenuStr
-	push	ebx
-	push	dword MF_POPUP
-	push	eax
-	call	_AppendMenuA@16
-	mov	eax, [esp+12]		; hWnd
-	push	eax
-	call	_SetMenu@8
-	pop	ebx
-	jmp	_DrawMenuBar@4		; Tail call to DrawMenuBar
-
-setupAccelerators:
-	xor	eax, eax
-	inc	eax
-	push	eax
-	push	dword acceleratorTable
-	call	_CreateAcceleratorTableA@8
-	ret
-
 	;; size_board(hWnd, out left, out top, out size, out stride)
 	;; Consumes only hWnd from stack. Uses hWnd's client rectangle
 	;; to give a centered, max-sized board.
@@ -656,15 +614,6 @@ classNameString:
 windowCaption:
 	db	"Lights Out!",0
 
-gameMenuStr:
-	db	"&Game",0
-
-newGameStr:
-	db	"&New Game",9,"F2",0
-
-quitStr:
-	db	"&Quit",0
-
 winStr:
 	db	"Congratulations, you win!",13,10,13,10,"Play again?",0
 
@@ -675,9 +624,6 @@ moveTable:
 	dd	0x0008c20, 0x0011c40, 0x0023880, 0x0047100, 0x0086200
 	dd	0x0118400, 0x0238800, 0x0471000, 0x08e2000, 0x10c4000
 	dd	0x0308000, 0x0710000, 0x0e20000, 0x1c40000, 0x1880000
-
-acceleratorTable:
-	dw	1, VK_F2, IDM_NEW
 
 ;;; ----------------------------------------------------------------------
 ;;;   Uninitialized program data
