@@ -89,6 +89,7 @@ ENDSTRUC
 	WM_COMMAND	equ	0x0111
 	WM_DESTROY	equ	0x02
 	WM_GETMINMAXINFO equ	0x24
+	WM_INITDIALOG	equ	0x0110
 	WM_LBUTTONDOWN	equ	0x0201
 	WM_PAINT	equ	0x0F
 	WM_QUIT		equ	0x12
@@ -101,7 +102,10 @@ ENDSTRUC
 	IDM_MENUBAR	equ	0x0100
 	IDM_NEW		equ	0x0101
 	IDM_QUIT	equ	0x0102
+	IDM_ABOUT	equ	0x0103
 	IDM_ACCELS	equ	0x0200
+	IDD_ABOUT	equ	0x0300
+	IDD_OK		equ	0x0503
 
 ;;; ----------------------------------------------------------------------
 ;;;   Exports
@@ -117,11 +121,12 @@ ENDSTRUC
 
 	;; user32.lib
 	EXTERN	_BeginPaint@8, _CreateWindowExA@48, _DefWindowProcA@16
-	EXTERN	_DispatchMessageA@4, _EndPaint@8, _GetClientRect@8
-	EXTERN	_GetMessageA@16, _InvalidateRect@12, _LoadAcceleratorsA@8
-	EXTERN	_LoadCursorA@8, _LoadIconA@8, _MessageBoxA@16
-	EXTERN	_PostQuitMessage@4, _RegisterClassExA@4, _ShowWindow@8
-	EXTERN	_TranslateAcceleratorA@12, _TranslateMessage@4
+	EXTERN	_DialogBoxParamA@20, _DispatchMessageA@4, _EndDialog@8
+	EXTERN	_EndPaint@8, _GetClientRect@8, _GetMessageA@16
+	EXTERN	_InvalidateRect@12, _LoadAcceleratorsA@8, _LoadCursorA@8
+	EXTERN	_LoadIconA@8, _MessageBoxA@16, _PostQuitMessage@4
+	EXTERN	_RegisterClassExA@4, _ShowWindow@8, _TranslateAcceleratorA@12
+	EXTERN	_TranslateMessage@4
 
 	;; gdi32.lib
 	EXTERN	_Ellipse@20, _GetStockObject@4, _SelectObject@8
@@ -245,7 +250,7 @@ finis:	mov	eax, dword [ebx+MSG.wParam]
 	call	_ExitProcess@4
 
 ;;; ----------------------------------------------------------------------
-;;;   Window Message Handler
+;;;   Window Message Handlers
 ;;; ----------------------------------------------------------------------
 
 wndProc:
@@ -273,6 +278,19 @@ wndProc:
 	call	initPuzzle
 	jmp	.repaint
 .notnew:
+	cmp	eax, IDM_ABOUT
+	jne	.notabout
+	xor	eax, eax
+	push	eax			; dwInitParam
+	push	dword aboutProc		; lpDialogFunc
+	push	dword [ebp+8]		; hWndParent
+	push	dword IDD_ABOUT		; lpTemplateName
+	push	eax
+	call	_GetModuleHandleA@4
+	push	eax			; hInstance
+	call	_DialogBoxParamA@20
+	jmp	.fin
+.notabout:
 	cmp	eax, IDM_QUIT
 	jne	.fin
 	;; Otherwise fall through to .destroy
@@ -342,6 +360,40 @@ wndProc:
 	mov	esp, ebp
 	pop	ebp
 	ret	16
+
+	;; Window procedure for the About dialog. Same arguments, but
+	;; generally returns a boolean if we handled it rather than
+	;; calling DefWndProc on its own.
+aboutProc:
+	push	ebp
+	mov	ebp, esp
+	mov	eax, [ebp+12]		; Load message into EAX
+	cmp	eax, WM_INITDIALOG
+	;; We don't do any init work, but we need to return TRUE for
+	;; Windows to properly configure control focus.
+	je	.handled
+	cmp	eax, WM_COMMAND
+	je	.command
+	;; We don't care about any other messages, so return FALSE to
+	;; forward the work to Windows.
+.nothandled:
+	xor	eax, eax
+	jmp	.fin
+.command:
+	movsx	eax, word [ebp+16]	; command code
+	cmp	eax, IDD_OK		; Are we the only button that matters?
+	jne	.nothandled		; If not, pass it on
+	;; Otherwise we're done. Signal shutdown.
+	push	eax			; nResult
+	push	dword [ebp+8]		; hWnd
+	call	_EndDialog@8
+.handled:
+	xor	eax, eax
+	inc	eax
+.fin:	mov	esp, ebp
+	pop	ebp
+	ret	16
+
 
 ;;; ----------------------------------------------------------------------
 ;;;   Paint support routines
