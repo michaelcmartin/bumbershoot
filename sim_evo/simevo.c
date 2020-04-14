@@ -1,31 +1,26 @@
-#include <stdint.h>
-#include <stdio.h>
-#include <sys/time.h>
+/**********************************************************************
+ *              SIMULATED EVOLUTION: CORE IMPLEMENTATION
+ *
+ * This file contains the portable C code that implements the core
+ * logic of the Simulated evolution program.
+ *
+ * See simevo.h for authorship. provenance, and copyright information.
+ **********************************************************************/
 
-typedef struct bug_s {
-    int name, gen, x, y, dir, time, fuel, gene[6];
-} bug_t;
-
-typedef struct evo_state_s {
-    bug_t bugs[100];
-    int plankton[15000];
-    int num_bugs, num_names, cycles;
-} evo_state_t;
+#include "simevo.h"
 
 const static int xmove[6] = { 0, 2,  2,  0, -2, -2 };
 const static int ymove[6] = { 2, 1, -1 ,-2, -1,  1 };
 
 /* PRNG */
-uint64_t rng_state = 0x100000001LL;
+static uint64_t rng_state = 0x100000001LL;
 
-void seed_rng(void)
+static void seed_rng(int seed)
 {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    rng_state = ((uint64_t)tv.tv_sec * 1000000 + tv.tv_usec) | 0x100000001LL;
+    rng_state = seed | 0x100000001LL;
 }
 
-uint32_t rng(void)
+static uint32_t rng(void)
 {
     uint64_t x = rng_state;
     x ^= x >> 12;
@@ -35,23 +30,9 @@ uint32_t rng(void)
     return (x * 0x2545F4914F6CDD1DLLU) >> 32;
 }
 
-/* Our window into the world */
-void report_bug(evo_state_t *state, int i, const char *action)
-{
-    int j;
-    printf("Time %5d: Bug %4d %s [", state->cycles, state->bugs[i].name, action);
-    for (j = 0; j < 6; ++j) {
-        if (j > 0) {
-            printf(", ");
-        }
-        printf("%d", state->bugs[i].gene[j]);
-    }
-    printf("], new population %d\n", state->num_bugs);
-}
-
 /* The simulation itself */
 
-void normalize_genes(bug_t *bug)
+static void normalize_genes(bug_t *bug)
 {
     int j;
     int min = bug->gene[0];
@@ -68,10 +49,10 @@ void normalize_genes(bug_t *bug)
     }
 }
 
-void initialize(evo_state_t *state)
+void initialize(evo_state_t *state, int64_t seed)
 {
     int i;
-    seed_rng();
+    seed_rng(seed);
     state->num_names = 0;
     state->num_bugs = 0;
     state->cycles = 0;
@@ -172,7 +153,7 @@ int run_cycle(evo_state_t *state)
         } else if (bug->fuel >= 1000 && bug->time >= 800 && state->num_bugs < 100) {
             bug_t *new_bug = &state->bugs[state->num_bugs];
             ++state->num_bugs;
-            printf("Time %5d: Bug %4d fissions into %d and %d\n", state->cycles, bug->name, state->num_names, state->num_names+1);
+            report_birth(state, bug->name, state->num_names, state->num_names+1);
             bug->name = state->num_names++;
             bug->fuel >>= 1;
             bug->time = 0;
@@ -194,29 +175,3 @@ int run_cycle(evo_state_t *state)
     ++state->cycles;
     return 1;
 }
-
-/* Main program */
-
-int main(int argc, char **argv)
-{
-    int i;
-    evo_state_t state;
-    initialize(&state);
-    for (i = 0; i < 1000000; ++i) {
-        if (!run_cycle(&state)) {
-            break;
-        }
-    }
-    if (state.num_bugs > 0) {
-        int max = 0;
-        for (i = 0; i < state.num_bugs; ++i) {
-            if (state.bugs[i].gen > max) {
-                max = state.bugs[i].gen;
-            }
-        }
-        printf("Latest surviving generation is %d.\n", max);
-    }
-        
-    return 0;
-}
-    
