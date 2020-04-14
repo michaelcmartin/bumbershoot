@@ -6,13 +6,14 @@ typedef struct bug_s {
     int name, gen, x, y, dir, time, fuel, gene[6];
 } bug_t;
 
-const int xmove[6] = { 0, 2,  2,  0, -2, -2 };
-const int ymove[6] = { 2, 1, -1 ,-2, -1,  1 };
+typedef struct evo_state_s {
+    bug_t bugs[100];
+    int plankton[15000];
+    int num_bugs, num_names, cycles;
+} evo_state_t;
 
-bug_t bugs[100];
-int plankton[15000];
-int num_bugs, num_names, cycles;
-int max_plankton = 0;
+const static int xmove[6] = { 0, 2,  2,  0, -2, -2 };
+const static int ymove[6] = { 2, 1, -1 ,-2, -1,  1 };
 
 /* PRNG */
 uint64_t rng_state = 0x100000001LL;
@@ -35,98 +36,100 @@ uint32_t rng(void)
 }
 
 /* Our window into the world */
-void report_bug(int i, const char *action)
+void report_bug(evo_state_t *state, int i, const char *action)
 {
     int j;
-    printf("Time %5d: Bug %4d %s [", cycles, bugs[i].name, action);
+    printf("Time %5d: Bug %4d %s [", state->cycles, state->bugs[i].name, action);
     for (j = 0; j < 6; ++j) {
         if (j > 0) {
             printf(", ");
         }
-        printf("%d", bugs[i].gene[j]);
+        printf("%d", state->bugs[i].gene[j]);
     }
-    printf("], new population %d\n", num_bugs);
+    printf("], new population %d\n", state->num_bugs);
 }
 
 /* The simulation itself */
 
-void normalize_genes(int i)
+void normalize_genes(bug_t *bug)
 {
     int j;
-    int min = bugs[i].gene[0];
+    int min = bug->gene[0];
     for (j = 1; j < 6; ++j) {
-        if (bugs[i].gene[j] < min) {
-            min = bugs[i].gene[j];
+        if (bug->gene[j] < min) {
+            min = bug->gene[j];
         }
     }
     for (j = 0; j < 6; ++j) {
-        bugs[i].gene[j] -= min;
-        if (bugs[i].gene[j] > 13) {
-            bugs[i].gene[j] = 13;
+        bug->gene[j] -= min;
+        if (bug->gene[j] > 13) {
+            bug->gene[j] = 13;
         }
     }
 }
 
-void initialize(void)
+void initialize(evo_state_t *state)
 {
     int i;
     seed_rng();
-    num_names = 0;
-    num_bugs = 0;
-    cycles = 0;
+    state->num_names = 0;
+    state->num_bugs = 0;
+    state->cycles = 0;
     /* Initialize bugs */
     for (i = 0; i < 10; ++i) {
         int j;
-        bugs[i].name = num_names++;
-        bugs[i].gen = 1;
-        bugs[i].x = rng() % 148;
-        bugs[i].y = rng() % 98;
-        bugs[i].fuel = 40;
-        bugs[i].time = 0;
-        bugs[i].dir = rng() % 6;
+        bug_t *bug = &state->bugs[i];
+        bug->name = state->num_names++;
+        bug->gen = 1;
+        bug->x = rng() % 148;
+        bug->y = rng() % 98;
+        bug->fuel = 40;
+        bug->time = 0;
+        bug->dir = rng() % 6;
         for (j = 0; j < 6; ++j) {
-            bugs[i].gene[j] = rng() % 10;
+            bug->gene[j] = rng() % 10;
         }
-        normalize_genes(i);
-        ++num_bugs;
-        report_bug(i, "born");
+        normalize_genes(bug);
+        ++state->num_bugs;
+        report_bug(state, i, "born");
     }
     /* Initialize plankton */
     for (i = 0; i < 15000; ++i) {
-        plankton[i] = 0;
+        state->plankton[i] = 0;
     }
     for (i = 0; i < 100; ++i) {
-        plankton[rng() % 15000] = 1;
+        state->plankton[rng() % 15000] = 1;
     }
 }
 
-int run_cycle(void)
+int run_cycle(evo_state_t *state)
 {
     int i;
-    for (i = 0; i < num_bugs; ++i) {
+    for (i = 0; i < state->num_bugs; ++i) {
         int j, dx, dy, genesum, generoll;
-        int x = bugs[i].x, y = bugs[i].y;
+        bug_t *bug = &state->bugs[i];
+        int x = bug->x, y = bug->y;
 
         /* Bug Eats */
         for (dx = 0; dx < 3; ++dx) {
             for (dy = 0; dy < 3; ++dy) {
                 int index = x + dx + (y + dy) * 150;
-                bugs[i].fuel += 40 * plankton[index];
-                if (bugs[i].fuel > 1500) {
-                    bugs[i].fuel = 1500;
+                bug->fuel += 40 * state->plankton[index];
+                if (bug->fuel > 1500) {
+                    bug->fuel = 1500;
                 }
-                plankton[index] = 0;
+                state->plankton[index] = 0;
             }
         }
 
         /* Bug Moves */
         genesum = 0;
         for (j = 0; j < 6; ++j) {
-            genesum += 1 << bugs[i].gene[j];
+            genesum += 1 << bug->gene[j];
         }
         generoll = rng() % genesum;
         for (j = 0; j < 5; ++j) {
-            int target = 1 << bugs[i].gene[j];
+            int target = 1 << bug->gene[j];
             if (generoll < target) {
                 break;
             }
@@ -134,56 +137,61 @@ int run_cycle(void)
         }
         /* At this point j is 0 to 5 and represents the turn the bug made.
            Rework it to be relative to the bug's current direction... */
-        j += bugs[i].dir;
+        j += bug->dir;
         j %= 6;
-        bugs[i].dir = j;              /* Reset the direction... */
-        bugs[i].x += xmove[j];        /* Make the move... */
-        bugs[i].y += ymove[j];
-        if (bugs[i].x < 0) {          /* Bounds-check to the left... */
-            bugs[i].x = 0;
+        bug->dir = j;              /* Reset the direction... */
+        x += xmove[j];             /* Make the move... */
+        y += ymove[j];
+        if (x < 0) {               /* Bounds-check to the left... */
+            x = 0;
         }
-        if (bugs[i].x > 147) {        /* ...right... */
-            bugs[i].x = 147;
+        if (x > 147) {             /* ...right... */
+            x = 147;
         }
-        if (bugs[i].y < 0) {          /* ...top... */
-            bugs[i].y = 0;
+        if (y < 0) {               /* ...top... */
+            y = 0;
         }
-        if (bugs[i].y > 97) {         /* ...and bottom. */
-            bugs[i].y = 97;
+        if (y > 97) {              /* ...and bottom. */
+            y = 97;
         }
+        bug->x = x;                /* Finally store the new value back. */
+        bug->y = y;
 
         /* Aging */
-        --bugs[i].fuel;
-        ++bugs[i].time;
+        --bug->fuel;
+        ++bug->time;
 
         /* Reproduction and starvation */
-        if (bugs[i].fuel <= 0) {
-            --num_bugs;
-            report_bug(i, "starved");
-            if (num_bugs > 0) {
-                bugs[i] = bugs[num_bugs];
+        if (bug->fuel <= 0) {
+            --state->num_bugs;
+            report_bug(state, i, "starved");
+            if (state->num_bugs > 0) {
+                state->bugs[i] = state->bugs[state->num_bugs];
                 --i;
             }
-        } else if (bugs[i].fuel >= 1000 && bugs[i].time >= 800 && num_bugs < 100) {
-            printf("Time %5d: Bug %4d fissions into %d and %d\n", cycles, bugs[i].name, num_names, num_names+1);
-            bugs[i].name = num_names++;
-            bugs[i].fuel >>= 1;
-            bugs[i].time = 0;
-            ++bugs[i].gen;
-            bugs[num_bugs] = bugs[i];
-            bugs[num_bugs].name = num_names++;
-            ++bugs[i].gene[rng() % 6];
-            --bugs[num_bugs].gene[rng() % 6];
-            normalize_genes(i);
-            normalize_genes(num_bugs);
-            ++num_bugs;
-            report_bug(i, "born");
-            report_bug(num_bugs-1, "born");
+        } else if (bug->fuel >= 1000 && bug->time >= 800 && state->num_bugs < 100) {
+            bug_t *new_bug = &state->bugs[state->num_bugs];
+            ++state->num_bugs;
+            printf("Time %5d: Bug %4d fissions into %d and %d\n", state->cycles, bug->name, state->num_names, state->num_names+1);
+            bug->name = state->num_names++;
+            bug->fuel >>= 1;
+            bug->time = 0;
+            ++bug->gen;
+            *new_bug = *bug;
+            new_bug->name = state->num_names++;
+            ++bug->gene[rng() % 6];
+            --new_bug->gene[rng() % 6];
+            normalize_genes(bug);
+            normalize_genes(new_bug);
+            report_bug(state, i, "born");
+            report_bug(state, state->num_bugs-1, "born");
             --i; /* Reprocess first child */
         }
     }
     /* Replenish plankton */
-    plankton[rng() % 15000] = 1;
+    state->plankton[rng() % 15000] = 1;
+    /* Advance time */
+    ++state->cycles;
     return 1;
 }
 
@@ -192,18 +200,18 @@ int run_cycle(void)
 int main(int argc, char **argv)
 {
     int i;
-    initialize();
+    evo_state_t state;
+    initialize(&state);
     for (i = 0; i < 1000000; ++i) {
-        if (!run_cycle()) {
+        if (!run_cycle(&state)) {
             break;
         }
-        ++cycles;
     }
-    if (num_bugs > 0) {
+    if (state.num_bugs > 0) {
         int max = 0;
-        for (i = 0; i < num_bugs; ++i) {
-            if (bugs[i].gen > max) {
-                max = bugs[i].gen;
+        for (i = 0; i < state.num_bugs; ++i) {
+            if (state.bugs[i].gen > max) {
+                max = state.bugs[i].gen;
             }
         }
         printf("Latest surviving generation is %d.\n", max);
