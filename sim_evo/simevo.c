@@ -175,3 +175,10 @@ int run_cycle(evo_state_t *state)
     ++state->cycles;
     return 1;
 }
+
+int seed_garden(evo_state_t *state)
+{
+    int x = rng() % 20+40;
+    int y = rng() % 20+80;
+    state->plankton[y*150+x] = 1;
+}

@@ -71,6 +71,10 @@ void initialize(evo_state_t *state, int64_t seed);
  * routines below will be called. */
 int run_cycle(evo_state_t *state);
 
+/* Provide the extra plankton to produce the "garden" scenario if
+ * the harness wants to have it. */
+int seed_garden(evo_state_t *state);
+
 /**********************************************************************
  * Event functions. These functions are defined BY the UI/harness to
  * absorb information that isn't readily available from the evo_state_t

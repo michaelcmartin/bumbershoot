@@ -38,7 +38,7 @@ int main(int argc, char **argv)
     SDL_Window *window;
     SDL_Renderer *renderer;
     evo_state_t state;
-    int done = 0, warp = 0;
+    int done = 0, warp = 0, garden = 1;
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
@@ -69,9 +69,15 @@ int main(int argc, char **argv)
                     warp = 1 - warp;
                     SDL_Log("%s warp mode at cycle %d", warp ? "Enabling" : "Disabling", state.cycles);
                 }
+                if (event.key.keysym.sym == SDLK_g) {
+                    garden = 1 - garden;
+                }
             }
         }
         run_cycle(&state);
+        if (garden) {
+            seed_garden(&state);
+        }
         /* Draw letter/pillarbox if needed */
         SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
         SDL_RenderClear(renderer);
