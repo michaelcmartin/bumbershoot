@@ -38,7 +38,7 @@ int main(int argc, char **argv)
     SDL_Window *window;
     SDL_Renderer *renderer;
     evo_state_t state;
-    int done = 0;
+    int done = 0, warp = 0;
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
@@ -63,6 +63,12 @@ int main(int argc, char **argv)
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 done = 1;
+            }
+            if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_w) {
+                    warp = 1 - warp;
+                    SDL_Log("%s warp mode at cycle %d", warp ? "Enabling" : "Disabling", state.cycles);
+                }
             }
         }
         run_cycle(&state);
@@ -98,7 +104,7 @@ int main(int argc, char **argv)
         /* Send the display out */
         SDL_RenderPresent(renderer);
         end = SDL_GetTicks();
-        if (end - start < 20) {
+        if (!warp && end - start < 20) {
             SDL_Delay(20 - (end - start));
         }
     }
