@@ -7,6 +7,7 @@
  * See simevo.h for authorship. provenance, and copyright information.
  **********************************************************************/
 
+#include <stdlib.h>
 #include <time.h>
 
 #include "simevo.h"
@@ -38,13 +39,32 @@ int main(int argc, char **argv)
     SDL_Window *window;
     SDL_Renderer *renderer;
     evo_state_t state;
+    int64_t seed;
     int done = 0, warp = 0, garden = 1;
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
         return 1;
     }
-    initialize(&state, time(NULL));
+
+    seed = 0;
+    if (argc > 1) {
+        seed = atoi(argv[1]);
+    }
+    if (seed == 0) {
+        seed = time(NULL);
+    }
+    initialize(&state, seed);
+    SDL_Log("Seed is %lld", seed);
+
+    if (argc > 2) {
+        int cycle_target = atoi(argv[2]);
+        SDL_Log("Running %d cycles before beginning animation.", cycle_target);
+        while (state.cycles < cycle_target) {
+            run_cycle(&state);
+            seed_garden(&state);
+        }
+    }
 
     if (SDL_CreateWindowAndRenderer(450, 300, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
         SDL_Log("Unable to initialize window/renderer: %s", SDL_GetError());
