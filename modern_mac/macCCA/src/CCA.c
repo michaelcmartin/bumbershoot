@@ -34,16 +34,30 @@
 //
 
 #include "CCA.h"
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
+#include <time.h>
+
+static uint64_t rng_state = 0x100000001ULL;
+
+static
+uint32_t xorshift64star(void)
+{
+    uint64_t x = rng_state;
+    x ^= x >> 12;
+    x ^= x << 25;
+    x ^= x >> 27;
+    rng_state = x;
+    return (x * 0x2545F4914F6CDD1DLLU) >> 32;
+}
 
 void
 CCA_seed_random(void)
 {
-    struct timeval t;
-    gettimeofday(&t, NULL);
-    srandom((unsigned int)t.tv_sec);
+    time_t t = time(NULL);
+    rng_state = (uint32_t)t | 1;
+    rng_state |= (rng_state << 32);
 }
 
 CCAContext *
@@ -69,10 +83,9 @@ CCA_scramble(CCAContext *ctx)
     int y, x;
     for (y = 0; y < CCA_HEIGHT; ++y) {
         for (x = 0; x < CCA_WIDTH; ++x) {
-            ctx->front->grid[y][x] = random() % CCA_STATES;
+            ctx->front->grid[y][x] = xorshift64star() % CCA_STATES;
         }
     }
-
 }
 
 void
