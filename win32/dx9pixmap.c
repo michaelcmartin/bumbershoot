@@ -149,6 +149,8 @@ dx9win_init(dx9win_t *d9, LPCTSTR wnd_class, LPCTSTR wnd_caption, WNDPROC wnd_pr
     d9->hWnd = hWnd;
     d9->screen_width = screen_w;
     d9->screen_height = screen_h;
+    d9->filter = D3DTEXF_LINEAR;
+    d9->clear_color = D3DCOLOR_XRGB(0, 0, 0);
     d9->was_resized = FALSE;
     d9->device_lost = FALSE;
     d9->fullscreen = fullscreen;
@@ -211,10 +213,10 @@ HRESULT dx9win_render(dx9win_t *d9)
         d9->device_lost = FALSE;
         d9->was_resized = FALSE;
     }
-    IDirect3DDevice9_Clear(d9->device, 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 255), 1.0f, 0);
+    IDirect3DDevice9_Clear(d9->device, 0, NULL, D3DCLEAR_TARGET, d9->clear_color, 1.0f, 0);
     if (SUCCEEDED(IDirect3DDevice9_GetBackBuffer(d9->device, 0, 0, D3DBACKBUFFER_TYPE_MONO, &backbuffer))) {
         if (SUCCEEDED(upload_pixmap(d9))) {
-            IDirect3DDevice9_StretchRect(d9->device, d9->surface, NULL, backbuffer, &d9->render_rect, D3DTEXF_LINEAR);
+            IDirect3DDevice9_StretchRect(d9->device, d9->surface, NULL, backbuffer, &d9->render_rect, d9->filter);
         }
         IDirect3DSurface9_Release(backbuffer);
     }

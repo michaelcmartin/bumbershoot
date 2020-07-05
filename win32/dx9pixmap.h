@@ -13,6 +13,8 @@ typedef struct dx9win_s {
     HWND hWnd;
     RECT render_rect;
     int screen_width, screen_height;
+    D3DTEXTUREFILTERTYPE filter;
+    D3DCOLOR clear_color;
     BOOL fullscreen, was_resized, device_lost;
 
     /* State that is specific to a display based on a pixmap, like ours */
