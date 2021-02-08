@@ -249,9 +249,7 @@ _paint_bug:
         pha
         txa
         pha
-        lda     bug_y,x
-        asl
-        tay
+        ldy     bug_y,x
         lda     bug_x,x
         clc
         adc     #$05
