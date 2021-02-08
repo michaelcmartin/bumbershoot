@@ -23,6 +23,7 @@ mainlp: jsr     run_step
         .data
         .space  _y_low  100
         .space  _y_high 100
+        .alias  _y_scr  $a6
 
         .text
 enter_bitmap:
@@ -31,6 +32,7 @@ enter_bitmap:
         pha
         lda     #$00
         sta     $022f
+        sta     _y_scr
 
         ;; Build display list
         tax                     ; A is 0
@@ -39,14 +41,14 @@ enter_bitmap:
         sta     dlist, x
         inx
         iny
-        cpy     #$06
+        cpy     #$07
         bne     -
         lda     #$0d
         ldy     #$00
 *       sta     dlist, x
         inx
         iny
-        cpy     #95
+        cpy     #94
         bne     -
         ldy     #$00
 *       lda     _dlst1, y
@@ -87,6 +89,14 @@ enter_bitmap:
         lda     #>dlist
         sta     $0231
 
+        ;; Enable DLI
+        lda     #<irq
+        sta     $0200
+        lda     #>irq
+        sta     $0201
+        lda     #$c0
+        sta     $d40e
+
         ;; Re-enable display list
         pla
         sta     $022f
@@ -109,8 +119,40 @@ enter_bitmap:
         bne     -
         rts
 
-_dlst0: .byte   $70, $70, $70, $4d, <bitmap, >bitmap
+_dlst0: .byte   $70, $70, $70, $4d, <bitmap, >bitmap, $8d
 _dlst1: .byte   $41, <dlist, >dlist
+
+irq:    pha
+        lda     $0278
+        pha
+        and     #$01
+        bne     +
+        lda     _y_scr          ; Already at top?
+        beq     +
+        dec     _y_scr
+        sec
+        lda     dlist+4
+        sbc     #$28
+        sta     dlist+4
+        lda     dlist+5
+        sbc     #$00
+        sta     dlist+5
+*       pla
+        and     #$02
+        bne     +
+        lda     _y_scr
+        cmp     #$04
+        beq     +
+        inc     _y_scr
+        clc
+        lda     dlist+4
+        adc     #$28
+        sta     dlist+4
+        lda     dlist+5
+        adc     #$00
+        sta     dlist+5
+*       pla
+        rti
 
         ;; .X = X (0-159), .Y = Y (0-99), UNCHECKED
         ;; Puts the target address in ($a0)+y, pixel offset in .X (0 left,
