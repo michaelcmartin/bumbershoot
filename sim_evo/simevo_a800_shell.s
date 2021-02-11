@@ -16,6 +16,17 @@
 mainlp: jsr     run_step
         jmp     mainlp
 
+;;; We put our text mode display list near the top so that we do not
+;;; risk overflowing a 4KB limit. Also, this text looks weird because
+;;; it is actually Atari screen codes, which only match up with ASCII
+;;; for lowercase letters
+header: .byte   0,0,0,0,0,0,0,0,0,0,"3imulated",0,"%volution",1
+        .byte   0,0,0,0,0,0,0,0,0,0
+footer: .byte   0,0,0,"5se",0,"joystick",0,92,15,93,0,"to",0
+        .byte   "scroll",0,"display",0,0,0
+        .byte   0,0,"0ress",0,39,0,"to",0,"toggle",0,"the",0
+        .byte   "'arden",0,"of",0,"%den",0,0
+
 ;;; ----------------------------------------------------------------------
 ;;;   Bitmap support
 ;;; ----------------------------------------------------------------------
@@ -41,21 +52,21 @@ enter_bitmap:
         sta     dlist, x
         inx
         iny
-        cpy     #$07
+        cpy     #$0a
         bne     -
         lda     #$0d
         ldy     #$00
 *       sta     dlist, x
         inx
         iny
-        cpy     #94
+        cpy     #82
         bne     -
         ldy     #$00
 *       lda     _dlst1, y
         sta     dlist, x
         inx
         iny
-        cpy     #$03
+        cpy     #$07
         bne     -
 
         ;; Clear bitmap
@@ -69,6 +80,33 @@ enter_bitmap:
         bne     -
         inc     [-]+2
         dey
+        bne     -
+
+        ;; Draw 5-pixel arena border
+        lda     #<bitmap
+        sta     $a0
+        lda     #>bitmap
+        sta     $a1
+        ldx     #100
+*       lda     #$c0
+        ldy     #$01
+        sta     ($a0),y
+        dey
+        lda     #$ff
+        sta     ($a0),y
+        ldy     #$27
+        sta     ($a0),y
+        dey
+        lda     #$03
+        sta     ($a0),y
+        clc
+        lda     $a0
+        adc     #$28
+        sta     $a0
+        lda     $a1
+        adc     #$00
+        sta     $a1
+        dex
         bne     -
 
         ;; Set colors
@@ -119,8 +157,9 @@ enter_bitmap:
         bne     -
         rts
 
-_dlst0: .byte   $70, $70, $70, $4d, <bitmap, >bitmap, $8d
-_dlst1: .byte   $41, <dlist, >dlist
+_dlst0: .byte   $70, $70, $70, $42, <header, >header
+        .byte   $4d, <bitmap, >bitmap, $8d
+_dlst1: .byte   $42, <footer, >footer, $02, $41, <dlist, >dlist
 
 irq:    pha
         lda     $0278
@@ -131,26 +170,26 @@ irq:    pha
         beq     +
         dec     _y_scr
         sec
-        lda     dlist+4
+        lda     dlist+7
         sbc     #$28
-        sta     dlist+4
-        lda     dlist+5
+        sta     dlist+7
+        lda     dlist+8
         sbc     #$00
-        sta     dlist+5
+        sta     dlist+8
 *       pla
         and     #$02
         bne     +
         lda     _y_scr
-        cmp     #$04
+        cmp     #$10
         beq     +
         inc     _y_scr
         clc
-        lda     dlist+4
+        lda     dlist+7
         adc     #$28
-        sta     dlist+4
-        lda     dlist+5
+        sta     dlist+7
+        lda     dlist+8
         adc     #$00
-        sta     dlist+5
+        sta     dlist+8
 *       pla
         rti
 
