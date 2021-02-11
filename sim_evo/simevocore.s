@@ -1,6 +1,7 @@
 .scope
         .data
         .space  _numbugs   1
+        .space  garden     1
         .space  rndval     4
         .space  _scratch  16
         .space  _scratch2 16
@@ -31,7 +32,9 @@ init_bacteria:
         jsr     draw_bacterium
         dec     _scratch2
         bne     -
-*       rts
+        lda     #$00
+        sta     garden
+        rts
 
 .scope
 init_bugs:
@@ -286,7 +289,26 @@ _plankton:
         pla
         tax
         jsr     draw_bacterium
-        rts
+        lda     garden                  ; Replenish garden of Eden if active
+        beq     +
+        lda     #$14
+        ldx     #$00
+        jsr     intrnd
+        clc
+        lda     intrndval
+        adc     #$28
+        pha
+        lda     #$14
+        ldx     #$00
+        jsr     intrnd
+        clc
+        lda     intrndval
+        adc     #$50
+        tay
+        pla
+        tax
+        jsr     draw_bacterium
+*       rts
 
         ;; Copies a bug from .Y to .X. .A is trashed.
 _copy_bug:

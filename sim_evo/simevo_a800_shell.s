@@ -190,6 +190,15 @@ irq:    pha
         lda     dlist+8
         adc     #$00
         sta     dlist+8
+*       lda     $02fc           ; read keyboard
+        and     #$3f            ; Strip SHIFT/CTRL
+        cmp     #$3d            ; Was 'G' pressed?
+        bne     +
+        lda     garden          ; If so, toggle garden
+        eor     #$01
+        sta     garden
+        lda     #$ff            ; Consume keypress
+        sta     $02fc
 *       pla
         rti
 
