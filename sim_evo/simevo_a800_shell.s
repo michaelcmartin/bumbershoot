@@ -14,14 +14,42 @@
         jsr     init_bugs
 
 mainlp: jsr     run_step
+        ldx     #$00
+        lda     numbugs
+        cmp     #100
+        bcs     hundreds
+        stx     pop
+        cmp     #10
+        bcs     tens
+        stx     pop+1
+ones:   clc
+        adc     #$10
+        sta     pop+2
         jmp     mainlp
+hundreds:
+        ldx     #$10
+*       inx
+        sec
+        sbc     #100
+        cmp     #100
+        bcs     -
+        stx     pop
+tens:   ldx     #$10
+*       inx
+        sec
+        sbc     #10
+        cmp     #10
+        bcs     -
+        stx     pop+1
+        bcc     ones
 
 ;;; We put our text mode display list near the top so that we do not
 ;;; risk overflowing a 4KB limit. Also, this text looks weird because
 ;;; it is actually Atari screen codes, which only match up with ASCII
 ;;; for lowercase letters
-header: .byte   0,0,0,0,0,0,0,0,0,0,"3imulated",0,"%volution",1
-        .byte   0,0,0,0,0,0,0,0,0,0
+header: .byte   0,0,"3imulated",0,"%volution",0,0,0,0,0,0,0,0,0
+        .byte   "0op",26,0
+pop:    .byte   0,0,0,0,0
 footer: .byte   0,0,0,"5se",0,"joystick",0,92,15,93,0,"to",0
         .byte   "scroll",0,"display",0,0,0
         .byte   0,0,"0ress",0,39,0,"to",0,"toggle",0,"the",0
