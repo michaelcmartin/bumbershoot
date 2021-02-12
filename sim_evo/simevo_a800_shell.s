@@ -4,6 +4,7 @@
         .org    bssstart
         .text
 
+        jsr     do_title
         jsr     enter_bitmap
 
         ;; Initialize
@@ -55,6 +56,48 @@ footer: .byte   0,0,0,"5se",0,"joystick",0,92,15,93,0,"to",0
         .byte   "scroll",0,"display",0,0,0
         .byte   0,0,"0ress",0,39,0,"to",0,"toggle",0,"the",0
         .byte   "'arden",0,"of",0,"%den",0,0
+
+do_title:
+        ldx     #$01
+        stx     $02f0           ; Disable cursor
+        dex                     ; Channel 0 (E:)
+        lda     #$0b
+        sta     $0342,x
+        lda     #<title_msg
+        sta     $0344,x
+        lda     #>title_msg
+        sta     $0345,x
+        lda     #<[title_end-title_msg]
+        sta     $0348,x
+        lda     #>[title_end-title_msg]
+        sta     $0349,x
+        jsr     $e456
+        lda     #$ff
+        sta     $02fc
+*       ldx     $02fc           ; Wait for keypress
+        inx
+        beq     -
+        lda     #$ff
+        sta     $02fc           ; Consume keypress
+        rts
+title_msg:
+        .byte   125,155,155,155,155
+        .byte   "      ",160,160,160,160,160,160,160,160,160,160,160,160
+        .byte   160,160,160,160,160,160,160,160,160,160,160,160,155
+        .byte   "      ",160,160,211,201,205,213,204,193,212,197,196,160
+        .byte   160,197,214,207,204,213,212,201,207,206,160,160,155
+        .byte   "      ",160,160,160,160,160,160,160,160,160,160,160,160
+        .byte   160,160,160,160,160,160,160,160,160,160,160,160,155
+        .byte   155,155,155,"          Atari edition by",155
+        .byte   "        Michael Martin, 2021",155,155
+        .byte   "          Original program",155
+        .byte   "        Michael Palmiter and",155
+        .byte   "        Martin Gardner, 1989",155
+        .byte   155,155,155
+        .byte   "     ",160,160,208,210,197,211,211,160,193,206,217
+        .byte   160,203,197,217,160,212,207,160,194,197,199,201,206,160
+        .byte   160
+title_end:
 
 ;;; ----------------------------------------------------------------------
 ;;;   Bitmap support
