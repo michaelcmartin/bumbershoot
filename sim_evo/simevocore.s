@@ -1,6 +1,6 @@
 .scope
         .data
-        .space  _numbugs   1
+        .space  numbugs   1
         .space  garden     1
         .space  rndval     4
         .space  _scratch  16
@@ -39,12 +39,12 @@ init_bacteria:
 .scope
 init_bugs:
         lda     #$00
-        sta     _numbugs
+        sta     numbugs
 *       lda     #ARENA_HEIGHT-2
         ldx     #$00
         jsr     intrnd
         lda     intrndval
-        ldx     _numbugs
+        ldx     numbugs
         sta     bug_y, x
         lda     #40
         sta     bug_hp, x
@@ -56,14 +56,14 @@ init_bugs:
         ldx     #$00
         jsr     intrnd
         lda     intrndval
-        ldx     _numbugs
+        ldx     numbugs
         sta     bug_x, x
         jsr     draw_bug
         lda     #$06
         ldx     #$00
         jsr     intrnd
         lda     intrndval
-        ldx     _numbugs
+        ldx     numbugs
         sta     bug_dir, x
         lda     #>bug_dna
         sta     _dnapage
@@ -71,7 +71,7 @@ init_bugs:
         ldx     #0
         jsr     intrnd
         lda     intrndval
-        ldx     _numbugs
+        ldx     numbugs
         .alias  _dnapage ^+2
         sta     bug_dna, x
         inc     _dnapage
@@ -79,7 +79,7 @@ init_bugs:
         cmp     #[>bug_dna]+6
         bne     -
         jsr     normalize_genes
-        inc     _numbugs
+        inc     numbugs
         cpx     #9
         bne     --
 *       rts
@@ -89,7 +89,7 @@ init_bugs:
         .alias  _total  _scratch2
 run_step:
         ldx     #$00
-_runlp: cpx     _numbugs
+_runlp: cpx     numbugs
         bne     +
         jmp     _plankton
 *       jsr     erase_bug
@@ -215,12 +215,12 @@ _found: lda     $fc
         bne     _lives
         lda     bug_hp, x
         bne     _lives
-_dies:  dec     _numbugs
-        ldy     _numbugs
+_dies:  dec     numbugs
+        ldy     numbugs
         jsr     _copy_bug
         dex
         jmp     _next
-_lives: lda     _numbugs                ; Do not reproduce if pop 255
+_lives: lda     numbugs                ; Do not reproduce if pop 255
         cmp     #$ff
         beq     _done
         sec
@@ -244,12 +244,12 @@ _lives: lda     _numbugs                ; Do not reproduce if pop 255
         txa
         pha                             ; Stash current bug number
         tay
-        ldx     _numbugs
+        ldx     numbugs
         jsr     _copy_bug
         lda     #$06                    ; Mutate younger twin
         ldx     #$00
         jsr     intrnd
-        ldx     _numbugs
+        ldx     numbugs
         lda     #>bug_dna
         clc
         adc     intrndval
@@ -267,7 +267,7 @@ _lives: lda     _numbugs                ; Do not reproduce if pop 255
         sta     ^+5
         dec     bug_dna, x
         jsr     normalize_genes
-        inc     _numbugs
+        inc     numbugs
         jsr     draw_bug
         dex                             ; Reprocess first child
         jmp     _next
