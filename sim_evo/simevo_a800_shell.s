@@ -15,6 +15,7 @@
 
 mainlp: jsr     run_step
         ldx     #$00
+        stx     $4d             ; Disable screensaver
         lda     numbugs
         cmp     #100
         bcs     hundreds
