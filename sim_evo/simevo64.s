@@ -52,10 +52,17 @@
         ;; Main loop
 mainlp: jsr     run_step
 
-        jsr     $ffe4                   ; Loop until key pressed
-        beq     mainlp
-
-        jmp     leave_bitmap
+        jsr     $ffe4                   ; Did the user hit 'G'?
+        cmp     #'G
+        bne     +
+        lda     garden                  ; If so, toggle the Garden
+        eor     #$01
+        sta     garden
+*       jsr     $ffe1                   ; Did the user hit RUN/STOP?
+        bne     mainlp                  ; If not, continue simulation
+        lda     #$ff                    ; If so, clear STOP flag...
+        sta     $91
+        jmp     leave_bitmap            ; ... and exit the program.
 
         .include "mcbitmap.s"
         .include "simevocore.s"
