@@ -14,6 +14,33 @@
         .text
 
         ;; Main program
+
+        lda     #>title_msg
+        sta     [+]+2
+        ldy     #$00
+*       lda     title_msg, y
+        beq     +
+        jsr     $ffd2
+        iny
+        bne     -
+        inc     [-]+2
+        bne     -
+
+        ;; Clear keyboard buffer
+*       jsr     $ffe4                   ; GETIN
+        bne     -
+        ;; Wait for key
+*       jsr     $ffe4                   ; GETIN
+        beq     -
+
+        ;; Reset console state
+        lda     #147
+        jsr     $ffd2
+        lda     #9
+        jsr     $ffd2
+        lda     #142
+        jsr     $ffd2
+
         lda     #$20
         jsr     enter_bitmap
 
@@ -45,10 +72,6 @@
         jsr     init_bacteria
         jsr     init_bugs
 
-        ;; Clear keyboard buffer
-*       jsr     $ffe4                   ; GETIN
-        bne     -
-
         ;; Main loop
 mainlp: jsr     run_step
 
@@ -60,9 +83,23 @@ mainlp: jsr     run_step
         sta     garden
 *       jsr     $ffe1                   ; Did the user hit RUN/STOP?
         bne     mainlp                  ; If not, continue simulation
-        lda     #$ff                    ; If so, clear STOP flag...
-        sta     $91
-        jmp     leave_bitmap            ; ... and exit the program.
+
+        jsr     leave_bitmap
+        jmp     ($a002)
+
+title_msg:
+        .byte   147,8,14,13,13
+        .byte   "        ",18,"                        ",146,13
+        .byte   "        ",18,"  simulated  evolution  ",146,13
+        .byte   "        ",18,"                        ",146,13
+        .byte   13,13,13,"  c=64 EDITION BY mICHAEL mARTIN, 2021",13,13
+        .byte   "            oRIGINAL PROGRAM",13
+        .byte   "          mICHAEL pALMITER AND",13
+        .byte   "          mARTIN gARDNER, 1989",13
+        .byte   13,13,13,"    pRESS g TO TOGGLE gARDEN OF eDEN",13
+        .byte   "         pRESS run/stop TO QUIT",13,13
+        .byte   13,13,13,"       ",18,"  press any key to begin  ",146,0
+
 
         .include "mcbitmap.s"
         .include "simevocore.s"
