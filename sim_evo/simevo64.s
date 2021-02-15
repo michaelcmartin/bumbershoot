@@ -8,7 +8,7 @@
 *       .word   0
 
         .data
-        .org    $10fe
+        .org    $11fe
         .space  count   1
         .space  eaten   1
         .text
@@ -50,7 +50,7 @@
 *       ldy     #$00
 *       jsr     pset
         iny
-        cpy     #200
+        cpy     #100
         bne     -
         inx
         cpx     #$05
@@ -59,7 +59,7 @@
 *       ldy     #$00
 *       jsr     pset
         iny
-        cpy     #200
+        cpy     #100
         bne     -
         dex
         cpx     #154
@@ -118,16 +118,13 @@ draw_bacterium:
         pha
         tya
         pha
-        asl                             ; Convert arena to screen coords
         tay
         txa
-        pha
+        pha                             ; Convert arena to screen coords
         clc
         adc     #$05
         tax
         lda     #$01                    ; Bacterium color
-        jsr     pset
-        iny
         jsr     pset
         pla
         tax
@@ -165,13 +162,12 @@ _paint_bug:
         txa
         pha
         lda     bug_y, x
-        asl
         tay
         lda     bug_x, x
         clc
         adc     #$05
         tax
-        lda     #$06
+        lda     #$03
         sta     count
         lda     #$00
         sta     eaten
@@ -193,7 +189,7 @@ _paint_bug:
         tay
         ;; At this point, X is the bug number again, so we can use it
         ;; to increate the bug's HP by 40x the number of bacteria it ate
-        lsr     eaten
+        lda     eaten
         beq     ++
 *       jsr     feed_bug
         dec     eaten

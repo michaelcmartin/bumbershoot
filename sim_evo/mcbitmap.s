@@ -9,9 +9,9 @@
         .scope
         .data
         .org    [^+$ff] & $FF00         ; Align to page
-        .space  _y_low  200
-        .space  _vars    56             ; Align to page, keep fn data here
-        .space  _y_high 200
+        .space  _y_low  100
+        .space  _y_high 100
+        .space  _vars     2             ; Scratch fn data
 
         .alias  _ptr    $fb             ; Scratch pointer
         .text
@@ -79,22 +79,23 @@ enter_bitmap:
         ;; Now we need to compute the byte offset for each line so we don't
         ;; need to do a ton of multiplications when plotting.
         ldx     #$00                    ; pixel row index
-_alp:   ldy     #$07                    ; 8 pixel rows per char row
+_alp:   ldy     #$03                    ; 4 pixel rows per char row
 _blp:   lda     _y_high,x               ; The seven lines after the first
         sta     _y_high+1,x             ; pixel row in a char row are just
         lda     _y_low,x                ; simple increments that cannot
-        sta     _y_low+1,x              ; cross page boundaries.
-        inc     _y_low+1,x
+        clc                             ; cross page boundaries. We use
+        adc     #$02                    ; three of them.
+        sta     _y_low+1,x
         inx
         dey
         bne     _blp
-        cpx     #199                    ; Was that the last line?
+        cpx     #99                     ; Was that the last line?
         bne     +                       ; If so, return
         rts
 *       clc                             ; The jump to a new char row is
         lda     _y_low,x                ; 320 ($140) bytes from the start of
-        adc     #$39                    ; the previous char row, or $139 from
-        sta     _y_low+1,x              ; the seventh.
+        adc     #$3a                    ; the previous char row, or $13a from
+        sta     _y_low+1,x              ; the sixth.
         lda     _y_high,x
         adc     #$01
         sta     _y_high+1,x
@@ -137,7 +138,7 @@ _find_address:
         ;; .A = color, .X = X (0-159), .Y = Y (0-199)
 pset:   cpx     #160                    ; Abort immediately if we try
         bcs     _fin                    ; to plot off the screen
-        cpy     #200
+        cpy     #100
         bcs     _fin
         pha                             ; Stash color
         pha
@@ -160,6 +161,8 @@ pset:   cpx     #160                    ; Abort immediately if we try
 _prset: lda     $fe                     ; On reset restore masked value
 
 _psfin: sta     ($fb),y                 ; Write updated byte
+        iny                             ; and duplicate it on the next row
+        sta     ($fb),y                 ; (160x100 simulated display)
         ldx     _vars+1                 ; Restore arguments
         ldy     _vars
         pla
