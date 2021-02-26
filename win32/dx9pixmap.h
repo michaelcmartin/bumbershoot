@@ -20,8 +20,9 @@ typedef struct dx9win_s {
     /* State that is specific to a display based on a pixmap, like ours */
     int width, height;
     DWORD *pixels;
-    LPDIRECT3DSURFACE9 surface;
-    BOOL surface_dirty, surface_valid;
+    LPDIRECT3DTEXTURE9 texture;
+    LPDIRECT3DVERTEXBUFFER9 vertex_buffer;
+    BOOL dirty, valid;
 } dx9win_t;
 
 HWND dx9win_init(dx9win_t *, LPCTSTR wnd_class, LPCTSTR wnd_caption, WNDPROC wnd_proc, int screen_w, int screen_h, int w, int h, BOOL fullscreen);

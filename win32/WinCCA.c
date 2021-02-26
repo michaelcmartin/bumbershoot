@@ -116,5 +116,5 @@ static void CCA_blit(CCAContext *ctx, dx9win_t *d9)
             *target++ = palette[grid->grid[y][x] & 0x0F];
         }
     }
-    d9->surface_dirty = TRUE;
+    d9->dirty = TRUE;
 }

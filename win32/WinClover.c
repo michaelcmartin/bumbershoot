@@ -126,7 +126,7 @@ void clover_frame(void)
     for (i = 0; i < 76800; ++i) {
         dx9.pixels[i] = palette[current_counter + (int)screen[i]];
     }
-    dx9.surface_dirty = TRUE;
+    dx9.dirty = TRUE;
 }
 
 /* Win32-level initialization and main loop */

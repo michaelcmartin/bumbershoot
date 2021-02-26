@@ -115,7 +115,7 @@ _tWinMain(HINSTANCE hInstance, HINSTANCE ignored, LPTSTR cmdLine, int nCmdShow) 
         }
 
         hat_step(&hat);
-        dx9win.surface_dirty = hat.dirty;
+        dx9win.dirty = hat.dirty;
         dx9win_render(&dx9win);
 
         endFrame = GetTickCount();
