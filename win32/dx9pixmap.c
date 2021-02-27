@@ -269,5 +269,6 @@ HRESULT dx9win_render(dx9win_t *d9)
         d9->device_lost = TRUE;
         return D3DERR_DEVICELOST;
     }
+    InvalidateRect(d9->hWnd, NULL, FALSE);
     return D3D_OK;
 }
