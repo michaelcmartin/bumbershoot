@@ -5,8 +5,13 @@
 ;;; A-Line equates
 Init	= $A000
 ALine	= $A003
+AFlood	= $A00F
 
 ;;; A-Line variables
+CUR_WORK= -$64
+CONTRL	= $04
+INTIN	= $08
+PTSIN	= $0C
 COLBIT0 = $18
 COLBIT1 = $1A
 COLBIT2 = $1C
@@ -15,17 +20,35 @@ LSTLIN	= $20
 LNMASK	= $22
 WMODE	= $24
 X1	= $26
+PATPTR	= $2E
+PATMSK	= $32
+MFILL	= $34
+CLIP	= $36
+MINCL	= $38
+MAXCL	= $3C
+SDABORT	= $76
 
 	move.l	#cls,a3
 	jsr	outstr
 
 	dc.w	Init
-	move.l	#1,COLBIT0(a0)
+	lea.l	CUR_WORK(a0),a6		; Fake VDI workspace in a6
+	move.l	#ff_loc,PTSIN(a0)	; Flood fill array
+	move.l	#ffcol,INTIN(a0)	; Color mode flood fill
+	move.l	#1,COLBIT0(a0)		; Color register 2: green
 	clr.l	d0
 	move.l	d0,COLBIT2(a0)
 	move.w	d0,LSTLIN(a0)		; Write last line pixel
 	move.w	#$FFFF,LNMASK(a0)	; Solid line style
 	move.w	d0,WMODE(a0)		; Write mode replace
+	move.l	#ffpat,PATPTR(a0)	; Pattern pointer (just solid)
+	move.w	d0,PATMSK(a0)		; Pattern length 1, single plane
+	move.w	d0,MFILL(a0)
+	move.w	#1,CLIP(a0)		; Enable clipping
+	move.l	d0,MINCL(a0)		; Cliprect starts at (0,0)
+	move.l	#$027f00c7,MAXCL(a0)	; and ends at (639,199)
+	move.l	#cont,SDABORT(a0)
+
 
 	lea.l	X1(a0),a3	    	; a3 now points to line coords
 
@@ -41,6 +64,16 @@ drawlp: jsr	read_val
 ok:	dc.w	ALine
 next:	move.l	4(a3),(a3)
 	dbra	d3,drawlp
+
+	;; Flood fills at (120,100), (183,102), and (173,133)
+	move.l	#vwork,(a6)
+	move.l	#$00780064,ff_loc
+	dc.w	AFlood
+	move.l	#$00b70066,ff_loc
+	dc.w	AFlood
+	move.l	#$00ad0085,ff_loc
+	dc.w	AFlood
+
 
 skip:	move.l	#$20002,-(a7)		; Read from console
 	trap	#13
@@ -71,6 +104,9 @@ outstr: clr.w	d0
 	addq.l	#6,sp
 	jmp	outstr
 .done:	rts
+
+cont:	clr.l	d0
+	rts
 
 ;;; Graphics data
 gfx_x_bias	= $2e
@@ -113,3 +149,9 @@ gfx:	dc.b	$2F,$78,$40,$90,$4B,$AB,$6D,$B1,$7A,$AE,$8A,$99,$91,$8B
 cls:	dc.b	27,'E',27,'f',0
 cursor_on:
 	dc.b	27,'e',0
+
+ffcol:	dc.w	$FFFF
+ffpat:	dc.w	$FFFF
+ff_loc:	dc.l	0
+
+vwork:	dc.w	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3
