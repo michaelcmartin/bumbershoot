@@ -9,8 +9,8 @@
 
 #include "simevo.h"
 
-const static int xmove[6] = { 0, 2,  2,  0, -2, -2 };
-const static int ymove[6] = { 2, 1, -1 ,-2, -1,  1 };
+static const int xmove[6] = { 0, 2,  2,  0, -2, -2 };
+static const int ymove[6] = { 2, 1, -1 ,-2, -1,  1 };
 
 /* PRNG */
 static uint64_t rng_state = 0x100000001LL;
@@ -181,4 +181,5 @@ int seed_garden(evo_state_t *state)
     int x = rng() % 20+40;
     int y = rng() % 20+80;
     state->plankton[y*150+x] = 1;
+    return 1;
 }

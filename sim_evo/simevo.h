@@ -54,7 +54,7 @@ typedef struct bug_s {
 
 typedef struct evo_state_s {
     bug_t bugs[100];
-    int plankton[15000];  /* 150 * 100 */
+    uint8_t plankton[15000];  /* 150 * 100 */
     int num_bugs, num_names, cycles;
 } evo_state_t;
 
