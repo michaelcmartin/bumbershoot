@@ -4,8 +4,6 @@
 
 ;;; A-Line equates
 Init	= $A000
-APutPx	= $A001
-AGetPx	= $A002
 ALine	= $A003
 
 ;;; A-Line variables
@@ -24,6 +22,7 @@ X1	= $26
 	jsr	outstr
 
 	dc.w	Init
+	move.l	a2,alines		; Cache vector table
 	move.l	#ff_loc,PTSIN(a0)	; Flood fill point array
 	move.l	#ff_col,INTIN(a0)	; Flood fill color
 	move.l	#1,COLBIT0(a0)		; Color register 2: green
@@ -87,10 +86,20 @@ outstr: clr.w	d0
 .done:	rts
 
 flood_fill:
+	move.l	#flood_fill_impl,-(sp)
+	move.w	#38,-(sp)
+	trap	#14
+	addq.l	#6,sp
+	rts
+
+flood_fill_impl:
+	move.l	alines,a5		; Load vector table for supervisor gfx
+	move.l	8(a5),a6		; (a6) = Get Pixel
+	move.l	4(a5),a5		; (a5) = Put Pixel
 	move.l	#qbuf,a3		; Reset ring queue write ptr
 	move.l	a3,a4			; Reset ring queue read ptr
 	move.l	ff_loc,(a3)+		; Place initial point in queue
-	dc.w	APutPx			; ... and on screen
+	jsr	(a5)			; ... and on screen
 .loop:	cmp.l	a3,a4			; Is the queue empty?
 	bne.s	.ok			; If it isn't we still have work to do
 	rts				; If it is, we're done!
@@ -117,10 +126,10 @@ flood_fill:
 	bcc	.done
 	move.w	d3,ff_loc		; Is this pixel non-blank?
 	move.w	d4,ff_loc+2
-	dc.w	AGetPx
+	jsr	(a6)
 	cmp	#0,d0
 	bne	.done
-	dc.w	APutPx			; Set it
+	jsr	(a5)			; Set it
 	move.w	d3,(a3)+		; And enqueue it for later neighbor
 	move.w	d4,(a3)+		; neighbor testing
 	cmp.l	#qend,a3		; Are we at the end of the ring queue?
@@ -172,8 +181,9 @@ cursor_on:
 
 	data
 ff_col:	dc.w	2			; Green
-ff_loc:	dc.l	0
 
 	bss
+ff_loc:	ds.l	1
+alines:	ds.l	1
 qbuf:	ds.b	$10000
 qend:
