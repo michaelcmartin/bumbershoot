@@ -5,8 +5,10 @@
 ;;; A-Line equates
 Init	= $A000
 ALine	= $A003
+SeedFill= $A00F
 
 ;;; A-Line variables
+CUR_WORK= -$1D0
 INTIN	= $08
 PTSIN	= $0C
 COLBIT0 = $18
@@ -17,21 +19,34 @@ LSTLIN	= $20
 LNMASK	= $22
 WMODE	= $24
 X1	= $26
+PATPTR	= $2E
+PATMSK	= $32
+MFILL	= $34
+CLIP	= $36
+MINCL	= $38
+MAXCL	= $3C
+SDABORT	= $76
 
 	move.l	#cls,a3
 	jsr	outstr
 
 	dc.w	Init
-	move.l	a2,alines		; Cache vector table
-	move.l	#ff_loc,PTSIN(a0)	; Flood fill point array
-	move.l	#ff_col,INTIN(a0)	; Flood fill color
+	move.l	#vwork,CUR_WORK(a0)	; Fake VDI workspace in a6
+	move.l	#ff_loc,PTSIN(a0)	; Flood fill array
+	move.l	#ff_col,INTIN(a0)	; Color mode flood fill
 	move.l	#1,COLBIT0(a0)		; Color register 2: green
 	clr.l	d0
 	move.l	d0,COLBIT2(a0)
 	move.w	d0,LSTLIN(a0)		; Write last line pixel
 	move.w	#$FFFF,LNMASK(a0)	; Solid line style
 	move.w	d0,WMODE(a0)		; Write mode replace
-
+	move.l	#ff_pat,PATPTR(a0)	; Pattern pointer (just solid)
+	move.w	d0,PATMSK(a0)		; Pattern length 1, single plane
+	move.w	d0,MFILL(a0)
+	move.w	#1,CLIP(a0)		; Enable clipping
+	move.l	d0,MINCL(a0)		; Cliprect starts at (0,0)
+	move.l	#$027f018f,MAXCL(a0)	; and ends at (639,399)
+	move.l	#cont,SDABORT(a0)	; Never abort flood fill
 	lea.l	X1(a0),a3	    	; a3 now points to line coords
 
 	move.w	#gfx_pt_count-2,d3
@@ -61,7 +76,7 @@ next:	move.l	4(a3),(a3)
 
 	move.l	#cursor_on,a3
 	jsr	outstr
-	move.l	#0,-(sp)		; Terminate program successfully
+	move.w	#0,-(sp)		; Terminate program successfully
 	trap	#1
 
 read_val:
@@ -86,57 +101,13 @@ outstr: clr.w	d0
 .done:	rts
 
 flood_fill:
-	move.l	#flood_fill_impl,-(sp)
-	move.w	#38,-(sp)
-	trap	#14
-	addq.l	#6,sp
+	dc.w	SeedFill
 	rts
 
-flood_fill_impl:
-	move.l	alines,a5		; Load vector table for supervisor gfx
-	move.l	8(a5),a6		; (a6) = Get Pixel
-	move.l	4(a5),a5		; (a5) = Put Pixel
-	move.l	#qbuf,a3		; Reset ring queue write ptr
-	move.l	a3,a4			; Reset ring queue read ptr
-	move.l	ff_loc,(a3)+		; Place initial point in queue
-	jsr	(a5)			; ... and on screen
-.loop:	cmp.l	a3,a4			; Is the queue empty?
-	bne.s	.ok			; If it isn't we still have work to do
-	rts				; If it is, we're done!
-.ok:	move.w	(a4)+,d3		; Load next X coordinate
-	move.w	(a4)+,d4		; Load next Y coordinate
-	cmp.l	#qend,a4		; Do we need to wrap?
-	bne.s	.a4ok
-	move.l	#qbuf,a4
-.a4ok:	jsr	.seed_pt
-	subq	#1,d3
-	jsr	.seed_pt
-	addq	#2,d3
-	jsr	.seed_pt
-	subq	#1,d3
-	subq	#1,d4
-	jsr	.seed_pt
-	addq	#2,d4
-	jsr	.seed_pt
-	bra.s	.loop
-.seed_pt:
-	cmp	#320,d3			; X in-bounds?
-	bcc	.done
-	cmp	#200,d4			; Y in-bounds?
-	bcc	.done
-	move.w	d3,ff_loc		; Is this pixel non-blank?
-	move.w	d4,ff_loc+2
-	jsr	(a6)
-	cmp	#0,d0
-	bne	.done
-	jsr	(a5)			; Set it
-	move.w	d3,(a3)+		; And enqueue it for later neighbor
-	move.w	d4,(a3)+		; neighbor testing
-	cmp.l	#qend,a3		; Are we at the end of the ring queue?
-	bne	.done
-	move.l	#qbuf,a3		; Loop back if we are
-.done:	rts
+cont:	clr.l	d0
+	rts
 
+	data
 ;;; Graphics data
 gfx_x_bias	= $2e
 gfx_pt_count	= $e3
@@ -179,11 +150,9 @@ cls:	dc.b	27,'E',27,'f',0
 cursor_on:
 	dc.b	27,'e',0
 
-	data
-ff_col:	dc.w	2			; Green
+ff_pat:
+ff_col:	dc.w	$FFFF
+vwork:	dc.w	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
 
 	bss
 ff_loc:	ds.l	1
-alines:	ds.l	1
-qbuf:	ds.b	$10000
-qend:
