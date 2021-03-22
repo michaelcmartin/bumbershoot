@@ -30,12 +30,24 @@ SDABORT	= $76
 	move.l	#cls,a3
 	jsr	outstr
 
+	move.w	#4,-(sp)		; GetRez() call
+	trap	#14			; in XBIOS
+	addq.l	#2,sp
+	move.w	d0,mode			; Save it
+	move.w	d0,d3
+
 	dc.w	Init
 	move.l	#vwork,CUR_WORK(a0)	; Fake VDI workspace in a6
 	move.l	#ff_loc,PTSIN(a0)	; Flood fill array
 	move.l	#ff_col,INTIN(a0)	; Color mode flood fill
+	cmp.w	#2,d3			; Are we in hi-res mode?
+	beq.s	black_ink
 	move.l	#1,COLBIT0(a0)		; Color register 2: green
-	clr.l	d0
+	bra.s	inked
+black_ink:
+	move.l	#$10000,COLBIT0(a0)	; Color register 1: black (mono)
+	move.w	#1,vwork+30
+inked:	clr.l	d0
 	move.l	d0,COLBIT2(a0)
 	move.w	d0,LSTLIN(a0)		; Write last line pixel
 	move.w	#$FFFF,LNMASK(a0)	; Solid line style
@@ -54,11 +66,27 @@ SDABORT	= $76
 	jsr	read_val
 	move.l	4(a3),(a3)
 drawlp: jsr	read_val
+	tst.w	6(a3)			; Did we read a 0 coord?
 	bne	ok
 	jsr	read_val		; Was 0, end of line
 	subq	#1,d3
 	jmp	next
-ok:	dc.w	ALine
+ok:	move.l	4(a3),-(sp)
+	dc.w	ALine
+	tst.w	mode			; Are we in low-res mode?
+	beq	pop			; If so, done.
+	addq	#1,(a3)			; In med/high res, draw line two thick
+	addq	#1,4(a3)
+	dc.w	ALine
+	cmp.w	#1,mode			; Are we in med-res mode?
+	beq	pop			; If so, done.
+	addq	#1,2(a3)		; In high res, line is two tall too
+	addq	#1,6(a3)
+	dc.w	ALine
+	subq	#1,(a3)
+	subq	#1,4(a3)
+	dc.w	ALine
+pop:	move.l	(sp)+,4(a3)
 next:	move.l	4(a3),(a3)
 	dbra	d3,drawlp
 
@@ -87,7 +115,15 @@ read_val:
 	clr.w	d0
 	move.b	(a4)+,d0
 	move.w	d0,6(a3)
-	rts
+	move.w	mode,d0			; Coords are fine for low res
+	beq.s	.done
+	move.w	4(a3),d1
+	add.w	d1,4(a3)		; non-lowres doubles X coords
+	subq	#1,d0
+	beq.s	.done
+	move.w	6(a3),d1
+	add.w	d1,6(a3)		; high res doubles both coords
+.done:	rts
 
 	;; Print zero-terminated string in a3 to console.
 outstr: clr.w	d0
@@ -101,7 +137,15 @@ outstr: clr.w	d0
 .done:	rts
 
 flood_fill:
-	dc.w	SeedFill
+	move.w	mode,d0
+	beq.s	.go
+	move.w	ff_loc,d1
+	add.w	d1,ff_loc
+	subq	#1,d0
+	beq.s	.go
+	move.w	ff_loc+2,d1
+	add.w	d1,ff_loc+2
+.go:	dc.w	SeedFill
 	rts
 
 cont:	clr.l	d0
@@ -156,3 +200,4 @@ vwork:	dc.w	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
 
 	bss
 ff_loc:	ds.l	1
+mode:	ds.w	1
