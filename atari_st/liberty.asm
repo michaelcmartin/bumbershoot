@@ -117,12 +117,10 @@ read_val:
 	move.w	d0,6(a3)
 	move.w	mode,d0			; Coords are fine for low res
 	beq.s	.done
-	move.w	4(a3),d1
-	add.w	d1,4(a3)		; non-lowres doubles X coords
+	lsl.w	4(a3)			; non-lowres doubles X coords
 	subq	#1,d0
 	beq.s	.done
-	move.w	6(a3),d1
-	add.w	d1,6(a3)		; high res doubles both coords
+	lsl.w	6(a3)			; high res doubles both coords
 .done:	rts
 
 	;; Print zero-terminated string in a3 to console.
@@ -139,12 +137,10 @@ outstr: clr.w	d0
 flood_fill:
 	move.w	mode,d0
 	beq.s	.go
-	move.w	ff_loc,d1
-	add.w	d1,ff_loc
+	lsl.w	ff_loc
 	subq	#1,d0
 	beq.s	.go
-	move.w	ff_loc+2,d1
-	add.w	d1,ff_loc+2
+	lsl.w	ff_loc+2
 .go:	dc.w	SeedFill
 	rts
 
