@@ -98,7 +98,19 @@ next:	move.l	4(a3),(a3)
 	move.l	#$00ad0085,ff_loc
 	jsr	flood_fill
 
-	move.l	#$20002,-(a7)		; Read from console
+	move.l	#banner,-(sp)
+	jsr	song_init
+
+play_song:
+	jsr	song_step
+	jsr	song_wait
+	move.l	#$10002,(sp)		; Has a key been hit?
+	trap	#13
+	tst.w	d0
+	beq.s	play_song
+
+	jsr	song_end
+	move.l	#$20002,(sp)		; Read key from console
 	trap	#13
 	addq.l	#4,a7
 
@@ -197,3 +209,6 @@ vwork:	dc.w	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2
 	bss
 ff_loc:	ds.l	1
 mode:	ds.w	1
+
+	include "protomus.asm"
+	include "banner.asm"
