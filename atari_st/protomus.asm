@@ -23,7 +23,7 @@
 ;;;                              Decay speed    d
 ;;;                              Sustain target s
 ;;;                              Release speed  r
-;;;                              Stacatto steps z
+;;;                              Staccato steps z
 ;;;      0c nn:                Play note C-1 for nn steps.
 ;;;      0d nn:                Play note C#-1 for nn steps.
 ;;;      ...
@@ -49,7 +49,7 @@ VOX_VOL_DELTA=18			; Amt to subtract each step
 VOX_DEC_DELTA=20			; Decay-phase delta
 VOX_SUS_TGT  =22			; Only decay to this volume
 VOX_REL_DELTA=24			; Release-phase delta
-VOX_STACATTO =26			; Steps to release before next note
+VOX_STACCATO =26			; Steps to release before next note
 VOX_SIZE     =28			; Total size of structure
 
 ;; Volume amounts and deltas range from $0000 to $0FFF; only the high byte
@@ -199,7 +199,7 @@ song_step:
 	move.w	VOX_DEC_DELTA(a0),VOX_VOL_DELTA(a0)
 	move.b	(a1)+,d0		; Note duration
 	move.w	d0,VOX_NEXT_TIME(a0)	; ... is time to next note
-	sub.w	VOX_STACATTO(a0),d0	; Subtract stacatto constant...
+	sub.w	VOX_STACCATO(a0),d0	; Subtract staccato constant...
 	cmp.w	#1,d0			; ... minimum 1...
 	bpl.s	.relok
 	moveq	#1,d0
