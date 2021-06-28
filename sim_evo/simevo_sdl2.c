@@ -11,6 +11,7 @@
 #include <time.h>
 
 #include "simevo.h"
+#include "modern_support.h"
 #include "SDL.h"
 
 void report_bug(const evo_state_t *state, int i, const char *action)
@@ -54,7 +55,8 @@ int main(int argc, char **argv)
     if (seed == 0) {
         seed = time(NULL);
     }
-    initialize(&state, seed);
+    seed_rng(seed);
+    initialize(&state);
     SDL_Log("Seed is %lld", seed);
 
     if (argc > 2) {

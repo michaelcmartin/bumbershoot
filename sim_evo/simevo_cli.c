@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <time.h>
 #include "simevo.h"
+#include "modern_support.h"
 
 void report_bug(const evo_state_t *state, int i, const char *action)
 {
@@ -37,7 +38,8 @@ int main(int argc, char **argv)
 {
     int i;
     evo_state_t state;
-    initialize(&state, time(NULL));
+    seed_rng(time(NULL));
+    initialize(&state);
     for (i = 0; i < 1000000; ++i) {
         if (!run_cycle(&state)) {
             break;

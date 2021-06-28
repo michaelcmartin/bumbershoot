@@ -12,24 +12,6 @@
 static const int xmove[6] = { 0, 2,  2,  0, -2, -2 };
 static const int ymove[6] = { 2, 1, -1 ,-2, -1,  1 };
 
-/* PRNG */
-static uint64_t rng_state = 0x100000001LL;
-
-static void seed_rng(int seed)
-{
-    rng_state = seed | 0x100000001LL;
-}
-
-static uint32_t rng(void)
-{
-    uint64_t x = rng_state;
-    x ^= x >> 12;
-    x ^= x << 25;
-    x ^= x >> 27;
-    rng_state = x;
-    return (x * 0x2545F4914F6CDD1DLLU) >> 32;
-}
-
 /* The simulation itself */
 
 static void normalize_genes(bug_t *bug)
@@ -49,43 +31,45 @@ static void normalize_genes(bug_t *bug)
     }
 }
 
-void initialize(evo_state_t *state, int64_t seed)
+void initialize(evo_state_t *state)
 {
     int i;
-    seed_rng(seed);
     state->num_names = 0;
     state->num_bugs = 0;
     state->cycles = 0;
+    /* Initialize plankton */
+    for (i = 0; i < 15000; ++i) {
+        state->plankton[i] = 0;
+    }
+    for (i = 0; i < 100; ++i) {
+        int n = rand_int(15000);
+        state->plankton[n] = 1;
+        draw_plankton(n % 150, n / 150);
+    }
     /* Initialize bugs */
     for (i = 0; i < 10; ++i) {
         int j;
         bug_t *bug = &state->bugs[i];
         bug->name = state->num_names++;
         bug->gen = 1;
-        bug->x = rng() % 148;
-        bug->y = rng() % 98;
+        bug->x = rand_int(148);
+        bug->y = rand_int(98);
         bug->fuel = 40;
         bug->time = 0;
-        bug->dir = rng() % 6;
+        bug->dir = rand_int(6);
         for (j = 0; j < 6; ++j) {
-            bug->gene[j] = rng() % 10;
+            bug->gene[j] = rand_int(10);
         }
         normalize_genes(bug);
         ++state->num_bugs;
         report_bug(state, i, "born");
-    }
-    /* Initialize plankton */
-    for (i = 0; i < 15000; ++i) {
-        state->plankton[i] = 0;
-    }
-    for (i = 0; i < 100; ++i) {
-        state->plankton[rng() % 15000] = 1;
+        draw_bug(bug->x, bug->y);
     }
 }
 
 int run_cycle(evo_state_t *state)
 {
-    int i;
+    int i, n;
     for (i = 0; i < state->num_bugs; ++i) {
         int j, dx, dy, genesum, generoll;
         bug_t *bug = &state->bugs[i];
@@ -104,11 +88,12 @@ int run_cycle(evo_state_t *state)
         }
 
         /* Bug Moves */
+        erase_bug(bug->x, bug->y);
         genesum = 0;
         for (j = 0; j < 6; ++j) {
             genesum += 1 << bug->gene[j];
         }
-        generoll = rng() % genesum;
+        generoll = rand_int(genesum);
         for (j = 0; j < 5; ++j) {
             int target = 1 << bug->gene[j];
             if (generoll < target) {
@@ -137,6 +122,7 @@ int run_cycle(evo_state_t *state)
         }
         bug->x = x;                /* Finally store the new value back. */
         bug->y = y;
+        draw_bug(x, y);
 
         /* Aging */
         --bug->fuel;
@@ -146,6 +132,7 @@ int run_cycle(evo_state_t *state)
         if (bug->fuel <= 0) {
             --state->num_bugs;
             report_bug(state, i, "starved");
+            erase_bug(bug->x, bug->y);
             if (state->num_bugs > 0) {
                 state->bugs[i] = state->bugs[state->num_bugs];
                 --i;
@@ -160,8 +147,8 @@ int run_cycle(evo_state_t *state)
             ++bug->gen;
             *new_bug = *bug;
             new_bug->name = state->num_names++;
-            ++bug->gene[rng() % 6];
-            --new_bug->gene[rng() % 6];
+            ++bug->gene[rand_int(6)];
+            --new_bug->gene[rand_int(6)];
             normalize_genes(bug);
             normalize_genes(new_bug);
             report_bug(state, i, "born");
@@ -170,7 +157,9 @@ int run_cycle(evo_state_t *state)
         }
     }
     /* Replenish plankton */
-    state->plankton[rng() % 15000] = 1;
+    n = rand_int(15000);
+    state->plankton[n] = 1;
+    draw_plankton(n % 150, n / 150);
     /* Advance time */
     ++state->cycles;
     return 1;
@@ -178,8 +167,9 @@ int run_cycle(evo_state_t *state)
 
 int seed_garden(evo_state_t *state)
 {
-    int x = rng() % 20+40;
-    int y = rng() % 20+80;
+    int x = rand_int(20)+40;
+    int y = rand_int(20)+80;
     state->plankton[y*150+x] = 1;
+    draw_plankton(x, y);
     return 1;
 }

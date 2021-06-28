@@ -42,8 +42,6 @@
 #ifndef SIM_EVO_H_
 #define SIM_EVO_H_
 
-#include <stdint.h>
-
 /**********************************************************************
  * Data structures
  **********************************************************************/
@@ -54,7 +52,7 @@ typedef struct bug_s {
 
 typedef struct evo_state_s {
     bug_t bugs[100];
-    uint8_t plankton[15000];  /* 150 * 100 */
+    unsigned char plankton[15000];  /* 150 * 100 */
     int num_bugs, num_names, cycles;
 } evo_state_t;
 
@@ -64,8 +62,9 @@ typedef struct evo_state_s {
  * determine the new state of the world as needed.
  **********************************************************************/
 
-/* Initialize the state object with the given RNG seed. */
-void initialize(evo_state_t *state, int64_t seed);
+/* Initialize the state object. Your RNG should already be initialized
+ * at this point, since this function will make use of it. */
+void initialize(evo_state_t *state);
 
 /* Run one cycle of the simulation. If bugs fission or die, the report
  * routines below will be called. */
@@ -91,5 +90,31 @@ void report_bug(const evo_state_t *state, int bug_num, const char *action);
  * will follow from the simulation once they are created. At that point
  * the parent will no longer exist per se (it lives on as its children). */
 void report_birth(const evo_state_t *state, int parent, int child_1, int child_2);
+
+/**********************************************************************
+ * Platform-specific rendering functions. Real-time application shells
+ * will implement these to actually update the screen. Application
+ * shells that rebuild the display every frame will leave these as
+ * no-ops.
+ **********************************************************************/
+
+/* The start of a bug move. */
+void erase_bug(int x, int y);
+
+/* The end of a bug move. */
+void draw_bug(int x, int y);
+
+/* New plankton deposit. */
+void draw_plankton(int x, int y);
+
+/**********************************************************************
+ * Platform-specific support functions. The simulation core relies on
+ * the application shell to provide this functionality.
+ **********************************************************************/
+
+/* Deliver a random integer between 0 and n-1. Seeding the underlying
+ * the RNG, if necessary, is the responsibility of the application
+ * shell. */
+unsigned long rand_int(unsigned long n);
 
 #endif
