@@ -46,6 +46,7 @@ int main()
     garden = 0;
 
     while (1) {
+        unsigned long start_time = get_ticks();
         run_cycle(&state);
         if (garden) {
             seed_garden(&state);
@@ -60,6 +61,8 @@ int main()
                 break;
             }
         }
+        /* Maximum update speed 50Hz */
+        while ((get_ticks() - start_time) < 4);
     }
 
     /* Restore original screen resolution and exit */

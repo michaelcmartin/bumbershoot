@@ -17,9 +17,19 @@
 #include <conio.h>
 #include <dos.h>
 
+#include "pit.h"
 #include "simevo.h"
 
 static evo_state_t state;
+
+/********** Rate Limiter **********/
+
+static volatile unsigned int clocks = 0;
+
+void clock_step(void)
+{
+    ++clocks;
+}
 
 /********** PRNG **********/
 
@@ -99,7 +109,9 @@ int main()
     screen_mode(5);       /* Set 320x200x4 CGA graphics mode */
     seed_rng(systicks()); /* Init PRNG */
     initialize(&state);   /* Init simulation */
+    PIT_configure(50, clock_step);  /* Init timer */
     while (1) {
+        unsigned int start_time = clocks;
         run_cycle(&state);
         if (garden) {
             seed_garden(&state);
@@ -114,7 +126,10 @@ int main()
                 break;
             }
         }
+        /* Advance no faster than 50Hz. */
+        while (clocks == start_time);
     }
+    PIT_reset();          /* Turn off the timer */
     screen_mode(3);       /* Back to 80-column text mode */
     return 0;
 }
