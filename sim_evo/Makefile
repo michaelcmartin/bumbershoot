@@ -4,6 +4,9 @@ SimEvo: simevo.c simevo.h modern_support.c modern_support.h simevo_sdl2.c
 SimEvoCLI: simevo.c simevo.h modern_support.c modern_support.h simevo_cli.c
 	gcc -o SimEvoCLI -O2 simevo.c modern_support.c simevo_cli.c
 
+SimEvoDX9.exe: simevo.c simevo.h modern_support.c modern_support.h simevo_dx9.c ../win32/dx9pixmap.c ../win32/dx9pixmap.h
+	gcc -mwindows -o SimEvoDX9.exe -O2 simevo.c simevo_dx9.c modern_support.c ../win32/dx9pixmap.c -ld3d9
+
 simevo.xex: simevo_a800_xex.s simevo_a800_shell.s simevocore.s
 	ophis simevo_a800_xex.s
 
@@ -33,7 +36,7 @@ simevo.tos: simevo.c simevo.h simevost.c stevolib.h stevolib.asm
 # the unix2dos utility to convert the five source files into DOS-style
 # text files.
 
-all: SimEvo SimEvoCLI simevo.xex simevo.atr simevo.prg simevo.tos
+all: SimEvo SimEvoCLI SimEvoDX9.exe simevo.xex simevo.atr simevo.prg simevo.tos
 
 clean:
-	rm -f SimEvo SimEvoCLI simevo.xex simevo.atr simevo.prg simevo.tos
+	rm -f SimEvo SimEvoCLI SimEvoSX9.exe simevo.xex simevo.atr simevo.prg simevo.tos
