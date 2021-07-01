@@ -15,6 +15,7 @@
 
 	;; Exports
 	public	_init_line_a
+	public	_set_fill_pattern
 	public	_fill_box
 	public	_seed_random
 	public	_random
@@ -30,6 +31,21 @@ _init_line_a:
 	movem.l	(sp)+,a2/d2
 	rts
 
+;;; void set_fill_pattern(unsigned short *pattern, int length);
+;;; Set the fill pattern for fill_box. set_fill_pattern(NULL, 0) will
+;;; restore the default solid pattern.
+_set_fill_pattern:
+	move.w	8(sp),d1
+	subq.w	#1,d1
+	move.l	4(sp),d0
+	bne.s	.not_solid
+	move.l	#solid_pattern,d0
+	clr.w	d1
+.not_solid:
+	move.l	d0,pattern
+	move.w	d1,pattern_length
+	rts
+
 ;;; void fill_box(short x1, short y1, short x2, short y2, short color)
 ;;; Draws a filled rectangle with the specified upper-left and
 ;;; lower-right corners, in the specified color.
@@ -40,10 +56,10 @@ _fill_box:
 	move.l	a_line_vars,a0
 	clr.w	d0
 	move.w	d0,$24(a0)		; Write mode replace
-	move.w	d0,$32(a0)		; Pattern length 1
+	move.w	pattern_length,$32(a0)	; Pattern length
 	move.w	d0,$34(a0)		; Single plane fill pattern
 	move.w	d0,$36(a0)		; Clipping off
-	move.l	#pattern,$2e(a0)	; Fill pattern array
+	move.l	pattern,$2e(a0)		; Fill pattern array
 
 	move.l	4(sp),$26(a0)		; Start coordinate (X1, Y1)
 	move.l	8(sp),$2a(a0)		; End coordinate (X2, Y2)
@@ -161,11 +177,17 @@ _get_ticks:
 	rts
 
 	data
-pattern:
+solid_pattern:
 	dc.w	$ffff			; Fill pattern for fill_box
 
 rng_state:
 	dc.w	0,1,0,1			; Current RNG state value
+
+pattern:
+	dc.l	solid_pattern		; Pattern to use
+
+pattern_length:
+	dc.w	0			; Length of pattern, minus 1
 
 	bss
 a_line_vars:
