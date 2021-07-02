@@ -78,12 +78,15 @@ _fill_box:
 
 ;;; void seed_random(unsigned long seed)
 ;;; Seeds the PRNG. The Atari ST edition uses the same 64-bit Xorshift-
-;;; star PRNG as the modern Linux and Windows ports.
+;;; star PRNG as the modern Linux and Windows ports, but it only
+;;; accepts 32-bit seeds. Its output will match the modern ports if the
+;;; modern port's seed fits in 32 bits.
 _seed_random:
 	lea.l	rng_state,a0
-	move.l	4(sp),d0
-	or.l	#1,d0
+	clr.l	d0
+	addq.l	#1,d0
 	move.l	d0,(a0)+
+	or.l	4(sp),d0
 	move.l	d0,(a0)+
 	rts
 
