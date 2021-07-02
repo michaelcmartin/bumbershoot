@@ -41,6 +41,7 @@ int main(int argc, char **argv)
     SDL_Renderer *renderer;
     evo_state_t state;
     int64_t seed;
+    Uint32 start;
     int done = 0, warp = 0, garden = 1;
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
@@ -76,12 +77,12 @@ int main(int argc, char **argv)
     SDL_SetWindowTitle(window, "Simulated Evolution");
     SDL_RenderSetLogicalSize(renderer, 150, 100);
 
+    start = SDL_GetTicks();
     while (!done) {
         SDL_Event event;
         SDL_Rect r;
         int i, x, y;
-        Uint32 start, end;
-        start = SDL_GetTicks();
+        Uint32 end;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 done = 1;
@@ -130,10 +131,18 @@ int main(int argc, char **argv)
             SDL_RenderFillRect(renderer, &r);
         }
         /* Send the display out */
-        SDL_RenderPresent(renderer);
-        end = SDL_GetTicks();
-        if (!warp && end - start < 20) {
-            SDL_Delay(20 - (end - start));
+        if (warp) {
+            if (SDL_GetTicks() - start >= 20) {
+                SDL_RenderPresent(renderer);
+                start = SDL_GetTicks();
+            }
+        } else {
+            SDL_RenderPresent(renderer);
+            end = SDL_GetTicks();
+            if (end - start < 20) {
+                SDL_Delay(20 - (end - start));
+            }
+            start = SDL_GetTicks();
         }
     }
 
