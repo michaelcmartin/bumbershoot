@@ -105,7 +105,7 @@ static unsigned long systicks(void)
 /********** Main program **********/
 int main()
 {
-    int garden = 0;       /* Start out of garden mode */
+    int garden = 1;       /* Start out in garden mode */
     screen_mode(5);       /* Set 320x200x4 CGA graphics mode */
     seed_rng(systicks()); /* Init PRNG */
     initialize(&state);   /* Init simulation */

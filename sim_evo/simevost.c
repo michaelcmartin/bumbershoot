@@ -65,7 +65,7 @@ int main()
     /* Initialize sim */
     seed_random(get_ticks());
     initialize(&state);
-    garden = 0;
+    garden = 1;
 
     while (1) {
         unsigned long start_time = get_ticks();
