@@ -1,0 +1,4 @@
+#include "LogoBounce-res.h"
+
+BG_IMAGE  RCDATA  "img\\mars.jpg"
+FG_IMAGE  RCDATA  "img\\logo.png"
