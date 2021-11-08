@@ -1,12 +1,13 @@
 #include "dx9tile.h"
-
 #include <stdlib.h>
 
+/* Internal vertex format for rendering the final display */
 typedef struct screen_vertex_s {
     FLOAT x, y, z, rhw;
     FLOAT tu, tv;
 } screen_vertex_t;
 
+/* Release all stale resources in preparation for a device reset */
 static void
 invalidate_surface(dx9tile_t* d9)
 {
@@ -22,6 +23,8 @@ invalidate_surface(dx9tile_t* d9)
     d9->screen_texture = NULL;
 }
 
+/* Recreate all resources that can become stale if they aren't already
+ * valid */
 static void
 ensure_surface(dx9tile_t* d9)
 {
@@ -58,6 +61,8 @@ fail:
     d9->valid = FALSE;
 }
 
+/* Edit the render_rect struct to be a properly-centered rectangle
+ * within the window with correct aspect ratio */
 static void
 update_render_rect(dx9tile_t* d9)
 {
@@ -78,7 +83,7 @@ update_render_rect(dx9tile_t* d9)
     d9->render_rect.bottom = (LONG)(d9->screen_height * s_y + o_y);
 }
 
-
+/* Load the render_rect information into the vertex_buffer object */
 static void
 configure_vertex_buffer(dx9tile_t* d9)
 {
@@ -109,6 +114,7 @@ dx9tile_set_alpha(dx9tile_t *d9, int a)
     if (!d9) {
         return D3DERR_INVALIDCALL;
     }
+    /* Update the modulation color on each vertex with our arguments. */
     for (i = 0; i < 4; ++i) {
         d9->current_quad[i].diffuse = ((a & 0xff) << 24) | (d9->current_quad[i].diffuse & 0xffffff);
     }
@@ -122,17 +128,46 @@ dx9tile_set_color(dx9tile_t* d9, int r, int g, int b)
     if (!d9) {
         return D3DERR_INVALIDCALL;
     }
+    /* Update the modulation color on each vertex with our arguments. */
     for (i = 0; i < 4; ++i) {
         d9->current_quad[i].diffuse = D3DCOLOR_ARGB((d9->current_quad[i].diffuse >> 24) & 0xff, r, g, b);
     }
     return D3D_OK;
 }
 
+static void
+draw_quad(dx9tile_t *d9, RECT* dest_rect)
+{
+    float dest_x1, dest_y1, dest_x2, dest_y2;
+    dx9tile_vertex_t* quad = d9->current_quad;
+
+    if (dest_rect) {
+        /* Load dest rect into place, with half-pixel correction */
+        dest_x1 = (float)dest_rect->left - 0.5f;
+        dest_x2 = (float)dest_rect->right - 0.5f;
+        dest_y1 = (float)dest_rect->top - 0.5f;
+        dest_y2 = (float)dest_rect->bottom - 0.5f;
+    }
+    else {
+        /* No destination specified, use entire drawing area */
+        dest_x1 = dest_y1 = -0.5f;
+        dest_x2 = (float)d9->width - 0.5f;
+        dest_y2 = (float)d9->height - 0.5f;
+    }
+
+    /* Load and draw the quad */
+    quad[0].x = quad[1].x = dest_x1;
+    quad[2].x = quad[3].x = dest_x2;
+    quad[1].y = quad[3].y = dest_y1;
+    quad[0].y = quad[2].y = dest_y2;    
+
+    IDirect3DDevice9_DrawPrimitiveUP(d9->device, D3DPT_TRIANGLESTRIP, 2, quad, sizeof(dx9tile_vertex_t));
+}
+
 HRESULT
 dx9tile_draw_tile(dx9tile_t *d9, dx9tex_t* tile, RECT* src_rect, RECT* dest_rect)
 {
     float src_x1, src_y1, src_x2, src_y2;
-    float dest_x1, dest_y1, dest_x2, dest_y2;
     dx9tile_vertex_t* quad;
     if (!tile || !d9) {
         return D3DERR_INVALIDCALL;
@@ -140,43 +175,61 @@ dx9tile_draw_tile(dx9tile_t *d9, dx9tex_t* tile, RECT* src_rect, RECT* dest_rect
     quad = d9->current_quad;
 
     if (src_rect) {
+        /* Load source rect, converting to texture coordinates */
         src_x1 = (float)src_rect->left / tile->w;
         src_x2 = (float)src_rect->right / tile->w;
         src_y1 = (float)src_rect->top / tile->h;
         src_y2 = (float)src_rect->bottom / tile->h;
     }
     else {
+        /* No source rect specified, use entire texture */
         src_x1 = src_y1 = 0.0f;
         src_x2 = src_y2 = 1.0f;
     }
 
-    if (dest_rect) {
-        dest_x1 = (float)dest_rect->left - 0.5f;
-        dest_x2 = (float)dest_rect->right - 0.5f;
-        dest_y1 = (float)dest_rect->top - 0.5f;
-        dest_y2 = (float)dest_rect->bottom - 0.5f;
-    }
-    else {
-        dest_x1 = dest_y1 = -0.5f;
-        dest_x2 = (float)d9->width - 0.5f;
-        dest_y2 = (float)d9->height - 0.5f;
-    }
-
-    quad[0].x = quad[1].x = dest_x1;
-    quad[2].x = quad[3].x = dest_x2;
-    quad[1].y = quad[3].y = dest_y1;
-    quad[0].y = quad[2].y = dest_y2;
-
+    /* Configure texture coordinates */
     quad[0].tu = quad[1].tu = src_x1;
     quad[2].tu = quad[3].tu = src_x2;
     quad[1].tv = quad[3].tv = src_y1;
     quad[0].tv = quad[2].tv = src_y2;
 
+    /* Set texture and draw */
     IDirect3DDevice9_SetTexture(d9->device, 0, (LPDIRECT3DBASETEXTURE9)tile->tex);
-    IDirect3DDevice9_DrawPrimitiveUP(d9->device, D3DPT_TRIANGLESTRIP, 2, quad, sizeof(dx9tile_vertex_t));
+    draw_quad(d9, dest_rect);
     return D3D_OK;
 }
 
+HRESULT
+dx9tile_draw_fill_rect(dx9tile_t *d9, int r, int g, int b, int a, RECT *dest_rect)
+{
+    dx9tile_vertex_t* quad;
+    D3DCOLOR orig_color;
+    int i;
+    if (!d9) {
+        return D3DERR_INVALIDCALL;
+    }
+    quad = d9->current_quad;
+
+    /* Cache original color */
+    orig_color = quad[0].diffuse;
+
+    /* Set color to match arguments */
+    for (i = 0; i < 4; ++i) {
+        quad[i].diffuse = D3DCOLOR_ARGB(a, r, g, b);
+    }
+
+    /* Disable texturing for this quad */
+    IDirect3DDevice9_SetTexture(d9->device, 0, NULL);
+    draw_quad(d9, dest_rect);
+
+    /* Restore original configuration */
+    for (i = 0; i < 4; ++i) {
+        quad[i].diffuse = orig_color;
+    }
+    return D3D_OK;
+}
+
+/* Set up D3DPRESENT_PARAMETERS for our configuration. */
 static void
 config_parameters(D3DPRESENT_PARAMETERS *d3dpp, HWND hWnd, int w, int h, BOOL fullscreen)
 {
@@ -187,6 +240,7 @@ config_parameters(D3DPRESENT_PARAMETERS *d3dpp, HWND hWnd, int w, int h, BOOL fu
     d3dpp->BackBufferFormat = fullscreen ? D3DFMT_X8R8G8B8 : D3DFMT_UNKNOWN;
     d3dpp->BackBufferWidth = w;
     d3dpp->BackBufferHeight = h;
+    /* This needs to be FALSE so that the render target may be larger than the screen */
     d3dpp->EnableAutoDepthStencil = FALSE;
 }
 
@@ -293,6 +347,7 @@ void dx9tile_uninit(dx9tile_t *d9)
 HRESULT dx9tile_begin_scene(dx9tile_t *d9)
 {
     BOOL needs_reset = FALSE;
+    /* Check if we need to reset, and give up if we need to and can't. */
     if (d9->device_lost) {
         HRESULT dev_status = IDirect3DDevice9_TestCooperativeLevel(d9->device);
         if (SUCCEEDED(dev_status) || dev_status == D3DERR_DEVICENOTRESET) {
@@ -304,6 +359,7 @@ HRESULT dx9tile_begin_scene(dx9tile_t *d9)
         invalidate_surface(d9);
         needs_reset = TRUE;
     }
+    /* Recreate the context if needed */
     if (needs_reset) {
         RECT client_rect;
         D3DPRESENT_PARAMETERS d3dpp;
@@ -325,12 +381,16 @@ HRESULT dx9tile_begin_scene(dx9tile_t *d9)
     }
     ensure_surface(d9);
     configure_vertex_buffer(d9);
+    /* New frame */
     IDirect3DDevice9_Clear(d9->device, 0, NULL, D3DCLEAR_TARGET, d9->clear_color, 1.0f, 0);
     if (SUCCEEDED(IDirect3DDevice9_BeginScene(d9->device))) {
         /* TODO: Make sure that screen_surf is NULL here and that we are not nesting our scene calls. */
+        /* Cache screen surface */
         IDirect3DDevice9_GetBackBuffer(d9->device, 0, 0, D3DBACKBUFFER_TYPE_MONO, &d9->screen_surf);
+        /* Start rendering to our offscreen texture */
         IDirect3DDevice9_SetRenderTarget(d9->device, 0, d9->texture_surf);
 
+        /* Configure for drawing to the offscreen texture */
         IDirect3DDevice9_SetFVF(d9->device, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
         IDirect3DDevice9_SetRenderState(d9->device, D3DRS_ALPHABLENDENABLE, TRUE);
         IDirect3DDevice9_SetRenderState(d9->device, D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
@@ -348,11 +408,12 @@ HRESULT dx9tile_begin_scene(dx9tile_t *d9)
 HRESULT dx9tile_end_scene(dx9tile_t *d9)
 {
     if (d9->screen_surf) {
-        dx9tex_t tex = { d9->screen_texture, 100, 100 };
+        /* Switch back to the real backbuffer and make sure we don't leak it */
         IDirect3DDevice9_SetRenderTarget(d9->device, 0, d9->screen_surf);
         IDirect3DSurface9_Release(d9->screen_surf);
         d9->screen_surf = NULL;
 
+        /* Render the whole screen as a single quad */
         IDirect3DDevice9_SetStreamSource(d9->device, 0, d9->vertex_buffer, 0, sizeof(screen_vertex_t));
         IDirect3DDevice9_SetFVF(d9->device, D3DFVF_XYZRHW | D3DFVF_TEX1);
         IDirect3DDevice9_SetRenderState(d9->device, D3DRS_ALPHABLENDENABLE, FALSE);
@@ -360,9 +421,9 @@ HRESULT dx9tile_end_scene(dx9tile_t *d9)
         IDirect3DDevice9_SetSamplerState(d9->device, 0, D3DSAMP_MAGFILTER, d9->filter);
         IDirect3DDevice9_SetSamplerState(d9->device, 0, D3DSAMP_MINFILTER, d9->filter);
 
-
         IDirect3DDevice9_DrawPrimitive(d9->device, D3DPT_TRIANGLESTRIP, 0, 2);
     }
+    /* Send it off to the user */
     IDirect3DDevice9_EndScene(d9->device);
     if (IDirect3DDevice9_Present(d9->device, NULL, NULL, NULL, NULL) == D3DERR_DEVICELOST) {
         d9->device_lost = TRUE;
