@@ -13,4 +13,4 @@ tidy:
 	rm -f *.map *.bin *.obj *.sym
 
 clean:
-	rm -f *.cmd *.map. *.bin *.obj *.sym
+	rm -f *.cmd *.map *.bin *.obj *.sym
