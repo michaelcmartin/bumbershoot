@@ -1,3 +1,5 @@
+all: inpnum.cmd zoom.cmd
+
 bin2cmd: bin2cmd.c
 	gcc -O2 -o $@ $<
 
