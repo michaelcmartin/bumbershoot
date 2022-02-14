@@ -1,3 +1,10 @@
+;;; HELLO WORLD for the NES
+;;; Bumbershoot Software, 2022
+;;;
+;;; This program is designed to be built with the cc65 toolchain. To build:
+;;;   ca65 hello_nes.s
+;;;   ld65 -C nrom_128.cfg -o hello.nes hello_nes.o
+
         .segment "HEADER"
         .byte   "NES",$1a,$01,$01,$01,$00
 
@@ -17,14 +24,14 @@ reset:  sei
         ;; Mask out sound IRQs.
         lda     #$40
         sta     $4017
+        lda     #$00
+        sta     $4010
 
         ;; Disable all graphics.
-        lda     #$00
         sta     $2000
         sta     $2001
 
         ;; Clear out RAM.
-        lda     #$00
         tax
 :       sta     $000,x
         sta     $100,x
@@ -48,11 +55,10 @@ reset:  sei
         ;; Clear out the name tables at $2000-$2400.
         lda     #$20
         sta     $2006
-        ldy     #$00
-        sty     $2006
+        lda     #$00
+        sta     $2006
         ldx     #$08
-        lda     #0
-        ldy     #0
+        tay
 :       sta     $2007
         iny
         bne     :-
