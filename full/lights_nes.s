@@ -1,0 +1,227 @@
+        .segment "HEADER"
+        .byte   "NES",$1a,$01,$01,$01,$00
+
+        .import __OAM_START__
+
+        .zeropage
+zptr:   .res    2
+count:  .res    1
+
+        .code
+reset:  sei
+        cld
+
+        ;; Wait two frames.
+        bit     $2002
+:       bit     $2002
+        bpl     :-
+:       bit     $2002
+        bpl     :-
+
+        ;; Mask out sound IRQs.
+        lda     #$40
+        sta     $4017
+        lda     #$00
+        sta     $4010
+
+        ;; Disable all graphics.
+        sta     $2000
+        sta     $2001
+
+        ;; Clear out RAM.
+        tax
+:       sta     $000,x
+        sta     $100,x
+        sta     $200,x
+        sta     $300,x
+        sta     $400,x
+        sta     $500,x
+        sta     $600,x
+        sta     $700,x
+        inx
+        bne     :-
+
+        ;; Reset the stack pointer.
+        dex
+        txs
+
+        ;; Clear out SPR-RAM.
+        lda     #>__OAM_START__
+        sta     $4014
+
+        ;; Clear out the name tables at $2000-$2400.
+        lda     #$20
+        sta     $2006
+        lda     #$00
+        sta     $2006
+        ldx     #$08
+        tay
+:       sta     $2007
+        iny
+        bne     :-
+        dex
+        bne     :-
+
+        ;; Load the initial screen into place
+
+        ;; Draw board edges and first row
+        lda     #<init_screen
+        sta     zptr
+        lda     #>init_screen
+        sta     zptr+1
+        jsr     rom_to_vidbuf
+        jsr     vram_writes
+
+        ;; Truncate to first draw command
+        lda     #$00
+        sta     vidbuf+init_screen_row-init_screen
+
+        ;; Change the upper-left tile for mid-board rows
+        lda     #$09
+        sta     vidbuf+3
+
+        ;; And draw four more copies of it down the screen
+        lda     #$04
+        sta     count
+:       clc
+        lda     vidbuf+1
+        adc     #64
+        sta     vidbuf+1
+        bcc     :+
+        inc     vidbuf+2
+:       jsr     vram_writes
+        dec     count
+        bne     :--
+
+        lda     #$00
+        sta     vidbuf
+
+        ;; The board is shfited 8 pixels right so buttons and attribute table cells line up.
+        ;; Set basic PPU registers. Load everything from $0000,
+        ;; and use the $2000 nametable. Don't hide the left 8 pixels.
+        ;; Don't enable sprites.
+        lda     #$80
+        sta     $2000
+        lda     #$0e
+        sta     $2001
+        cli
+
+loop:   jmp     loop
+
+irq:    rti
+
+vblank: pha
+        txa
+        pha
+        tya
+        pha
+
+        lda     #>__OAM_START__ ; Update sprite data
+        sta     $4014
+
+        jsr     vram_writes     ; Update name/attr tables
+
+        lda     #$08            ; Reset scroll
+        sta     $2005
+        lda     #$00
+        sta     $2005
+
+        ;; TODO: Update controllers
+
+        pla
+        tay
+        pla
+        tax
+        pla
+        rti
+
+        .bss
+        .align 128
+vidbuf: .res 128
+
+        .code
+
+rom_to_vidbuf:
+        ldy     #$00
+@lp:    lda     (zptr),y
+        beq     @done
+        sta     vidbuf,y
+        iny
+        tax
+        inx
+        inx
+@blk:   lda     (zptr),y
+        sta     vidbuf,y
+        iny
+        dex
+        bne     @blk
+        beq     @lp
+@done:  rts
+
+vram_writes:
+        ldy     #$00
+@lp:    lda     vidbuf,y
+        beq     @done
+        iny
+        tax
+        lda     vidbuf+1,y
+        sta     $2006
+        lda     vidbuf,y
+        sta     $2006
+        iny
+        iny
+@blk:   lda     vidbuf,y
+        sta     $2007
+        iny
+        dex
+        bne     @blk
+        beq     @lp
+@done:  rts
+
+
+        .segment "VECTORS"
+        .word   vblank,reset,irq
+
+        .segment "RODATA"
+
+init_screen:
+        .byte   44
+        .word   $212a
+        .byte   8,1,2,1,2,1,2,1,2,1,2,10,0,0,0,0
+        .byte   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        .byte   9,3,4,3,4,3,4,3,4,3,4,10
+init_screen_row:
+        .byte   12
+        .word   $210a
+        .byte   5,6,6,6,6,6,6,6,6,6,6,7
+        .byte   12
+        .word   $226a
+        .byte   11,12,12,12,12,12,12,12,12,12,12,13
+        .byte   32
+        .word   $3f00
+        .byte   $0f,$00,$16,$10,$0f,$00,$0f,$10,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f
+        .byte   $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f
+        .byte   0
+
+        .segment "CHR0"
+        ;; 0: Blank
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+        ;; 1-4: Button (NW-NE-SW-SE)
+        .byte   $ff,$e0,$c0,$c0,$c0,$c0,$c0,$c0,$ff,$ff,$ff,$bf,$bf,$bf,$bf,$bf
+        .byte   $ff,$03,$01,$01,$01,$01,$01,$01,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff
+        .byte   $c0,$c0,$c0,$c0,$c0,$e0,$ff,$ff,$bf,$bf,$bf,$bf,$bf,$9f,$c0,$ff
+        .byte   $01,$01,$01,$01,$01,$03,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$07,$ff
+        ;; 5-7: Board top (NW-N-NE)
+        .byte   $00,$00,$00,$00,$00,$01,$03,$07,$00,$00,$00,$00,$00,$01,$03,$06
+        .byte   $00,$00,$00,$00,$00,$ff,$ff,$ff,$00,$00,$00,$00,$00,$ff,$ff,$ff
+        .byte   $00,$00,$00,$00,$00,$80,$c0,$e0,$00,$00,$00,$00,$00,$80,$c0,$60
+        ;; 8: First Board Edge W
+        .byte   $0f,$0f,$1f,$1f,$1f,$1f,$1f,$1f,$07,$07,$07,$07,$07,$07,$07,$07
+        ;; 9: Board Edge W
+        .byte   $1f,$1f,$1f,$1f,$1f,$1f,$1f,$1f,$07,$07,$07,$07,$07,$07,$07,$07
+        ;; 10: Board Edge E
+        .byte   $e0,$e0,$e0,$e0,$e0,$e0,$e0,$e0,$e0,$e0,$e0,$e0,$e0,$e0,$e0,$e0
+        ;; 11-13: Board bottom (SW-S-SE)
+        .byte   $1f,$1f,$1f,$0f,$07,$00,$00,$00,$06,$03,$01,$00,$00,$00,$00,$00
+        .byte   $ff,$ff,$ff,$ff,$ff,$00,$00,$00,$ff,$ff,$ff,$00,$00,$00,$00,$00
+        .byte   $e0,$c0,$c0,$80,$00,$00,$00,$00,$60,$c0,$80,$00,$00,$00,$00,$00
