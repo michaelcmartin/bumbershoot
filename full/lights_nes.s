@@ -7,8 +7,15 @@
 zptr:   .res    2
 vstat:  .res    1
 frames: .res    1
-        
+
         .code
+
+.macro  vflush
+        .local lp
+lp:     bit     vstat
+        bmi     lp
+.endmacro
+
 reset:  sei
         cld
 
@@ -63,45 +70,46 @@ reset:  sei
         dex
         bne     :-
 
+        ;; Basic init is over. Re-enable our IRQs.
+        cli
+
+        ;; Load the initial screen into place
+init_screen:
+        ldy     #$00
+@lp:    ldx     screen_base,y
+        beq     @done
+        iny
+        lda     screen_base+1,y
+        sta     $2006
+        lda     screen_base,y
+        sta     $2006
+        iny
+        iny
+@blk:   lda     screen_base,y
+        sta     $2007
+        iny
+        dex
+        bne     @blk
+        beq     @lp
+@done:
         ;; Enable graphics
         lda     #$80
         sta     $2000
         lda     #$0e
         sta     $2001
-        
-        ;; Basic init is over. Re-enable our IRQs.
-        cli
-        
-        ;; Load the initial screen into place
 
-.macro  vblit   src
-        .local  vblit_lp
-        lda     #<src
-        ldx     #>src
-        jsr     rom_to_vidbuf
-        lda     #$80
-        sta     vstat
-vblit_lp:
-        bit     vstat
-        bmi     vblit_lp
-.endmacro
-
-        vblit   init_palette
-        vblit   screen_logo
-        vblit   instructions
-        vblit   init_board
-
-        ;; Truncate to first draw command
-        lda     #$00
-        sta     vidbuf+init_board_row-init_board
-
+        ;; Draw the cells one row per frame...
+        lda     #<cell_row_tiles
+        ldx     #>cell_row_tiles
+        jsr     vblit
+        vflush
         ;; Change the upper-left tile for mid-board rows
         lda     #$09
         sta     vidbuf+3
 
         ;; And draw four more copies of it down the screen
         ldx     #$04
-@rowlp: clc
+:       clc
         lda     vidbuf+1
         adc     #64
         sta     vidbuf+1
@@ -109,11 +117,10 @@ vblit_lp:
         inc     vidbuf+2
 :       lda     #$80
         sta     vstat
-:       bit     vstat
-        bmi     :-
+        vflush
         dex
-        bne     @rowlp
-        
+        bne     :--
+
 loop:   jmp     loop
 
 vblank: pha
@@ -166,73 +173,19 @@ irq:    rti
 vidbuf: .res 128
 
         .code
-
-rom_to_vidbuf:
-        sta     zptr
+vblit:  sta     zptr
         stx     zptr+1
-        ldy     #$00
-@lp:    lda     (zptr),y
-        beq     @done
+        ldy     #$42
+:       lda     (zptr),y
         sta     vidbuf,y
-        iny
-        tax
-        inx
-        inx
-@blk:   lda     (zptr),y
-        sta     vidbuf,y
-        iny
-        dex
-        bne     @blk
-        beq     @lp
-@done:  rts
+        dey
+        bpl     :-
+        lda     #$80
+        sta     vstat
+        rts
 
         .segment "VECTORS"
         .word   vblank,reset,irq
-
-        .segment "RODATA"
-
-init_palette:   
-        .byte   32
-        .word   $3f00
-        .byte   $0f,$00,$0f,$10,$0f,$00,$16,$10,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f
-        .byte   $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f
-        .byte   0
-
-screen_logo:
-        .byte   12
-        .word   $208b
-        .byte   14,15,16,17,18,19,20,21,22,23,24,25
-        .byte   16
-        .word   $20a9
-        .byte   26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41
-        ;; Temporary: Set some stuff in the attribute tables so we
-        ;; have a pretty pattern
-        .byte   3
-        .word   $23d3
-        .byte   $50,$40,$10
-        .byte   3
-        .word   $23db
-        .byte   $41,$51,$01
-        .byte   3
-        .word   $23e3
-        .byte   $51,$41,$11
-        ;; End temporary section
-        .byte   0
-
-init_board:
-        .byte   44
-        .word   $214b
-        .byte   8,1,2,1,2,1,2,1,2,1,2,10,0,0,0,0
-        .byte   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        .byte   9,3,4,3,4,3,4,3,4,3,4,10        
-init_board_row:
-        .byte   12
-        .word   $212b
-        .byte   5,6,6,6,6,6,6,6,6,6,6,7
-        .byte   12
-        .word   $228b
-        .byte   11,12,12,12,12,12,12,12,12,12,12,13
-        .byte   0
 
         ;; Game text. Map characters to target tiles...
         .charmap $20, 0
@@ -259,11 +212,56 @@ init_board_row:
         .charmap $2d, 62
         .charmap $3a, 63
 
-init_instructions:
+        .segment "RODATA"
+screen_base:
+        ;; Palette
+        .byte   32
+        .word   $3f00
+        .byte   $0f,$00,$0f,$10,$0f,$00,$16,$10,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f
+        .byte   $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f
+
+        ;; Logo
+        .byte   12
+        .word   $208b
+        .byte   14,15,16,17,18,19,20,21,22,23,24,25
+        .byte   16
+        .word   $20a9
+        .byte   26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41
+
+        ;; Temporary: Set some stuff in the attribute tables so we
+        ;; have a pretty pattern
+        .byte   3
+        .word   $23d3
+        .byte   $50,$40,$10
+        .byte   3
+        .word   $23db
+        .byte   $41,$51,$01
+        .byte   3
+        .word   $23e3
+        .byte   $51,$41,$11
+
+        ;; Board edges
+        .byte   12
+        .word   $212b
+        .byte   5,6,6,6,6,6,6,6,6,6,6,7
+        .byte   12
+        .word   $228b
+        .byte   11,12,12,12,12,12,12,12,12,12,12,13
+
+        ;; Initial instructions
         .byte   31
         .word   $2321
         .byte   "      PRESS START TO BEGIN     "
         .byte   0
+
+cell_row_tiles:
+        .byte   44
+        .word   $214b
+        .byte   8,1,2,1,2,1,2,1,2,1,2,10,0,0,0,0
+        .byte   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        .byte   9,3,4,3,4,3,4,3,4,3,4,10
+        .byte   0
+
 instructions:
         .byte   63
         .word   $2321
