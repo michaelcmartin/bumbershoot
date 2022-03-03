@@ -5,8 +5,9 @@
 
         .zeropage
 zptr:   .res    2
-count:  .res    1
-
+vstat:  .res    1
+frames: .res    1
+        
         .code
 reset:  sei
         cld
@@ -62,63 +63,58 @@ reset:  sei
         dex
         bne     :-
 
+        ;; Enable graphics
+        lda     #$80
+        sta     $2000
+        lda     #$0e
+        sta     $2001
+        
+        ;; Basic init is over. Re-enable our IRQs.
+        cli
+        
         ;; Load the initial screen into place
 
-        ;; Draw the title
-        lda     #<screen_logo
-        ldx     #>screen_logo
+.macro  vblit   src
+        .local  vblit_lp
+        lda     #<src
+        ldx     #>src
         jsr     rom_to_vidbuf
-        jsr     vram_writes
+        lda     #$80
+        sta     vstat
+vblit_lp:
+        bit     vstat
+        bmi     vblit_lp
+.endmacro
 
-        ;; And the instructions
-        lda     #<instructions
-        ldx     #>instructions
-        jsr     rom_to_vidbuf
-        jsr     vram_writes
-
-        ;; Draw board edges and first row
-        lda     #<init_screen
-        ldx     #>init_screen
-        jsr     rom_to_vidbuf
-        jsr     vram_writes
+        vblit   init_palette
+        vblit   screen_logo
+        vblit   instructions
+        vblit   init_board
 
         ;; Truncate to first draw command
         lda     #$00
-        sta     vidbuf+init_screen_row-init_screen
+        sta     vidbuf+init_board_row-init_board
 
         ;; Change the upper-left tile for mid-board rows
         lda     #$09
         sta     vidbuf+3
 
         ;; And draw four more copies of it down the screen
-        lda     #$04
-        sta     count
-:       clc
+        ldx     #$04
+@rowlp: clc
         lda     vidbuf+1
         adc     #64
         sta     vidbuf+1
         bcc     :+
         inc     vidbuf+2
-:       jsr     vram_writes
-        dec     count
-        bne     :--
-
-        lda     #$00
-        sta     vidbuf
-
-        ;; The board is shfited 8 pixels right so buttons and attribute table cells line up.
-        ;; Set basic PPU registers. Load everything from $0000,
-        ;; and use the $2000 nametable. Don't hide the left 8 pixels.
-        ;; Don't enable sprites.
-        lda     #$80
-        sta     $2000
-        lda     #$0e
-        sta     $2001
-        cli
-
+:       lda     #$80
+        sta     vstat
+:       bit     vstat
+        bmi     :-
+        dex
+        bne     @rowlp
+        
 loop:   jmp     loop
-
-irq:    rti
 
 vblank: pha
         txa
@@ -129,20 +125,41 @@ vblank: pha
         lda     #>__OAM_START__ ; Update sprite data
         sta     $4014
 
-        jsr     vram_writes     ; Update name/attr tables
+        bit     vstat
+        bpl     @no_vram
 
+        ;; Copy data out of video buffer into VRAM
+        ldy     #$00
+@lp:    ldx     vidbuf,y
+        beq     @done
+        iny
+        lda     vidbuf+1,y
+        sta     $2006
+        lda     vidbuf,y
+        sta     $2006
+        iny
+        iny
+@blk:   lda     vidbuf,y
+        sta     $2007
+        iny
+        dex
+        bne     @blk
+        beq     @lp
+@done:  stx     vstat
+
+@no_vram:
         lda     #$08            ; Reset scroll
         sta     $2005
         sta     $2005
 
-        ;; TODO: Update controllers
+        inc     frames          ; Bump frame counter
 
         pla
         tay
         pla
         tax
         pla
-        rti
+irq:    rti
 
         .bss
         .align 128
@@ -169,45 +186,12 @@ rom_to_vidbuf:
         beq     @lp
 @done:  rts
 
-vram_writes:
-        ldy     #$00
-@lp:    lda     vidbuf,y
-        beq     @done
-        iny
-        tax
-        lda     vidbuf+1,y
-        sta     $2006
-        lda     vidbuf,y
-        sta     $2006
-        iny
-        iny
-@blk:   lda     vidbuf,y
-        sta     $2007
-        iny
-        dex
-        bne     @blk
-        beq     @lp
-@done:  rts
-
-
         .segment "VECTORS"
         .word   vblank,reset,irq
 
         .segment "RODATA"
 
-init_screen:
-        .byte   44
-        .word   $214b
-        .byte   8,1,2,1,2,1,2,1,2,1,2,10,0,0,0,0
-        .byte   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        .byte   9,3,4,3,4,3,4,3,4,3,4,10
-init_screen_row:
-        .byte   12
-        .word   $212b
-        .byte   5,6,6,6,6,6,6,6,6,6,6,7
-        .byte   12
-        .word   $228b
-        .byte   11,12,12,12,12,12,12,12,12,12,12,13
+init_palette:   
         .byte   32
         .word   $3f00
         .byte   $0f,$00,$0f,$10,$0f,$00,$16,$10,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f
@@ -233,6 +217,21 @@ screen_logo:
         .word   $23e3
         .byte   $51,$41,$11
         ;; End temporary section
+        .byte   0
+
+init_board:
+        .byte   44
+        .word   $214b
+        .byte   8,1,2,1,2,1,2,1,2,1,2,10,0,0,0,0
+        .byte   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        .byte   9,3,4,3,4,3,4,3,4,3,4,10        
+init_board_row:
+        .byte   12
+        .word   $212b
+        .byte   5,6,6,6,6,6,6,6,6,6,6,7
+        .byte   12
+        .word   $228b
+        .byte   11,12,12,12,12,12,12,12,12,12,12,13
         .byte   0
 
         ;; Game text. Map characters to target tiles...
