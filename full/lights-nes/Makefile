@@ -1,4 +1,4 @@
-OBJS=gfx.o main.o shell.o
+OBJS=gfx.o main.o shell.o xorshift.o
 
 LightsOut.nes: $(OBJS) nrom_128.cfg
 	ld65 -C nrom_128.cfg -o $@ $(OBJS)
@@ -11,3 +11,5 @@ clean:
 
 tidy:
 	rm -f *.o
+
+main.o: charmap.inc

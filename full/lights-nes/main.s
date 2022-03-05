@@ -1,18 +1,20 @@
-        .import __OAM_START__
-        .importzp vstat
-        .import vidbuf
-        .export main
-
-        .zeropage
-zptr:   .res    2
-
-        .code
+        .include "charmap.inc"
 
 .macro  vflush
         .local lp
 lp:     bit     vstat
         bmi     lp
 .endmacro
+
+        .import __OAM_START__
+        .importzp vstat, j0stat, frames
+        .import vidbuf, srnd
+        .export main
+
+        .zeropage
+zptr:   .res    2
+
+        .code
 
 main:
         ldy     #$00
@@ -61,7 +63,23 @@ main:
         dex
         bne     :--
 
-loop:   jmp     loop
+        ;; Wait for START button.
+:       lda     #$10
+        and     j0stat
+        beq     :-
+
+        ;; Re-seed the RNG based on frame count.
+        lda     frames
+        ora     #$01
+        jsr     srnd
+
+        ;; Put the in-game instructions in place.
+        lda     #<instructions
+        ldx     #>instructions
+        jsr     vblit
+        vflush
+
+hang:   jmp     hang
 
 vblit:  sta     zptr
         stx     zptr+1
@@ -73,31 +91,6 @@ vblit:  sta     zptr
         lda     #$80
         sta     vstat
         rts
-
-        ;; Game text. Map characters to target tiles...
-        .charmap $20, 0
-        .charmap $41, 42
-        .charmap $42, 43
-        .charmap $43, 44
-        .charmap $44, 45
-        .charmap $45, 46
-        .charmap $46, 47
-        .charmap $47, 48
-        .charmap $49, 49
-        .charmap $4c, 50
-        .charmap $4d, 51
-        .charmap $4e, 52
-        .charmap $4f, 53
-        .charmap $50, 54
-        .charmap $52, 55
-        .charmap $53, 56
-        .charmap $54, 57
-        .charmap $55, 58
-        .charmap $56, 59
-        .charmap $5a, 60
-        .charmap $21, 61
-        .charmap $2d, 62
-        .charmap $3a, 63
 
         .segment "RODATA"
 screen_base:

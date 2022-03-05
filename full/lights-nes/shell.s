@@ -4,16 +4,18 @@
         .byte   "NES",$1a,$01,$01,$01,$00
 
         .import __OAM_START__
+        .import srnd, rnd
 
         .zeropage
 vstat:  .res    1
 frames: .res    1
+j0stat: .res    1
 
         .bss
         .align 128
 vidbuf: .res 128
 
-        .exportzp vstat, frames
+        .exportzp vstat, frames, j0stat
         .export vidbuf
 
         .code
@@ -71,6 +73,10 @@ reset:  sei
         dex
         bne     :-
 
+        ;; Seed RNG.
+        lda     #$01
+        jsr     srnd
+
         ;; Basic init is over. Re-enable our IRQs and go to Main Program.
         cli
         jmp     main
@@ -112,6 +118,20 @@ vblank: pha
         sta     $2005
 
         inc     frames          ; Bump frame counter
+        jsr     rnd             ; Burn an RNG value
+
+        ;; Read joystick
+        ldx     #$01
+        stx     $4016
+        dex
+        stx     $4016
+        stx     j0stat
+        ldx     #$08
+:       lda     $4016
+        lsr     a
+        rol     j0stat
+        dex
+        bne     :-
 
         pla
         tay
