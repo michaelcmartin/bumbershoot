@@ -18,6 +18,11 @@ lp:     bit     vstat
         ;; any function call, potentially.
 scratch:
         .res    16
+crsr_x: .res    1               ; X loc of cursor (0-4)
+crsr_y: .res    1               ; Y loc of cursor (0-4)
+        .res    1               ; Scratch byte to make moves easier
+grid:   .res    5               ; The grid
+        .res    1               ; Scratch byte to make moves easier
 
         .code
 
@@ -84,7 +89,6 @@ game_start:
 
 scramble:
         ;; If start button is pressed, keep randomizing...
-        jsr     next_frame
         lda     #$10
         and     j0stat
         beq     scrambled
@@ -93,7 +97,19 @@ scramble:
         jmp     scramble
 
 scrambled:
+        ;; Make sure we didn't actually create a pre-solved puzzle.
+        ldx     #$04
+:       lda     grid,x
+        bne     @puzzle_ok
+        dex
+        bpl     :-
+        ;; Whoops! Try again.
+        jsr     randomize_board
+        jsr     grid_to_attr
+        jmp     scrambled
+
         ;; Put the in-game instructions in place.
+@puzzle_ok:
         lda     #<instructions
         ldx     #>instructions
         jsr     vblit
@@ -106,13 +122,6 @@ scrambled:
 ;;; --------------------------------------------------------------------------
 ;;; * SUPPORT ROUTINES
 ;;; --------------------------------------------------------------------------
-
-        .zeropage
-crsr_x: .res    1
-crsr_y: .res    1
-        .res    1               ; Scratch byte to make moves easier
-grid:   .res    5               ; The grid
-        .res    1               ; Scratch byte to make moves easier
 
         .code
         ;; Makes a move at (crsr_x, crsr_y). Doesn't touch scratch.
