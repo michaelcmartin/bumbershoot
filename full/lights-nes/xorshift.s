@@ -1,9 +1,10 @@
-        .bss
+        .zeropage
 x_:     .res    2
 y_:
-rndval: .res    2
+rndval: .res    4
 
-        .export   srnd, rnd, rndval
+        .export   srnd, rnd
+        .exportzp rndval
 
         .code
 srnd:   sta     x_
@@ -12,8 +13,17 @@ srnd:   sta     x_
         stx     y_+1
         rts
 
+        ;; Roll the RNG twice, so that each frame has 32 random bits
+        ;; to work with. That's the most we'll ever need.
+rnd:    jsr     step
+        lda     rndval
+        sta     rndval+2
+        lda     rndval+1
+        sta     rndval+3
+        ;; fall through to step.
+
         ;; x ^= x << 5
-rnd:    lda     x_
+step:   lda     x_
         ldy     x_+1
         ldx     #$05
 _lp:    asl

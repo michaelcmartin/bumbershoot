@@ -21,3 +21,4 @@
         .charmap $21, 61
         .charmap $2d, 62
         .charmap $3a, 63
+        .charmap $2e, 64

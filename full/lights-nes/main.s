@@ -2,17 +2,22 @@
 
 .macro  vflush
         .local lp
+        lda     #$80
+        sta     vstat
 lp:     bit     vstat
         bmi     lp
 .endmacro
 
         .import __OAM_START__
-        .importzp vstat, j0stat, frames
-        .import vidbuf, srnd
+        .importzp vstat, j0stat, frames, rndval
+        .import vidbuf
         .export main
 
         .zeropage
-zptr:   .res    2
+        ;; Reserve 16 bytes for scratch space. This can be trashed by
+        ;; any function call, potentially.
+scratch:
+        .res    16
 
         .code
 
@@ -63,36 +68,238 @@ main:
         dex
         bne     :--
 
-        ;; Wait for START button.
-:       lda     #$10
+game_start:
+        ;; Nothing to do until player hits START.
+        lda     #$10
         and     j0stat
-        beq     :-
+        beq     game_start
 
-        ;; Re-seed the RNG based on frame count.
-        lda     frames
-        ora     #$01
-        jsr     srnd
+        ;; Amount of time from poweron to here determines initial puzzle state.
+        jsr     randomize_board
 
+        ;; Update status bar.
+        lda     #<randomizing_msg
+        ldx     #>randomizing_msg
+        jsr     vblit
+        vflush
+
+scramble:
+        ;; If start button is pressed, keep randomizing...
+        jsr     next_frame
+        lda     #$10
+        and     j0stat
+        beq     scrambled
+        jsr     randomize_board
+        jsr     grid_to_attr
+        jmp     scramble
+
+scrambled:
         ;; Put the in-game instructions in place.
         lda     #<instructions
         ldx     #>instructions
         jsr     vblit
         vflush
 
-hang:   jmp     hang
+        ;; No game yet; go back to out-of-game state
+        jmp     game_start
 
-vblit:  sta     zptr
-        stx     zptr+1
+
+;;; --------------------------------------------------------------------------
+;;; * SUPPORT ROUTINES
+;;; --------------------------------------------------------------------------
+
+        .zeropage
+crsr_x: .res    1
+crsr_y: .res    1
+        .res    1               ; Scratch byte to make moves easier
+grid:   .res    5               ; The grid
+        .res    1               ; Scratch byte to make moves easier
+
+        .code
+        ;; Makes a move at (crsr_x, crsr_y). Doesn't touch scratch.
+make_move:
+        ldx     crsr_y
+        ldy     crsr_x
+        lda     move_edge,y
+        eor     grid-1,x
+        sta     grid-1,x
+        lda     move_edge,y
+        eor     grid+1,x
+        sta     grid+1,x
+        lda     move_center,y
+        eor     grid,x
+        sta     grid,x
+        rts
+
+randomize_board:
+        .scope
+        count = scratch
+        index = scratch+1
+        curr  = scratch+2
+
+        ldx     #$01
+        stx     count
+        dex
+        stx     index
+        lda     #$04
+        sta     crsr_y
+row:    lda     #$04
+        sta     crsr_x
+cell:   dec     count
+        bne     :+
+        ;; Out of bits, reset counter, load next rndval
+        ldx     index
+        lda     rndval,x
+        sta     curr
+        lda     #$08
+        sta     count
+        inc     index
+:       lsr     curr
+        bcc     :+
+        jsr     make_move
+:       dec     crsr_x
+        bpl     cell
+        dec     crsr_y
+        bpl     row
+        ;; Reset cursor on the way out
+        lda     #$02
+        sta     crsr_x
+        sta     crsr_y
+        rts
+.endscope
+
+        .rodata
+move_edge:
+        .byte   $10,$08,$04,$02,$01
+move_center:
+        .byte   $18,$1C,$0E,$07,$03
+
+;;; --------------------------------------------------------------------------
+;;; * GRAPHICS ROUTINES
+;;; --------------------------------------------------------------------------
+
+vblit:  sta     scratch
+        stx     scratch+1
         ldy     #$42
-:       lda     (zptr),y
+:       lda     (scratch),y
         sta     vidbuf,y
         dey
         bpl     :-
-        lda     #$80
-        sta     vstat
         rts
 
-        .segment "RODATA"
+next_frame:
+        pha
+        lda     frames
+@lp:    cmp     frames
+        beq     @lp
+        pla
+        rts
+
+grid_to_attr:
+.scope
+        out = scratch           ; 3 bytes used
+
+        ;; Copy template to vidbuf
+        lda     #<attr_base
+        ldx     #>attr_base
+        jsr     vblit           ; Trashes first two 'out' bytes
+
+        ;; Compute top attr row from tow board row
+        jsr     clear
+        lda     grid
+        jsr     trans
+        jsr     shift4
+        ldx     #$03
+        jsr     attrcpy
+
+        ;; Compute second attr row from middle two board rows
+        jsr     clear
+        lda     grid+2
+        jsr     trans
+        jsr     shift4
+        lda     grid+1
+        jsr     trans
+        ldx     #$09
+        jsr     attrcpy
+
+        ;; Compute final attr row from final two board rows
+        jsr     clear
+        lda     grid+4
+        jsr     trans
+        jsr     shift4
+        lda     grid+3
+        jsr     trans
+        ldx     #$0f
+        jsr     attrcpy
+
+        ;; Board is ready. Let it be rendered.
+        vflush
+        rts
+
+attrcpy:
+        lda     out
+        sta     vidbuf,x
+        lda     out+1
+        sta     vidbuf+1,x
+        lda     out+2
+        sta     vidbuf+2,x
+        rts
+
+trans:  lsr
+        bcc     @rtblk
+        pha
+        lda     out+2
+        ora     #$01
+        sta     out+2
+        pla
+@rtblk: pha
+        and     #$03
+        tax
+        lda     cell_attrs,x
+        ora     out+1
+        sta     out+1
+        pla
+        lsr
+        lsr
+        and     #$03
+        tax
+        lda     cell_attrs,x
+        ora     out
+        sta     out
+        rts
+
+shift4: ldx     #$04
+@lp:    asl     out
+        asl     out+1
+        asl     out+2
+        dex
+        bne     @lp
+        rts
+
+clear:  ldx     #$00
+        stx     out
+        stx     out+1
+        stx     out+2
+        rts
+
+.endscope
+
+
+        .rodata
+cell_attrs:
+        .byte   $00,$04,$01,$05
+attr_base:
+        .byte   3
+        .word   $23d3
+        .byte   0,0,0
+        .byte   3
+        .word   $23db
+        .byte   0,0,0
+        .byte   3
+        .word   $23e3
+        .byte   0,0,0
+        .byte   0
+
 screen_base:
         ;; Palette
         .byte   32
@@ -107,18 +314,6 @@ screen_base:
         .byte   16
         .word   $20a9
         .byte   26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41
-
-        ;; Temporary: Set some stuff in the attribute tables so we
-        ;; have a pretty pattern
-        .byte   3
-        .word   $23d3
-        .byte   $50,$40,$10
-        .byte   3
-        .word   $23db
-        .byte   $41,$51,$01
-        .byte   3
-        .word   $23e3
-        .byte   $51,$41,$11
 
         ;; Board edges
         .byte   12
@@ -142,11 +337,18 @@ cell_row_tiles:
         .byte   9,3,4,3,4,3,4,3,4,3,4,10
         .byte   0
 
+randomizing_msg:
+        .byte   63
+        .word   $2321
+        .byte   "         RANDOMIZING...         "
+        .byte   "                               "
+        .byte   0
+
 instructions:
         .byte   63
         .word   $2321
         .byte   "   D-PAD: MOVE        A: FLIP   "
-        .byte   "      SELECT: RESET PUZZLE     "
+        .byte   "      START:  RESET PUZZLE     "
         .byte   0
 
 victory_msg:
