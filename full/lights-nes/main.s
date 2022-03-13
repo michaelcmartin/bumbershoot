@@ -21,7 +21,7 @@ scratch:
 
         .code
 
-main:
+main:   ;; Draw the initial screen, except for the board cells
         ldy     #$00
 @lp:    ldx     screen_base,y
         beq     @done
@@ -38,8 +38,7 @@ main:
         dex
         bne     @blk
         beq     @lp
-@done:
-        ;; Enable graphics
+@done:  ;; Enable graphics
         lda     #$80
         sta     $2000
         lda     #$0e
@@ -117,7 +116,7 @@ grid:   .res    5               ; The grid
 
         .code
         ;; Makes a move at (crsr_x, crsr_y). Doesn't touch scratch.
-make_move:
+.proc   make_move
         ldx     crsr_y
         ldy     crsr_x
         lda     move_edge,y
@@ -130,9 +129,9 @@ make_move:
         eor     grid,x
         sta     grid,x
         rts
+.endproc
 
-randomize_board:
-        .scope
+.proc   randomize_board
         count = scratch
         index = scratch+1
         curr  = scratch+2
@@ -166,7 +165,7 @@ cell:   dec     count
         sta     crsr_x
         sta     crsr_y
         rts
-.endscope
+.endproc
 
         .rodata
 move_edge:
@@ -178,25 +177,27 @@ move_center:
 ;;; * GRAPHICS ROUTINES
 ;;; --------------------------------------------------------------------------
 
-vblit:  sta     scratch
+.proc   vblit
+        sta     scratch
         stx     scratch+1
         ldy     #$42
-:       lda     (scratch),y
+lp:     lda     (scratch),y
         sta     vidbuf,y
         dey
-        bpl     :-
+        bpl     lp
         rts
+.endproc
 
-next_frame:
+.proc   next_frame
         pha
         lda     frames
-@lp:    cmp     frames
-        beq     @lp
+lp:     cmp     frames
+        beq     lp
         pla
         rts
+.endproc
 
-grid_to_attr:
-.scope
+.proc   grid_to_attr
         out = scratch           ; 3 bytes used
 
         ;; Copy template to vidbuf
@@ -281,9 +282,7 @@ clear:  ldx     #$00
         stx     out+1
         stx     out+2
         rts
-
-.endscope
-
+.endproc                        ; End of grid_to_attr
 
         .rodata
 cell_attrs:

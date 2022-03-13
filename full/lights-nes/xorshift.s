@@ -7,15 +7,18 @@ rndval: .res    4
         .exportzp rndval
 
         .code
-srnd:   sta     x_
+.proc   srnd
+        sta     x_
         sta     y_
         stx     x_+1
         stx     y_+1
         rts
+.endproc
 
         ;; Roll the RNG twice, so that each frame has 32 random bits
         ;; to work with. That's the most we'll ever need.
-rnd:    jsr     step
+.proc   rnd
+        jsr     step
         lda     rndval
         sta     rndval+2
         lda     rndval+1
@@ -26,10 +29,10 @@ rnd:    jsr     step
 step:   lda     x_
         ldy     x_+1
         ldx     #$05
-_lp:    asl
+lp:     asl
         rol     x_+1
         dex
-        bne     _lp
+        bne     lp
         eor     x_
         sta     x_
         tya
@@ -38,10 +41,10 @@ _lp:    asl
         ;; x ^= x >> 3
         ldy     x_              ; .A already has x_+1
         ldx     #$03
-_lp2:   lsr
+lp2:    lsr
         ror     x_
         dex
-        bne     _lp2
+        bne     lp2
         eor     x_+1
         sta     x_+1
         tya
@@ -68,3 +71,4 @@ _lp2:   lsr
         sta     y_
         stx     x_
         rts
+.endproc
