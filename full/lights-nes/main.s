@@ -1,5 +1,11 @@
         .include "charmap.inc"
 
+        .import __OAM_START__
+        .importzp scratch, vstat, j0stat, frames
+        .import vidbuf, randomize_board
+        .export main
+        .exportzp crsr_x, crsr_y, grid
+
 .macro  vflush
         .local lp
         lda     #$80
@@ -8,16 +14,7 @@ lp:     bit     vstat
         bmi     lp
 .endmacro
 
-        .import __OAM_START__
-        .importzp vstat, j0stat, frames, rndval
-        .import vidbuf
-        .export main
-
         .zeropage
-        ;; Reserve 16 bytes for scratch space. This can be trashed by
-        ;; any function call, potentially.
-scratch:
-        .res    16
 crsr_x: .res    1               ; X loc of cursor (0-4)
 crsr_y: .res    1               ; Y loc of cursor (0-4)
         .res    1               ; Scratch byte to make moves easier
@@ -25,7 +22,6 @@ grid:   .res    5               ; The grid
         .res    1               ; Scratch byte to make moves easier
 
         .code
-
 main:   ;; Draw the initial screen, except for the board cells
         ldy     #$00
 @lp:    ldx     screen_base,y
@@ -118,69 +114,6 @@ scrambled:
         ;; No game yet; go back to out-of-game state
         jmp     game_start
 
-
-;;; --------------------------------------------------------------------------
-;;; * SUPPORT ROUTINES
-;;; --------------------------------------------------------------------------
-
-        .code
-        ;; Makes a move at (crsr_x, crsr_y). Doesn't touch scratch.
-.proc   make_move
-        ldx     crsr_y
-        ldy     crsr_x
-        lda     move_edge,y
-        eor     grid-1,x
-        sta     grid-1,x
-        lda     move_edge,y
-        eor     grid+1,x
-        sta     grid+1,x
-        lda     move_center,y
-        eor     grid,x
-        sta     grid,x
-        rts
-.endproc
-
-.proc   randomize_board
-        count = scratch
-        index = scratch+1
-        curr  = scratch+2
-
-        ldx     #$01
-        stx     count
-        dex
-        stx     index
-        lda     #$04
-        sta     crsr_y
-row:    lda     #$04
-        sta     crsr_x
-cell:   dec     count
-        bne     :+
-        ;; Out of bits, reset counter, load next rndval
-        ldx     index
-        lda     rndval,x
-        sta     curr
-        lda     #$08
-        sta     count
-        inc     index
-:       lsr     curr
-        bcc     :+
-        jsr     make_move
-:       dec     crsr_x
-        bpl     cell
-        dec     crsr_y
-        bpl     row
-        ;; Reset cursor on the way out
-        lda     #$02
-        sta     crsr_x
-        sta     crsr_y
-        rts
-.endproc
-
-        .rodata
-move_edge:
-        .byte   $10,$08,$04,$02,$01
-move_center:
-        .byte   $18,$1C,$0E,$07,$03
 
 ;;; --------------------------------------------------------------------------
 ;;; * GRAPHICS ROUTINES

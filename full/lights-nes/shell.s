@@ -7,6 +7,10 @@
         .import srnd, rnd
 
         .zeropage
+        ;; Reserve 16 bytes for scratch space. This can be trashed by
+        ;; any function call, potentially.
+scratch:
+        .res    16
 vstat:  .res    1
 frames: .res    1
 j0stat: .res    1
@@ -15,7 +19,7 @@ j0stat: .res    1
         .align 128
 vidbuf: .res 128
 
-        .exportzp vstat, frames, j0stat
+        .exportzp scratch, vstat, frames, j0stat
         .export vidbuf
 
         .code
