@@ -74,25 +74,22 @@ game_start:
         and     j0stat
         beq     game_start
 
-        ;; Amount of time from poweron to here determines initial puzzle state.
-        jsr     randomize_board
-
         ;; Update status bar.
         lda     #<randomizing_msg
         ldx     #>randomizing_msg
         jsr     vblit
         vflush
 
-scramble:
+        ;; Amount of time from poweron to here determines initial puzzle state.
+@scramble:
+        jsr     randomize_board
+        jsr     grid_to_attr
         ;; If start button is pressed, keep randomizing...
         lda     #$10
         and     j0stat
-        beq     scrambled
-        jsr     randomize_board
-        jsr     grid_to_attr
-        jmp     scramble
+        bne     @scramble
 
-scrambled:
+@scrambled:
         ;; Make sure we didn't actually create a pre-solved puzzle.
         ldx     #$04
 :       lda     grid,x
@@ -102,7 +99,7 @@ scrambled:
         ;; Whoops! Try again.
         jsr     randomize_board
         jsr     grid_to_attr
-        jmp     scrambled
+        jmp     @scrambled
 
         ;; Put the in-game instructions in place.
 @puzzle_ok:
@@ -140,95 +137,45 @@ lp:     cmp     frames
 .endproc
 
 .proc   grid_to_attr
-        out = scratch           ; 3 bytes used
+        row = scratch
+        col = scratch+1
+        curr = scratch+2
 
-        ;; Copy template to vidbuf
         lda     #<attr_base
         ldx     #>attr_base
-        jsr     vblit           ; Trashes first two 'out' bytes
-
-        ;; Compute top attr row from tow board row
-        jsr     clear
-        lda     grid
-        jsr     trans
-        jsr     shift4
-        ldx     #$03
-        jsr     attrcpy
-
-        ;; Compute second attr row from middle two board rows
-        jsr     clear
-        lda     grid+2
-        jsr     trans
-        jsr     shift4
-        lda     grid+1
-        jsr     trans
-        ldx     #$09
-        jsr     attrcpy
-
-        ;; Compute final attr row from final two board rows
-        jsr     clear
-        lda     grid+4
-        jsr     trans
-        jsr     shift4
-        lda     grid+3
-        jsr     trans
-        ldx     #$0f
-        jsr     attrcpy
-
-        ;; Board is ready. Let it be rendered.
+        jsr     vblit
+        lda     #$04
+        sta     row
+        ldy     #$00
+rowlp:  lda     #$05
+        sta     col
+        ldx     row
+        lda     grid,x
+        sta     curr
+collp:  lsr     curr
+        bcc     next
+        ldx     attr_offsets,y
+        lda     attr_bit,y
+        ora     vidbuf,x
+        sta     vidbuf,x
+next:   iny
+        dec     col
+        bne     collp
+        dec     row
+        bpl     rowlp
         vflush
         rts
-
-attrcpy:
-        lda     out
-        sta     vidbuf,x
-        lda     out+1
-        sta     vidbuf+1,x
-        lda     out+2
-        sta     vidbuf+2,x
-        rts
-
-trans:  lsr
-        bcc     @rtblk
-        pha
-        lda     out+2
-        ora     #$01
-        sta     out+2
-        pla
-@rtblk: pha
-        and     #$03
-        tax
-        lda     cell_attrs,x
-        ora     out+1
-        sta     out+1
-        pla
-        lsr
-        lsr
-        and     #$03
-        tax
-        lda     cell_attrs,x
-        ora     out
-        sta     out
-        rts
-
-shift4: ldx     #$04
-@lp:    asl     out
-        asl     out+1
-        asl     out+2
-        dex
-        bne     @lp
-        rts
-
-clear:  ldx     #$00
-        stx     out
-        stx     out+1
-        stx     out+2
-        rts
-.endproc                        ; End of grid_to_attr
+.endproc
 
         .rodata
-cell_attrs:
-        .byte   $00,$04,$01,$05
+attr_offsets:
+        .byte   17,16,16,15,15,17,16,16,15,15
+        .byte   11,10,10,9,9,11,10,10,9,9
+        .byte   5,4,4,3,3
+attr_bit:
+        .byte   $10,$40,$10,$40,$10,$01,$04,$01,$04,$01
+        .byte   $10,$40,$10,$40,$10,$01,$04,$01,$04,$01
+        .byte   $10,$40,$10,$40,$10
 attr_base:
         .byte   3
         .word   $23d3
