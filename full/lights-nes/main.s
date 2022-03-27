@@ -1,6 +1,10 @@
         .include "charmap.inc"
 
         .import __OAM_START__
+        arrow_x = __OAM_START__ + 7
+        arrow_y = __OAM_START__ + 4
+        arrow_tile = __OAM_START__ + 5
+
         .importzp scratch, vstat, j0stat, frames
         .import vidbuf, randomize_board
         .export main
@@ -39,10 +43,19 @@ main:   ;; Draw the initial screen, except for the board cells
         dex
         bne     @blk
         beq     @lp
-@done:  ;; Enable graphics
-        lda     #$80
+@done:  ;; Move all sprites off the screen
+        lda     #$ff
+        ldy     #$00
+:       sta     __OAM_START__,y
+        iny
+        iny
+        iny
+        iny
+        bne     :-
+        ;; Enable graphics
+        lda     #$a0
         sta     $2000
-        lda     #$0e
+        lda     #$1e
         sta     $2001
 
         ;; Draw the cells one row per frame...
@@ -73,6 +86,10 @@ game_start:
         lda     #$10
         and     j0stat
         beq     game_start
+
+        ;; Hide the arrow sprite.
+        lda     #$ff
+        sta     arrow_y
 
         ;; Update status bar.
         lda     #<randomizing_msg
@@ -107,6 +124,17 @@ game_start:
         ldx     #>instructions
         jsr     vblit
         vflush
+
+        ;; Put the cursor back in the center.
+        lda     #66
+        sta     arrow_tile
+        lda     #127
+        sta     arrow_x
+        lda     #109
+        sta     arrow_y
+        lda     #$02
+        sta     crsr_x
+        sta     crsr_y
 
         ;; No game yet; go back to out-of-game state
         jmp     game_start
@@ -193,7 +221,7 @@ screen_base:
         .byte   32
         .word   $3f00
         .byte   $0f,$00,$0f,$10,$0f,$00,$16,$10,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f
-        .byte   $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f
+        .byte   $0f,$0f,$00,$30,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f
 
         ;; Logo
         .byte   12
