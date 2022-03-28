@@ -11,13 +11,11 @@
         .exportzp crsr_x, crsr_y, grid
 
 .macro  vflush
-.scope
         .local  lp
         lda     #$80
         sta     vstat
 lp:     bit     vstat
         bmi     lp
-.endscope
 .endmacro
 
         .zeropage
@@ -85,13 +83,15 @@ main:   ;; Draw the initial screen, except for the board cells
         dex
         bne     :--
 
-game_start:
+        ;; Fall through into game_start
+
+.proc   game_start
         ;; Nothing to do until player hits START.
         lda     #$10
         and     j0stat
         beq     game_start
 
-restart:
+new_game:
         ;; Hide the arrow sprite.
         lda     #$ff
         sta     arrow_y
@@ -103,25 +103,25 @@ restart:
         vflush
 
         ;; Amount of time from poweron to here determines initial puzzle state.
-@scramble:
+scramble:
         jsr     randomize_board
         jsr     grid_to_attr
         ;; If start button is pressed, keep randomizing...
         lda     #$10
         and     j0stat
-        bne     @scramble
+        bne     scramble
 
-@scrambled:
+scrambled:
         ;; Make sure we didn't actually create a pre-solved puzzle.
         jsr     is_solved
-        bne     @puzzle_ok
+        bne     puzzle_ok
         ;; Whoops! Try again.
         jsr     randomize_board
         jsr     grid_to_attr
-        jmp     @scrambled
+        jmp     scrambled
 
         ;; Put the in-game instructions in place.
-@puzzle_ok:
+puzzle_ok:
         lda     #<instructions
         ldx     #>instructions
         jsr     vblit
@@ -138,26 +138,26 @@ restart:
         sta     crsr_x
         sta     crsr_y
 
-@player_move:
+player_move:
         lda     j0stat
         and     #$10            ; Pressed START?
-        bne     restart
+        bne     new_game
         lda     j0stat          ; Refresh for non-RESET
-        bpl     @no_flip        ; Pressed A?
+        bpl     no_flip         ; Pressed A?
 
         jsr     make_move
         jsr     grid_to_attr
 :       lda     j0stat          ; Wait for A to be released
         bmi     :-
         jsr     is_solved       ; Did we win?
-        bne     @player_move    ; If not, back to main loop
-        beq     @victory
+        bne     player_move     ; If not, back to main loop
+        beq     victory
 
-@no_flip:
+no_flip:
         jsr     decode_dirs
         lda     dx              ; Any motion?
         ora     dy
-        beq     @player_move    ; If not, we're done here
+        beq     player_move     ; If not, we're done here
 
         ;; We're going to move!
         clc
@@ -169,7 +169,7 @@ restart:
         adc     dy
         sta     crsr_y
         ldx     #$10
-@anim:  clc
+anim:   clc
         lda     arrow_x
         adc     dx
         sta     arrow_x
@@ -179,10 +179,10 @@ restart:
         sta     arrow_y
         jsr     next_frame
         dex
-        bne     @anim
-        beq     @player_move
+        bne     anim
+        beq     player_move
 
-@victory:
+victory:
         ;; Hide the arrow sprite.
         lda     #$ff
         sta     arrow_y
@@ -192,6 +192,7 @@ restart:
         jsr     vblit
         vflush
         jmp     game_start
+.endproc
 
 .proc   decode_dirs
         ldx     #$00
