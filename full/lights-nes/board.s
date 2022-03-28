@@ -1,4 +1,4 @@
-        .export make_move, randomize_board
+        .export make_move, randomize_board, is_solved
         .importzp crsr_x, crsr_y, grid, rndval, scratch
 
         .code
@@ -53,6 +53,16 @@ cell:   dec     count
         sta     crsr_x
         sta     crsr_y
         rts
+.endproc
+
+        ;; Checks to see if the puzzle is solved. Zero flag set if it is.
+.proc   is_solved
+        ldx     #$05
+lp:     lda     grid-1,x
+        bne     done
+        dex
+        bne     lp
+done:   rts
 .endproc
 
         .rodata

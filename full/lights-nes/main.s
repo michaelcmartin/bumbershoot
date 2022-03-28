@@ -6,21 +6,25 @@
         arrow_tile = __OAM_START__ + 5
 
         .importzp scratch, vstat, j0stat, frames
-        .import vidbuf, randomize_board
+        .import vidbuf, make_move, randomize_board, is_solved
         .export main
         .exportzp crsr_x, crsr_y, grid
 
 .macro  vflush
-        .local lp
+.scope
+        .local  lp
         lda     #$80
         sta     vstat
 lp:     bit     vstat
         bmi     lp
+.endscope
 .endmacro
 
         .zeropage
 crsr_x: .res    1               ; X loc of cursor (0-4)
 crsr_y: .res    1               ; Y loc of cursor (0-4)
+dx:     .res    1               ; Computed cursor motion
+dy:     .res    1
         .res    1               ; Scratch byte to make moves easier
 grid:   .res    5               ; The grid
         .res    1               ; Scratch byte to make moves easier
@@ -87,6 +91,7 @@ game_start:
         and     j0stat
         beq     game_start
 
+restart:
         ;; Hide the arrow sprite.
         lda     #$ff
         sta     arrow_y
@@ -108,11 +113,8 @@ game_start:
 
 @scrambled:
         ;; Make sure we didn't actually create a pre-solved puzzle.
-        ldx     #$04
-:       lda     grid,x
+        jsr     is_solved
         bne     @puzzle_ok
-        dex
-        bpl     :-
         ;; Whoops! Try again.
         jsr     randomize_board
         jsr     grid_to_attr
@@ -136,9 +138,93 @@ game_start:
         sta     crsr_x
         sta     crsr_y
 
-        ;; No game yet; go back to out-of-game state
+@player_move:
+        lda     j0stat
+        and     #$10            ; Pressed START?
+        bne     restart
+        lda     j0stat          ; Refresh for non-RESET
+        bpl     @no_flip        ; Pressed A?
+
+        jsr     make_move
+        jsr     grid_to_attr
+:       lda     j0stat          ; Wait for A to be released
+        bmi     :-
+        jsr     is_solved       ; Did we win?
+        bne     @player_move    ; If not, back to main loop
+        beq     @victory
+
+@no_flip:
+        jsr     decode_dirs
+        lda     dx              ; Any motion?
+        ora     dy
+        beq     @player_move    ; If not, we're done here
+
+        ;; We're going to move!
+        clc
+        lda     crsr_x
+        adc     dx
+        sta     crsr_x
+        clc
+        lda     crsr_y
+        adc     dy
+        sta     crsr_y
+        ldx     #$10
+@anim:  clc
+        lda     arrow_x
+        adc     dx
+        sta     arrow_x
+        clc
+        lda     arrow_y
+        adc     dy
+        sta     arrow_y
+        jsr     next_frame
+        dex
+        bne     @anim
+        beq     @player_move
+
+@victory:
+        ;; Hide the arrow sprite.
+        lda     #$ff
+        sta     arrow_y
+
+        lda     #<victory_msg
+        ldx     #>victory_msg
+        jsr     vblit
+        vflush
         jmp     game_start
 
+.proc   decode_dirs
+        ldx     #$00
+        stx     dx
+        stx     dy
+        lsr
+        bcc     :+
+        inc     dx
+:       lsr
+        bcc     :+
+        dec     dx
+:       lsr
+        bcc     :+
+        inc     dy
+:       lsr
+        bcc     :+
+        dec     dy
+:       lda     crsr_x          ; Bounds-check DX
+        clc
+        adc     dx
+        cmp     #$05
+        bcc     :+
+        lda     #$00            ; No motion at edge
+        sta     dx
+:       lda     crsr_y          ; Bounds-check DY
+        clc
+        adc     dy
+        cmp     #$05
+        bcc     :+
+        lda     #$00            ; No motion at edge
+        sta     dy
+:       rts
+.endproc
 
 ;;; --------------------------------------------------------------------------
 ;;; * GRAPHICS ROUTINES
