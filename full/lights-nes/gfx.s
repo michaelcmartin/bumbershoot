@@ -78,3 +78,8 @@
         ;; 66-67: cursor sprite
         .byte   $80,$c0,$e0,$f0,$f8,$fc,$fe,$ff,$00,$00,$40,$60,$70,$78,$7c,$7e
         .byte   $fe,$fc,$ee,$ce,$07,$07,$02,$00,$78,$68,$44,$04,$02,$02,$00,$00
+        ;; 68-71: pressed button graphic
+        .byte   $ff,$ff,$c0,$80,$80,$80,$80,$80,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff
+        .byte   $ff,$ff,$07,$03,$03,$03,$03,$03,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff
+        .byte   $80,$80,$80,$80,$80,$80,$c0,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff
+        .byte   $03,$03,$03,$03,$03,$03,$07,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff

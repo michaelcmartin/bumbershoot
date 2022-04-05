@@ -10,6 +10,12 @@
         .export main
         .exportzp crsr_x, crsr_y, grid
 
+.macro  vload   src
+        lda     #<src
+        ldx     #>src
+        jsr     vblit
+.endmacro
+
 .macro  vflush
         .local  lp
         lda     #$80
@@ -61,9 +67,7 @@ main:   ;; Draw the initial screen, except for the board cells
         sta     $2001
 
         ;; Draw the cells one row per frame...
-        lda     #<cell_row_tiles
-        ldx     #>cell_row_tiles
-        jsr     vblit
+        vload   cell_row_tiles
         vflush
         ;; Change the upper-left tile for mid-board rows
         lda     #$09
@@ -97,9 +101,7 @@ new_game:
         sta     arrow_y
 
         ;; Update status bar.
-        lda     #<randomizing_msg
-        ldx     #>randomizing_msg
-        jsr     vblit
+        vload   randomizing_msg
         vflush
 
         ;; Amount of time from poweron to here determines initial puzzle state.
@@ -122,9 +124,7 @@ scrambled:
 
         ;; Put the in-game instructions in place.
 puzzle_ok:
-        lda     #<instructions
-        ldx     #>instructions
-        jsr     vblit
+        vload   instructions
         vflush
 
         ;; Put the cursor back in the center.
@@ -145,10 +145,7 @@ player_move:
         lda     j0stat          ; Refresh for non-RESET
         bpl     no_flip         ; Pressed A?
 
-        jsr     make_move
-        jsr     grid_to_attr
-:       lda     j0stat          ; Wait for A to be released
-        bmi     :-
+        jsr     animate_move
         jsr     is_solved       ; Did we win?
         bne     player_move     ; If not, back to main loop
         beq     victory
@@ -187,9 +184,7 @@ victory:
         lda     #$ff
         sta     arrow_y
 
-        lda     #<victory_msg
-        ldx     #>victory_msg
-        jsr     vblit
+        vload   victory_msg
         vflush
         jmp     game_start
 .endproc
@@ -227,6 +222,50 @@ victory:
 :       rts
 .endproc
 
+.proc   animate_move
+        jsr     make_move
+        jsr     grid_to_attr
+        dec     arrow_x
+        inc     arrow_y
+        vload   pushed_button
+        ;; Adjust the address to match the cursor position
+        lda     crsr_y
+        clc
+        ror
+        ror
+        ror
+        bcc     :+
+        inc     vidbuf+2
+        inc     vidbuf+7
+:       clc
+        adc     crsr_x
+        adc     crsr_x
+        adc     vidbuf+1
+        sta     vidbuf+1
+        bcc     :+
+        inc     vidbuf+2
+        inc     vidbuf+7
+:       clc
+        adc     #$20
+        sta     vidbuf+6
+        vflush
+:       lda     j0stat          ; Wait for A to be released
+        bmi     :-
+        ;; Unpush the button on the way out
+        ldy     #$03
+:       ldx     button_idx,y
+        sec
+        lda     vidbuf,x
+        sbc     #67
+        sta     vidbuf,x
+        dey
+        bpl     :-
+        inc     arrow_x
+        dec     arrow_y
+        vflush
+        rts
+.endproc
+
 ;;; --------------------------------------------------------------------------
 ;;; * GRAPHICS ROUTINES
 ;;; --------------------------------------------------------------------------
@@ -256,9 +295,7 @@ lp:     cmp     frames
         col = scratch+1
         curr = scratch+2
 
-        lda     #<attr_base
-        ldx     #>attr_base
-        jsr     vblit
+        vload   attr_base
         lda     #$04
         sta     row
         ldy     #$00
@@ -291,6 +328,9 @@ attr_bit:
         .byte   $10,$40,$10,$40,$10,$01,$04,$01,$04,$01
         .byte   $10,$40,$10,$40,$10,$01,$04,$01,$04,$01
         .byte   $10,$40,$10,$40,$10
+button_idx:
+        .byte   3,4,8,9
+
 attr_base:
         .byte   3
         .word   $23d3
@@ -302,6 +342,15 @@ attr_base:
         .word   $23e3
         .byte   0,0,0
         .byte   0
+
+pushed_button:
+        .byte   2
+        .word   $214c
+        .byte   68,69
+        .byte   2
+        .word   $216c
+        .byte   70,71
+        .byte    0
 
 screen_base:
         ;; Palette
