@@ -6,7 +6,7 @@
         arrow_tile = __OAM_START__ + 5
 
         .importzp scratch, vstat, j0stat, frames
-        .import vidbuf, make_move, randomize_board, is_solved
+        .import vidbuf, make_move, move_edge, randomize_board, is_solved
         .export main
         .exportzp crsr_x, crsr_y, grid
 
@@ -249,6 +249,9 @@ victory:
         adc     #$20
         sta     vidbuf+6
         vflush
+        jsr     is_solved       ; Is this a winning move?
+        beq     :+              ; If so, skip the move-sound
+        jsr     make_ding       ; Otherwise, make a ding based on state
 :       lda     j0stat          ; Wait for A to be released
         bmi     :-
         ;; Unpush the button on the way out
@@ -316,6 +319,33 @@ next:   iny
         dec     row
         bpl     rowlp
         vflush
+        rts
+.endproc
+
+.proc   make_ding
+        lda     #$01            ; Enable Pulse 1
+        sta     $4015
+        lda     #$84            ; 50% Duty cycle, 1.25-frame envelope
+        sta     $4000
+        lda     #$00            ; No sweep
+        sta     $4001
+
+        ldx     crsr_y
+        lda     grid,x
+        ldx     crsr_x
+        and     move_edge,x
+        beq     low_ding
+        ;; Otherwise, high ding
+        lda     #$d5
+        sta     $4002
+        lda     #$08
+        sta     $4003
+        rts
+low_ding:
+        lda     #$AA
+        sta     $4002
+        lda     #$09
+        sta     $4003
         rts
 .endproc
 

@@ -1,4 +1,4 @@
-        .export make_move, randomize_board, is_solved
+        .export make_move, randomize_board, is_solved, move_edge
         .importzp crsr_x, crsr_y, grid, rndval, scratch
 
         .code
