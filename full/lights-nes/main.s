@@ -100,6 +100,10 @@ new_game:
         lda     #$ff
         sta     arrow_y
 
+        ;; Since any still-running SFX
+        lda     #$00
+        sta     $4015
+
         ;; Update status bar.
         vload   randomizing_msg
         vflush
@@ -186,6 +190,7 @@ victory:
 
         vload   victory_msg
         vflush
+        jsr     tada
         jmp     game_start
 .endproc
 
@@ -347,6 +352,31 @@ low_ding:
         lda     #$09
         sta     $4003
         rts
+.endproc
+
+.proc   tada
+        lda     #$03            ; Enable Pulse 1 and 2
+        sta     $4015
+        lda     #$8f            ; 50% Duty cycle, 4-frame envelope
+        sta     $4000
+        sta     $4004
+        lda     #$00            ; No sweep
+        sta     $4001
+        sta     $4005
+        lda     #$69
+        sta     $4002           ; C6 on Pulse 1
+        lda     #$a8
+        sta     $4006           ; E5 on Pulse 2
+        lda     #$08            ; Maximum length counter
+        sta     $4003
+        sta     $4007
+        ldx     #$08            ; 8 frames for first note
+:       jsr     next_frame
+        dex
+        bne     :-
+        sta     $4003           ; Regate notes
+        sta     $4007
+        rts                     ; And let them reverberate
 .endproc
 
         .rodata
