@@ -210,7 +210,10 @@ anim_loop:
         bne     :+
         lda     #$00
         sta     cy
-:       lda     j0stat
+:       lda     nx              ; If we're perfectly cell-aligned
+        ora     ny              ; go back and check other buttons
+        beq     player_move
+        lda     j0stat
         jsr     decode_dirs
         lda     dx
         beq     :+
