@@ -156,7 +156,8 @@ player_move:
         jsr     animate_move
         jsr     is_solved       ; Did we win?
         bne     player_move     ; If not, back to main loop
-        beq     victory
+        bne     no_flip
+        jmp     victory
 
 no_flip:
         jsr     decode_dirs
@@ -200,11 +201,39 @@ anim_loop:
         jsr     next_frame
         dec     nx              ; Decrement NX and NY if > 0
         bpl     :+
-        inc     nx
+        lda     #$00
+        sta     cx
+        sta     nx
 :       dec     ny
-        bpl     anim_loop
-        inc     ny              ; Guaranteed zero here
+        bpl     :+
+        lda     #$00
+        sta     cy
+        sta     ny
+:       lda     j0stat
+        jsr     decode_dirs
+        lda     nx
+        bne     :+
+        lda     dx
+        beq     :+
+        ;; Start horiz motion late.
+        sta     cx
+        clc
+        adc     crsr_x          ; Compute new grid loc
+        sta     crsr_x
+        lda     #$10
+        sta     nx
+:       lda     ny
+        bne     anim_loop
+        lda     dy
         beq     anim_loop
+        ;; Start vert motion late.
+        sta     cy
+        clc
+        adc     crsr_y
+        sta     crsr_y
+        lda     #$10
+        sta     ny
+        bne     anim_loop
 
 victory:
         ;; Hide the arrow sprite.
