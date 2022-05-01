@@ -27,8 +27,12 @@ lp:     bit     vstat
         .zeropage
 crsr_x: .res    1               ; X loc of cursor (0-4)
 crsr_y: .res    1               ; Y loc of cursor (0-4)
-dx:     .res    1               ; Computed cursor motion
+dx:     .res    1               ; Currently input legal cursor motion
 dy:     .res    1
+nx:     .res    1               ; Remaining distance in cursor motion
+ny:     .res    1
+cx:     .res    1               ; Current direction of animated motion
+cy:     .res    1
         .res    1               ; Scratch byte to make moves easier
 grid:   .res    5               ; The grid
         .res    1               ; Scratch byte to make moves easier
@@ -162,26 +166,45 @@ no_flip:
 
         ;; We're going to move!
         clc
-        lda     crsr_x
-        adc     dx
+        lda     dx
+        sta     cx              ; Copy direction to cached
+        adc     crsr_x          ; Compute new grid loc
         sta     crsr_x
         clc
-        lda     crsr_y
-        adc     dy
+        lda     dy
+        sta     cy
+        adc     crsr_y
         sta     crsr_y
+        lda     #$00            ; Set distance for each axis
+        sta     nx
+        sta     ny
         ldx     #$10
-anim:   clc
+        lda     dx
+        beq     :+
+        stx     nx
+:       lda     dy
+        beq     anim_loop
+        stx     ny
+anim_loop:
+        lda     nx              ; Any distance left to move?
+        ora     ny
+        beq     player_move     ; If not, we're done
+        clc
         lda     arrow_x
-        adc     dx
+        adc     cx
         sta     arrow_x
         clc
         lda     arrow_y
-        adc     dy
+        adc     cy
         sta     arrow_y
         jsr     next_frame
-        dex
-        bne     anim
-        beq     player_move
+        dec     nx              ; Decrement NX and NY if > 0
+        bpl     :+
+        inc     nx
+:       dec     ny
+        bpl     anim_loop
+        inc     ny              ; Guaranteed zero here
+        beq     anim_loop
 
 victory:
         ;; Hide the arrow sprite.
