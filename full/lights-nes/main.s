@@ -156,7 +156,6 @@ player_move:
         jsr     animate_move
         jsr     is_solved       ; Did we win?
         bne     player_move     ; If not, back to main loop
-        bne     no_flip
         jmp     victory
 
 no_flip:
@@ -199,32 +198,36 @@ anim_loop:
         adc     cy
         sta     arrow_y
         jsr     next_frame
-        dec     nx              ; Decrement NX and NY if > 0
-        bpl     :+
+        lda     nx              ; Decrement NX and NY if > 0
+        beq     :+
+        dec     nx
+        bne     :+
         lda     #$00
         sta     cx
-        sta     nx
-:       dec     ny
-        bpl     :+
+:       lda     ny
+        beq     :+
+        dec     ny
+        bne     :+
         lda     #$00
         sta     cy
-        sta     ny
 :       lda     j0stat
         jsr     decode_dirs
-        lda     nx
-        bne     :+
         lda     dx
         beq     :+
-        ;; Start horiz motion late.
+        cmp     cx
+        beq     :+
+        ;; Start (or reverse) horiz motion late.
         sta     cx
         clc
         adc     crsr_x          ; Compute new grid loc
         sta     crsr_x
         lda     #$10
+        sec
+        sbc     nx
         sta     nx
-:       lda     ny
-        bne     anim_loop
-        lda     dy
+:       lda     dy
+        beq     anim_loop
+        cmp     cy
         beq     anim_loop
         ;; Start vert motion late.
         sta     cy
@@ -232,6 +235,8 @@ anim_loop:
         adc     crsr_y
         sta     crsr_y
         lda     #$10
+        sec
+        sbc     ny
         sta     ny
         bne     anim_loop
 
