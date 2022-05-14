@@ -74,7 +74,7 @@ main:   ;; Draw the initial screen, except for the board cells
         vload   cell_row_tiles
         vflush
         ;; Change the upper-left tile for mid-board rows
-        lda     #$09
+        lda     #$0d
         sta     vidbuf+3
 
         ;; And draw four more copies of it down the screen
@@ -136,7 +136,7 @@ puzzle_ok:
         vflush
 
         ;; Put the cursor back in the center.
-        lda     #66
+        lda     #74
         sta     arrow_tile
         lda     #127
         sta     arrow_x
@@ -324,7 +324,7 @@ victory:
 :       ldx     button_idx,y
         sec
         lda     vidbuf,x
-        sbc     #67
+        sbc     #$04
         sta     vidbuf,x
         dey
         bpl     :-
@@ -466,11 +466,11 @@ attr_base:
 pushed_button:
         .byte   2
         .word   $214c
-        .byte   68,69
+        .byte   5,6
         .byte   2
         .word   $216c
-        .byte   70,71
-        .byte    0
+        .byte   7,8
+        .byte   0
 
 screen_base:
         ;; Palette
@@ -482,31 +482,32 @@ screen_base:
         ;; Logo
         .byte   12
         .word   $208b
-        .byte   14,15,16,17,18,19,20,21,22,23,24,25
+        .byte   18,19,20,21,22,23,24,25,26,27,28,29
         .byte   16
         .word   $20a9
-        .byte   26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41
+        .byte   30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45
 
         ;; Board edges
         .byte   12
         .word   $212b
-        .byte   5,6,6,6,6,6,6,6,6,6,6,7
+        .byte   9,10,10,10,10,10,10,10,10,10,10,11
         .byte   12
         .word   $228b
-        .byte   11,12,12,12,12,12,12,12,12,12,12,13
+        .byte   15,16,16,16,16,16,16,16,16,16,16,17
 
         ;; Initial instructions
-        .byte   31
+        .byte   63
         .word   $2321
+        .byte   "   BUMBERSHOOT SOFTWARE, 2022   "
         .byte   "      PRESS START TO BEGIN     "
         .byte   0
 
 cell_row_tiles:
         .byte   44
         .word   $214b
-        .byte   8,1,2,1,2,1,2,1,2,1,2,10,0,0,0,0
+        .byte   12,1,2,1,2,1,2,1,2,1,2,14,0,0,0,0
         .byte   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        .byte   9,3,4,3,4,3,4,3,4,3,4,10
+        .byte   13,3,4,3,4,3,4,3,4,3,4,14
         .byte   0
 
 randomizing_msg:
