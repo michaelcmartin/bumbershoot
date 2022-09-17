@@ -19,6 +19,9 @@ simevo.prg: simevo64.s mcbitmap.s simevocore.s
 simevo.tos: simevo.c simevo.h simevost.c stevolib.h stevolib.asm
 	vc +tos16 -o simevo.tos simevost.c simevo.c stevolib.asm
 
+AmiEvo: AmiEvo.c AmigaSE.asm simevo.c
+	vc +kick13m -o AmiEvo AmiEvo.c AmigaSE.asm simevo.c -lamiga
+
 # The DOS version, simevo.com, is not built with cross tools, but is
 # instead built within a DOS environment with Borland Turbo C. Copy
 # over the files dos_evo.c, simevo.c, and simevo.h from this directory
