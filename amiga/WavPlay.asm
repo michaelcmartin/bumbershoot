@@ -1,27 +1,24 @@
-	xdef	_main
-
-	xref	_BeginIO
-	xref	_CreateExtIO
-	xref	_CreatePort
-	xref	_DeleteExtIO
-	xref	_DeletePort
 
 ;;; exec.library location
 _AbsExecBase     =    4
 
 ;;; exec.library vector offsets
+_LVOFindTask     = -294
+_LVOAllocSignal  = -330
+_LVOFreeSignal   = -336
 _LVOCloseLibrary = -414
 _LVOOpenDevice	 = -444
 _LVOCloseDevice  = -450
 _LVOWaitIO       = -474
 _LVOOpenLibrary  = -552
 
+_DEVBeginIO      =  -30
+
 ;;; Audio I/O offsets
 IOAudio_size     = 68
-IOAudio_priority =  9
+IOAudio_device   = 20
 IOAudio_command  = 28
 IOAudio_flags    = 30
-IOAudio_allocKey = 32
 IOAudio_data     = 34
 IOAudio_length   = 38
 IOAudio_period   = 42
@@ -29,7 +26,10 @@ IOAudio_volume   = 44
 IOAudio_cycles   = 46
 
 ;;; Audio I/O constants
+PA_SIGNAL        =  0
 CMD_WRITE        =  3
+NT_MSGPORT       =  4
+NT_MESSAGE       =  5
 ADCMD_ALLOCATE   = 32
 ADIOF_PERVOL     = 16
 ADIOF_NOWAIT     = 64
@@ -38,70 +38,63 @@ ADIOF_NOWAIT     = 64
 _LVOWrite        =  -48
 _LVOOutput       =  -60
 
-_main:	moveq.l	#0,d0			; Alloc space for 2 C-fn args
-	move.l	d0,-(a7)
-	move.l	d0,-(a7)
-	lea	AudioPort,a0		; Clear out BSS by hand
-	move.l	d0,(a0)+
-	move.l	d0,(a0)+
-	move.l	d0,(a0)+
+	move.l	_AbsExecBase.w,a6	; Exec in a6 by default
 
-	move.l	_AbsExecBase.w,a6
+	sub.l	a1,a1
+	jsr	_LVOFindTask(a6)
+	move.l	d0,AudioTask
+	moveq.l	#0,d0
+	subq.l	#1,d0
+	jsr	_LVOAllocSignal(a6)
+	move.b	d0,AudioSignal
+	bpl.s	.signalok
+	lea	signalerrmsg,a0
+	move.l	#signalerrmsglen,d0
+	jsr	print
+	bra	.done
 
-	;; The two arguments are already 0
-	jsr	_CreatePort
-	move.l	d0,AudioPort
-	beq	.cleanup
-
-	move.l	d0,(a7)
-	move.l	#IOAudio_size,4(a7)
-	jsr	_CreateExtIO
-	move.l	d0,AudioRequest
-	beq	.cleanup
-
+.signalok:
+	lea	AudioRequest,a2
 	lea	auddev,a0
-	move.l	d0,a1
-	move.l	a1,a2
-	move.b	#50,IOAudio_priority(a1)
-	move.w	#ADCMD_ALLOCATE,IOAudio_command(a1)
-	move.b	#ADIOF_NOWAIT,IOAudio_flags(a1)
-	move.w	#0,IOAudio_allocKey(a1)
-	move.l	#allocmap,IOAudio_data(a1)
-	move.l	#4,IOAudio_length(a1)
+	move.l	a2,a1
 	moveq.l	#0,d0
 	moveq.l	#0,d1
 	jsr	_LVOOpenDevice(a6)
-	bne.s	.cleanup
+	beq.s	.deviceok
+	lea	deviceerrmsg,a0
+	move.l	#deviceerrmsglen,d0
+	jsr	print
+	bra.s	.closeport
 
+.deviceok:
 	move.w	#CMD_WRITE,IOAudio_command(a2)
 	move.b	#ADIOF_PERVOL,IOAudio_flags(a2)
 	move.l	#SoundEffect,IOAudio_data(a2)
 	move.l	#SoundEffect_length,IOAudio_length(a2)
 	move.w	#224,IOAudio_period(a2)	; 16kHz
-	move.w	#$40,IOAudio_volume(a2)
+	move.w	#64,IOAudio_volume(a2)
 	move.w	#1,IOAudio_cycles(a2)
-	move.l	a2,(a7)
-	jsr	_BeginIO
+	move.l	a2,a1
+	move.l	a6,a5
+	move.l	IOAudio_device(a1),a6
+	jsr	_DEVBeginIO(a6)
+	move.l	a5,a6
 	lea	msg,a0
 	move.l	#msglen,d0
 	jsr	print
 	move.l	a2,a1
 	jsr	_LVOWaitIO(a6)
 
-.cleanup:
-	move.l	AudioRequest,d0
-	beq.s	.port
-	move.l	d0,a1
-	move.l	d0,(a7)
+	;; Close the device
+	lea	AudioRequest,a1
 	jsr	_LVOCloseDevice(a6)
-	jsr	_DeleteExtIO
 
-.port:	move.l	AudioPort,(a7)
-	beq.s	.done
-	jsr	_DeletePort
-
-.done:	addq.l	#8,a7
+.closeport:
 	moveq.l	#0,d0
+	move.b	AudioSignal,d0
+	jsr	_LVOFreeSignal(a6)
+
+.done:	moveq.l	#0,d0
 	rts
 
 print:	movem.l	d2-3,-(a7)
@@ -133,15 +126,41 @@ doslib:	dc.b	"dos.library",0
 auddev:	dc.b	"audio.device",0
 msg:	dc.b	"Wow! Digital sound!",10
 msglen = *-msg
+signalerrmsg:
+	dc.b	"Could not allocate signal",10
+signalerrmsglen = *-signalerrmsg
+deviceerrmsg:
+	dc.b	"Could not open audio device",10
+deviceerrmsglen = *-deviceerrmsg
 
-	bss
+	data
 	even
 AudioPort:
-	ds.l	1
+	dc.l	0,0			; mp_Node.Succ/Pred
+	dc.b	NT_MSGPORT,0		; mp_Node.Type/Priority
+	dc.l	0			; mp_Node.Name
+	dc.b	PA_SIGNAL		; mp_Flags
+AudioSignal:
+	dc.b	-1			; mp_SigBit
+AudioTask:
+	dc.l	0			; mp_SigTask
+.msglist:
+	dc.l	.msglist+4,0,.msglist
+	dc.w	0
+
 AudioRequest:
-	ds.l	1
-AudioDevice:
-	ds.l	1
+	dc.l	0,0			; io_Message.Node.Succ/Pred
+	dc.b	NT_MESSAGE,50		; io_Message.Node.Type/Priority
+	dc.l	0			; io_Message.Node.Name
+	dc.l	AudioPort		; io_Message.ReplyPort
+	dc.w	IOAudio_size		; io_Message.Length
+	dc.l	0,0			; io_Device,io_Unit
+	dc.w	ADCMD_ALLOCATE		; io_Command
+	dc.b	ADIOF_NOWAIT,0		; io_Flags, io_Error
+	dc.w	0			; ioa_AllocKey
+	dc.l	allocmap,4		; ioa_Data, ioa_Length
+	dc.w	0,0,0			; ioa_Period, ioa_Volume, ioa_Cycles
+	dc.l	0,0,0,0,0		; io_WriteMessage
 
 	data_c
 	even
