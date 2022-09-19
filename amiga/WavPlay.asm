@@ -17,8 +17,10 @@ _DEVBeginIO      =  -30
 ;;; Audio I/O offsets
 IOAudio_size     = 68
 IOAudio_device   = 20
+IOAudio_unit     = 24
 IOAudio_command  = 28
 IOAudio_flags    = 30
+IOAudio_allocKey = 32
 IOAudio_data     = 34
 IOAudio_length   = 38
 IOAudio_period   = 42
@@ -38,8 +40,11 @@ ADIOF_NOWAIT     = 64
 _LVOWrite        =  -48
 _LVOOutput       =  -60
 
+;;; Main program begins here
 	move.l	_AbsExecBase.w,a6	; Exec in a6 by default
+	lea	AudioRequest,a2		; And base I/O req array in a2
 
+	;; Fill out our message port with task/signal info
 	sub.l	a1,a1
 	jsr	_LVOFindTask(a6)
 	move.l	d0,AudioTask
@@ -54,7 +59,7 @@ _LVOOutput       =  -60
 	bra	.done
 
 .signalok:
-	lea	AudioRequest,a2
+	;; Open the Audio device and allocate a stereo setup
 	lea	auddev,a0
 	move.l	a2,a1
 	moveq.l	#0,d0
@@ -67,22 +72,41 @@ _LVOOutput       =  -60
 	bra.s	.closeport
 
 .deviceok:
-	move.w	#CMD_WRITE,IOAudio_command(a2)
-	move.b	#ADIOF_PERVOL,IOAudio_flags(a2)
-	move.l	#SoundEffect,IOAudio_data(a2)
-	move.l	#SoundEffect_length,IOAudio_length(a2)
-	move.w	#224,IOAudio_period(a2)	; 16kHz
-	move.w	#64,IOAudio_volume(a2)
-	move.w	#1,IOAudio_cycles(a2)
-	move.l	a2,a1
+	;; Copy over the device, unit, and allocation key to each
+	;; sub-request in our trio of request buffers
+	move.l	IOAudio_device(a2),d0
+	move.l	d0,(IOAudio_device+IOAudio_size)(a2)
+	move.l	d0,(IOAudio_device+IOAudio_size*2)(a2)
+	move.l	IOAudio_unit(a2),d0
+	move.l	d0,(IOAudio_unit+IOAudio_size)(a2)
+	move.l	d0,(IOAudio_unit+IOAudio_size*2)(a2)
+	move.w	IOAudio_allocKey(a2),d0
+	move.w	d0,(IOAudio_allocKey+IOAudio_size)(a2)
+	move.w	d0,(IOAudio_allocKey+IOAudio_size*2)(a2)
+
+	;; Mask IO units so one request is left channel and one right
+	and.l	#$fffffff9,(IOAudio_unit+IOAudio_size)(a2)
+	and.l	#$fffffff6,(IOAudio_unit+IOAudio_size*2)(a2)
+
+	;; Submit the I/O requests for sound playback
 	move.l	a6,a5
+	lea	IOAudio_size(a2),a1
+	move.l	IOAudio_device(a1),a6
+	jsr	_DEVBeginIO(a6)
+	lea	(IOAudio_size*2)(a2),a1
 	move.l	IOAudio_device(a1),a6
 	jsr	_DEVBeginIO(a6)
 	move.l	a5,a6
+
+	;; Print our caption as the sound plays
 	lea	msg,a0
 	move.l	#msglen,d0
 	jsr	print
-	move.l	a2,a1
+
+	;; Wait for the sound playback to finish
+	lea	(IOAudio_size*2)(a2),a1
+	jsr	_LVOWaitIO(a6)
+	lea	IOAudio_size(a2),a1
 	jsr	_LVOWaitIO(a6)
 
 	;; Close the device
@@ -90,6 +114,7 @@ _LVOOutput       =  -60
 	jsr	_LVOCloseDevice(a6)
 
 .closeport:
+	;; Relinquish our allocated signal
 	moveq.l	#0,d0
 	move.b	AudioSignal,d0
 	jsr	_LVOFreeSignal(a6)
@@ -97,6 +122,7 @@ _LVOOutput       =  -60
 .done:	moveq.l	#0,d0
 	rts
 
+;;; Print a message at a0, length d0, to the console.
 print:	movem.l	d2-3,-(a7)
 	move.l	a6,-(a7)
 	move.l	d0,-(a7)
@@ -162,8 +188,37 @@ AudioRequest:
 	dc.w	0,0,0			; ioa_Period, ioa_Volume, ioa_Cycles
 	dc.l	0,0,0,0,0		; io_WriteMessage
 
+AudioRequestL:
+	dc.l	0,0			; io_Message.Node.Succ/Pred
+	dc.b	NT_MESSAGE,50		; io_Message.Node.Type/Priority
+	dc.l	0			; io_Message.Node.Name
+	dc.l	AudioPort		; io_Message.ReplyPort
+	dc.w	IOAudio_size		; io_Message.Length
+	dc.l	0,0			; io_Device,io_Unit
+	dc.w	CMD_WRITE		; io_Command
+	dc.b	ADIOF_PERVOL,0		; io_Flags, io_Error
+	dc.w	0			; ioa_AllocKey
+	dc.l	SoundEffect,SoundLen	; ioa_Data, ioa_Length
+	dc.w	224,64,1		; ioa_Period, ioa_Volume, ioa_Cycles
+	dc.l	0,0,0,0,0		; io_WriteMessage
+
+AudioRequestR:
+	dc.l	0,0			; io_Message.Node.Succ/Pred
+	dc.b	NT_MESSAGE,50		; io_Message.Node.Type/Priority
+	dc.l	0			; io_Message.Node.Name
+	dc.l	AudioPort		; io_Message.ReplyPort
+	dc.w	IOAudio_size		; io_Message.Length
+	dc.l	0,0			; io_Device,io_Unit
+	dc.w	CMD_WRITE		; io_Command
+	dc.b	ADIOF_PERVOL,0		; io_Flags, io_Error
+	dc.w	0			; ioa_AllocKey
+	dc.l	SoundEffect,SoundLen	; ioa_Data, ioa_Length
+	dc.w	224,64,1		; ioa_Period, ioa_Volume, ioa_Cycles
+	dc.l	0,0,0,0,0		; io_WriteMessage
+
+
 	data_c
 	even
 SoundEffect:
 	incbin "wowmiga.bin"
-SoundEffect_length = *-SoundEffect
+SoundLen = *-SoundEffect
