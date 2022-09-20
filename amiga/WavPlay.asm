@@ -9,6 +9,7 @@ _LVOFreeSignal   = -336
 _LVOCloseLibrary = -414
 _LVOOpenDevice	 = -444
 _LVOCloseDevice  = -450
+_LVODoIO         = -456
 _LVOWaitIO       = -474
 _LVOOpenLibrary  = -552
 
@@ -30,6 +31,8 @@ IOAudio_cycles   = 46
 ;;; Audio I/O constants
 PA_SIGNAL        =  0
 CMD_WRITE        =  3
+CMD_STOP         =  6
+CMD_START        =  7
 NT_MSGPORT       =  4
 NT_MESSAGE       =  5
 ADCMD_ALLOCATE   = 32
@@ -69,7 +72,7 @@ _LVOOutput       =  -60
 	lea	deviceerrmsg,a0
 	move.l	#deviceerrmsglen,d0
 	jsr	print
-	bra.s	.closeport
+	bra	.closeport
 
 .deviceok:
 	;; Copy over the device, unit, and allocation key to each
@@ -88,6 +91,11 @@ _LVOOutput       =  -60
 	and.l	#$fffffff9,(IOAudio_unit+IOAudio_size)(a2)
 	and.l	#$fffffff6,(IOAudio_unit+IOAudio_size*2)(a2)
 
+	;; Pause playback
+	move.w	#CMD_STOP,IOAudio_command(a2)
+	move.l	a2,a1
+	jsr	_LVODoIO(a6)
+
 	;; Submit the I/O requests for sound playback
 	move.l	a6,a5
 	lea	IOAudio_size(a2),a1
@@ -97,6 +105,11 @@ _LVOOutput       =  -60
 	move.l	IOAudio_device(a1),a6
 	jsr	_DEVBeginIO(a6)
 	move.l	a5,a6
+
+	;; Re-enable sound playback
+	move.w	#CMD_START,IOAudio_command(a2)
+	move.l	a2,a1
+	jsr	_LVODoIO(a6)
 
 	;; Print our caption as the sound plays
 	lea	msg,a0
