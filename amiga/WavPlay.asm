@@ -163,7 +163,8 @@ allocmap:
 
 doslib:	dc.b	"dos.library",0
 auddev:	dc.b	"audio.device",0
-msg:	dc.b	"Wow! Digital sound!",10
+msg:
+	include "WavPlayCaption.asm"
 msglen = *-msg
 signalerrmsg:
 	dc.b	"Could not allocate signal",10
@@ -233,5 +234,5 @@ AudioRequestR:
 	data_c
 	even
 SoundEffect:
-	incbin "wowmiga.bin"
+	incbin "WavPlayRaw.bin"
 SoundLen = *-SoundEffect
