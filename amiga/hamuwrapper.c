@@ -1,5 +1,3 @@
-#include <proto/dos.h>
-
 void open_amiga_console(const char *console_spec);
 void close_amiga_console(void);
 
