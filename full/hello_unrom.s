@@ -20,41 +20,39 @@
         .org    $8000
         .advance $c000,$ff
 
-;;; Bank 4: Font data
+;;; Banks 4 and 5: Font data
         .org    $8000
-font:
-        .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-        .byte   $00,$00,$00,$00,$00,$00,$18,$30,$00,$00,$00,$00,$00,$00,$18,$30
-        .byte   $00,$3c,$62,$7e,$62,$62,$62,$00,$00,$3c,$62,$7e,$62,$62,$62,$00
-        .byte   $00,$7c,$62,$7c,$62,$62,$7c,$00,$00,$7c,$62,$7c,$62,$62,$7c,$00
-        .byte   $00,$7c,$62,$62,$62,$62,$7c,$00,$00,$7c,$62,$62,$62,$62,$7c,$00
-        .byte   $00,$7e,$60,$7c,$60,$60,$7e,$00,$00,$7e,$60,$7c,$60,$60,$7e,$00
-        .byte   $00,$7e,$60,$7c,$60,$60,$60,$00,$00,$7e,$60,$7c,$60,$60,$60,$00
-        .byte   $00,$62,$62,$7e,$62,$62,$62,$00,$00,$62,$62,$7e,$62,$62,$62,$00
-        .byte   $00,$60,$60,$60,$60,$60,$7e,$00,$00,$60,$60,$60,$60,$60,$7e,$00
-        .byte   $00,$62,$76,$6a,$62,$62,$62,$00,$00,$62,$76,$6a,$62,$62,$62,$00
-        .byte   $00,$62,$72,$6a,$66,$62,$62,$00,$00,$62,$72,$6a,$66,$62,$62,$00
-        .byte   $00,$3c,$62,$62,$62,$62,$3c,$00,$00,$3c,$62,$62,$62,$62,$3c,$00
-        .byte   $00,$7c,$66,$7c,$68,$64,$62,$00,$00,$7c,$66,$7c,$68,$64,$62,$00
-        .byte   $00,$3c,$60,$3c,$02,$62,$3c,$00,$00,$3c,$60,$3c,$02,$62,$3c,$00
-        .byte   $00,$7e,$18,$18,$18,$18,$18,$00,$00,$7e,$18,$18,$18,$18,$18,$00
-        .byte   $00,$62,$62,$62,$62,$62,$3c,$00,$00,$62,$62,$62,$62,$62,$3c,$00
-        .byte   $00,$62,$62,$62,$6a,$76,$62,$00,$00,$62,$62,$62,$6a,$76,$62,$00
+        .include "../asm/fonts/halogen.s"
+        .advance $8200,$ff
+        .byte   "     CURRENT FONT:  HALOGEN     "
+
         .advance $c000,$ff
 
-;;; Banks 5 and 6
         .org    $8000
+        .include "../asm/fonts/sinestra.s"
+        .advance $8200,$ff
+        .byte   "     CURRENT FONT: SINESTRA     "
         .advance $c000,$ff
+
+;;; Bank 6
         .org    $8000
         .advance $c000,$ff
 
 ;;; Bank 7: Main program
+        .data
+        .org    $0000
+        .space  ptr       2
+        .space  font_bank 1
+        .space  j0current 1
+
+        .text
         .org    $c000
 
         ;; set_bank: sets the $8000-$BFFF bank to the value in X.
 .scope
 _banks: .byte   $00,$01,$02,$03,$04,$05,$06,$07
 set_bank:
+        ldx     font_bank
         lda     _banks,x
         sta     _banks,x
         rts
@@ -113,35 +111,16 @@ reset:  sei
         dex
         bne     -
 
-        ldx     #$04
-        ;; Load font into place.
-        jsr     set_bank
-        lda     #$00
-        sta     $2006
-        sta     $2006
-        sta     $00
-        tay
-        lda     #$80
-        sta     $01
-        ldx     #$02
-*       lda     ($00),y
-        sta     $2007
-        iny
-        bne     -
-        inc     $01
-        dex
-        bne     -
-
         ;; Copy the greeting message into place.
         lda     #$21
         sta     $2006
-        lda     #$c0
+        lda     #$a0
         sta     $2006
         ldx     #$00
 *       lda     msg,x
         sta     $2007
         inx
-        cpx     #64
+        cpx     #$a0
         bne     -
 
         ;; Load the palette into place. Everything is black but BGM P0C3.
@@ -161,29 +140,116 @@ reset:  sei
         lda     #$30
         sta     $2007
 
+        ldx     #$04
+        stx     font_bank
+
+main_loop:
+        lda     #$00            ; Disable graphics
+        sta     $2000
+        sta     $2001
+
+        jsr     set_bank        ; Choose new font
+
+        ;; Load font into place.
+        lda     #$04
+        sta     $2006
+        lda     #$00
+        sta     $00
+        tay
+        sta     $2006
+        lda     #$80
+        sta     $01
+        ldx     #$40
+fontlp: lda     ($00),y
+        sta     $2007
+        iny
+        cpy     #$08
+        bne     fontlp
+        ldy     #$00
+*       lda     ($00),y
+        sta     $2007
+        iny
+        cpy     #$08
+        bne     -
+        ldy     #$00
+        clc
+        lda     $00
+        adc     #$08
+        sta     $00
+        bcc     +
+        inc     $01
+        lda     #$02
+        sta     $2006
+        lda     #$00
+        sta     $2006
+*       dex
+        bne     fontlp
+
+        ;; Copy the font identifier into place.
+        lda     #$22
+        sta     $2006
+        lda     #$00
+        sta     $2006
+        ldx     #$00
+*       lda     $8200,x
+        sta     $2007
+        inx
+        cpx     #32
+        bne     -
+
         ;; Reset scroll to 0.
         lda     #$00
         sta     $2005
         sta     $2005
 
-        ;; Set basic PPU registers. Load everything from $0000,
-        ;; and use the $2000 nametable. Don't hide the left 8 pixels.
-        ;; Don't enable sprites.
+        ;; Enable graphics. Set basic PPU registers. Load everything
+        ;; from $0000, and use the $2000 nametable. Don't hide the
+        ;; left 8 pixels.  Don't enable sprites.
         lda     #$80
         sta     $2000
         lda     #$0e
         sta     $2001
         cli
 
-loop:   jmp     loop
+        ;; Wait for A button to be released.
+*       lda     j0current
+        bmi     -
 
-irq:
-vblank: rti
+        ;; Wait for A button to be pressed.
+*       lda     j0current
+        bpl     -
 
-msg:    .byte   0,0,0,0,0,7,5,8,8,11,1,0,10,5,13,0
-        .byte   16,11,12,8,4,1,0,6,12,11,9,0,0,0,0,0
-        .byte   0,0,0,0,0,0,3,15,9,3,5,12,13,7,11,11
-        .byte   14,0,13,11,6,14,16,2,12,5,0,0,0,0,0,0
+        ;; Toggle the font bank, and loop back.
+        lda     font_bank
+        eor     #$01
+        sta     font_bank
+        jmp     main_loop
+
+vblank: pha
+        txa
+        pha
+        ldx     #$01            ; Read the controller state
+        stx     $4016
+        dex
+        stx     $4016
+        stx     j0current
+        ldx     #$08
+*       lda     $4016
+        lsr
+        rol     j0current
+        dex
+        bne     -
+
+        pla
+        tax
+        pla
+irq:    rti
+
+msg:    .byte   "     HELLO, NES WORLD, FROM     "
+        .byte   "      BUMBERSHOOT SOFTWARE      "
+        .byte   "                                "
+        .byte   "                                "
+        .byte   "     PRESS A TO CHANGE FONT     "
 
         .advance $fffa,$ff
         .word   vblank,reset,irq
