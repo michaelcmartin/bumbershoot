@@ -44,6 +44,7 @@
         .space  ptr       2
         .space  font_bank 1
         .space  j0current 1
+        .space  shadow    1
 
         .text
         .org    $c000
@@ -77,6 +78,9 @@ reset:  sei
         ;; Disable all graphics.
         sta     $2000
         sta     $2001
+
+        ;; It's now OK to turn on IRQs.
+        cli
 
         ;; Clear out RAM.
         tax
@@ -145,6 +149,7 @@ reset:  sei
 
 main_loop:
         lda     #$00            ; Disable graphics
+        sta     shadow
         sta     $2000
         sta     $2001
 
@@ -160,13 +165,13 @@ main_loop:
         lda     #$80
         sta     $01
         ldx     #$40
-fontlp: lda     ($00),y
+fontlp: lda     (ptr),y
         sta     $2007
         iny
         cpy     #$08
         bne     fontlp
         ldy     #$00
-*       lda     ($00),y
+*       lda     (ptr),y
         sta     $2007
         iny
         cpy     #$08
@@ -197,19 +202,18 @@ fontlp: lda     ($00),y
         cpx     #32
         bne     -
 
-        ;; Reset scroll to 0.
-        lda     #$00
-        sta     $2005
-        sta     $2005
-
         ;; Enable graphics. Set basic PPU registers. Load everything
         ;; from $0000, and use the $2000 nametable. Don't hide the
         ;; left 8 pixels.  Don't enable sprites.
-        lda     #$80
-        sta     $2000
+
+        ;; This just sets the shadow registers for $2001; VBLANK does
+        ;; the actual graphics enable and fixes the scroll so that
+        ;; suddenly enabling graphics doesn't make the display
+        ;; shudder.
         lda     #$0e
-        sta     $2001
-        cli
+        sta     shadow
+        lda     #$80            ; Turn on video NMI here though
+        sta     $2000
 
         ;; Wait for A button to be released.
 *       lda     j0current
@@ -228,7 +232,14 @@ fontlp: lda     ($00),y
 vblank: pha
         txa
         pha
-        ldx     #$01            ; Read the controller state
+        lda     shadow          ; Copy shadow $2001 into place
+        sta     $2001
+        beq     +               ; If we turned graphics *on*...
+        lda     #$00            ; Also reset scroll state
+        sta     $2005
+        sta     $2005
+
+*       ldx     #$01            ; Read the controller state
         stx     $4016
         dex
         stx     $4016
