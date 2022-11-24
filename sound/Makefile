@@ -9,10 +9,10 @@ conv_dos: conv_dos.c wavefile.c wavefile.h
 	$(CC) $(CFLAGS) -o $@ conv_dos.c wavefile.c
 
 conv_nes_pcm: conv_nes_pcm.c wavefile.c wavefile.h
-	$(CC) $(CFLAGS) -o $@ conv_news_pcm.c wavefile.c
+	$(CC) $(CFLAGS) -o $@ conv_nes_pcm.c wavefile.c
 
 conv_nes_dmc: conv_nes_dmc.c wavefile.c wavefile.h
-	$(CC) $(CFLAGS) -o $@ conv_news_dmc.c wavefile.c
+	$(CC) $(CFLAGS) -o $@ conv_nes_dmc.c wavefile.c
 
 revbits: revbits.c
 	$(CC) $(CFLAGS) -o $@ revbits.c
