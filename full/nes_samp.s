@@ -156,8 +156,8 @@ endln:  iny
         bne     textlp
 textdone:
 
-        ;; Load the palette into place. Everything is black but BGM P0C3.
-        lda     #$3F
+        ;; Load the palette into place. Everything is black but BGM P0C3, SPR P0C3, and SPR P1C3.
+        lda     #$3f
         ldx     #$00
         sta     $2006
         stx     $2006
@@ -166,11 +166,23 @@ textdone:
 *       sta     $2007
         dex
         bne     -
-        lda     #$3F
+        lda     #$3f
         sta     $2006
         lda     #$03
         sta     $2006
         lda     #$30
+        sta     $2007
+        lda     #$3f
+        sta     $2006
+        lda     #$13
+        sta     $2006
+        lda     #$30
+        sta     $2007
+        lda     #$3f
+        sta     $2006
+        lda     #$17
+        sta     $2006
+        lda     #$16
         sta     $2007
 
         lda     #$00            ; Disable graphics
@@ -213,6 +225,16 @@ fontlp: lda     (ptr),y
 *       dex
         bne     fontlp
 
+        ;; Configure sprite pointer
+        lda     #95
+        sta     $0204
+        lda     #'_
+        sta     $0205
+        lda     #$40
+        sta     $0206
+        lda     #24
+        sta     $0207
+
         ;; Enable graphics. Set basic PPU registers. Load everything
         ;; from $0000, and use the $2000 nametable. Don't hide the
         ;; left 8 pixels.  Don't enable sprites.
@@ -221,34 +243,73 @@ fontlp: lda     (ptr),y
         ;; the actual graphics enable and fixes the scroll so that
         ;; suddenly enabling graphics doesn't make the display
         ;; shudder.
-        lda     #$0e
+        lda     #$1e
         sta     shadow
+        lda     #$80            ; Enable NMI
+        sta     $2000
+        lda     #$40
+        sta     $4011
 
 main_loop:
-        lda     #$80            ; Turn on video NMI here though
-        sta     $2000
-        ;; Wait for A button to be released.
-*       lda     j0current
-        bmi     -
-
-        ;; Wait for A button to be pressed.
-*       lda     j0current
-        bpl     -
-
+        lda     j0current
+        beq     main_loop
+        pha
+        and     #$90            ; Pressed A or START?
+        beq     check_down
+        ;; SFX selected
+        pla
         lda     #$00            ; Disable video NMI
         sta     $2000
-
         lda     option
         jsr     play_sound
+        lda     #$80            ; Re-enable NMI
+        sta     $2000
+        bne     input_end
+check_down:
+        pla
+        pha
+        and     #$24            ; Pressed SELECT or DOWN?
+        beq     check_up
+        ;; Move arrow down
+        pla
         ldx     option
         inx
         cpx     #$06
         bne     +
         ldx     #$00
 *       stx     option
+        jmp     input_end
+check_up:
+        pla
+        and     #$08            ; Pressed UP?
+        beq     input_end
+        ldx     option
+        dex
+        bpl     +
+        ldx     #$05
+*       stx     option
+
+input_end:
+        lda     option          ; Place cursor
+        asl
+        asl
+        asl
+        clc
+        adc     #95
+        sta     $0204
+        lda     #$40
+        sta     $4011           ; Neutral audio
+        sta     $0206           ; Restore cursor palette
+        ;; Wait for neutral controller.
+*       lda     j0current
+        bne     -
         jmp     main_loop
 
 play_sound:
+        ldx     #$41
+        stx     $0206           ; Activated cursor palette
+        ldx     #$02            ; Update sprite RAM
+        stx     $4014
         jsr     do_jump_table
         .word   pcm_0,pcm_1,dmc_0,dmc_1,dmc_2,dmc_3
 
@@ -274,8 +335,6 @@ dmc_common:
         sta     $4012
         stx     $4013
         inc     busy
-        lda     #$40
-        sta     $4011
         lda     #$88
         sta     $4010
         lda     #$10
@@ -303,6 +362,8 @@ do_jump_table:
 vblank: pha
         txa
         pha
+        lda     #$02            ; Update sprite RAM
+        sta     $4014
         lda     shadow          ; Copy shadow $2001 into place
         sta     $2001
         beq     +               ; If we turned graphics *on*...
@@ -339,7 +400,7 @@ msg:    .wordbe $2060
         .byte   "     NES DIGITAL SOUND DEMO     "
         .byte   "   BUMBERSHOOT SOFTWARE, 2022   ",0
         .wordbe $2180
-        .byte   "   _ WOW PCM                    "
+        .byte   "     WOW PCM                    "
         .byte   "     BUMBERSONG PCM             "
         .byte   "     WOW DMC                    "
         .byte   "     BUMBERSONG DMC             "
