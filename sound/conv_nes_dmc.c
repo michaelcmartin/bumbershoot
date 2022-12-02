@@ -63,10 +63,11 @@ int main(int argc, char **argv)
             current_byte |= 0x80;
             if (current < 0x7e) {
                 current += 2;
-            } else if (current > 1) {
-                current -= 2;
             }
+        } else if (current > 1) {
+            current -= 2;
         }
+
         bits_written += 1;
         offset += samples_per_bit;
         if (bits_written == 8) {
