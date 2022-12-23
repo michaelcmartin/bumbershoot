@@ -7,23 +7,28 @@
 
         .data   zp
         .org    $fb
-        .space  ptr     2
-        .space  count   1
-        .space  nmidone 1
+        .space  ptr     2       ; Current pointer into sample array
+        .space  count   1       ; Number of samples until next byte
+        .space  nmidone 1       ; Nonzero when playback is finished
 
         .data
         .org    $c000
-        .space  gfx_disable 1
-        .space  gfx_sprites 1
+        .space  gfx_disable 1   ; 1 = turn off VIC-II during playback
+        .space  gfx_sprites 1   ; 1 = use all sprites during playback
+        .space  spr_rate    1   ; Number of frames between colorshifts
+        .space  spr_timer   1   ; Number of frames to next colorshift
+        .space  spr_index   1   ; Index into sprite color array
 
+        ;; KERNAL and BASIC routines
         .alias  chrout  $ffd2
         .alias  getin   $ffe4
         .alias  plot    $fff0
         .alias  strout  $ab1e
 
         .text
-        jmp     main
+        jmp     main            ; Reserve Page 8 for time-critical stuff
 
+        ;; NMI handler: Manages digital playback
         .scope
 nmi:    cmp     $dd0d           ; Clear interrupt right away
         dec     count           ; Quit immediately if it's not time
@@ -65,6 +70,8 @@ _endnmi:
         bne     _pop
         .scend
 
+        ;; Model detection code. Relies on cycle counting, so
+        ;; counts as time-critical.
         .scope
 get_model:
         ;; Wait for top of frame
@@ -107,6 +114,53 @@ sprite: .byte   $00,$00,$00,$00,$00,$00,$00,$06,$00,$00,$7e,$00,$03,$fe,$00,$0f
         .byte   $37,$7c,$7e,$33,$fc,$3c,$33,$fc,$00,$36,$78,$00,$34,$00,$00,$f0
         .byte   $00,$01,$f0,$00,$01,$f0,$00,$00,$e0,$00,$00,$00,$00,$00,$00,$00
 
+;;; IRQ routine. This runs twice a frame and juggles the sprite locations
+;;; so that we have 16 sprites on screen at once; 8 each at the top and
+;;; bottom. This should give our NMI system a crunchier workout.
+;;;
+;;; Despite being necessary for a stable display, these sprites are far
+;;; enough apart that this is not a time-critical routine.
+        .scope
+irq:    lda     #$01            ; Acknowledge IRQ
+        sta     $d019
+        lda     $d001           ; Load current Y sprite
+        eor     #$e4            ; Toggle between $3c and $d8
+        ldy     #$00
+*       iny                     ; Write it to each Y value
+        sta     $d000,y
+        iny
+        cpy     #$10
+        bne     -
+        cmp     #$00            ; What have we been writing?
+        bmi     _mid            ; Was it the bottom row?
+        dec     spr_timer       ; If not, check for colorshift
+        bne     _bot            ; If not time, skip to next IRQ
+        lda     spr_rate        ; If so, reset timer and update colors
+        sta     spr_timer
+        ldx     spr_index
+        inx
+        cpx     #$0F            ; Are we at the loopback point?
+        bne     +
+        ldx     #$00            ; Reset if we are
+*       stx     spr_index
+        ldy     #$00            ; Loop through 8 sprites
+*       lda     sprite_colors,x
+        sta     $d027,y
+        inx
+        iny
+        cpy     #$08
+        bne     -
+_bot:   lda     #$52            ; Next IRQ is after top row
+        bne     _end
+_mid:   lda     #$ed            ; Next IRQ is after bottom row
+_end:   sta     $d012
+        lda     $dc0d           ; Was there a timer interrupt?
+        beq     +
+        jmp     $ea31           ; If so, process it
+*       jmp     $febc           ; If not, leave immediately
+        .scend
+
+;;; Configures the NMI routine to play a particular sound stored in .AY.
 play_sound:
         sta     ptr             ; Initialize sound pointer
         sty     ptr+1
@@ -125,7 +179,7 @@ play_sound:
         sta     $d412
         lda     gfx_disable     ; Do we need to disable the graphics?
         beq     +
-        lda     #$8b            ; If so, disable them
+        lda     #$0b            ; If so, disable them
         sta     $d011
 *       lda     #$1f            ; Disable any original NMI interrupts
         sta     $dd0d
@@ -138,15 +192,15 @@ play_sound:
         sta     $0319
         lda     #$81            ; Enable Timer A NMI
         sta     $dd0d
-        lda     #123            ; Configure timer (123 = PAL)
-        sta     $dd04
+        lda     #123            ; Configure timer (123 = PAL, 128 = NTSC)
+        sta     $dd04           ; TODO: Actually use model info
         lda     #$00
         sta     $dd05
         lda     #$01            ; start timer A
         sta     $dd0e
 *       lda     nmidone         ; Wait until the playback is done
         beq     -               ; (it will deconfigure itself)
-        lda     #$9b            ; Re-enable graphics
+        lda     #$1b            ; Re-enable graphics
         sta     $d011
         ;; Fall through to reset_sid
 reset_sid:
@@ -157,6 +211,8 @@ reset_sid:
         bne     -
         rts
 
+;;; Main program. Initializes display and runs a main menu to play and
+;;; configure the system as needed.
 main:   lda     #$0e            ; Blue background, light blue border
         sta     $d020
         lda     #$06
@@ -177,8 +233,7 @@ main:   lda     #$0e            ; Blue background, light blue border
 *       sta     $d000,y
         iny
         pha
-        ; lda   #$3c
-        lda     #$d8
+        lda     #$3c
         sta     $d000,y
         iny
         lda     sprite_colors,x
@@ -197,9 +252,26 @@ main:   lda     #$0e            ; Blue background, light blue border
         sta     $d017
         sta     $d01c
         sta     $d01d
+        sta     spr_index
         lda     #$ff
         sta     $d015
-        ;; TODO: Set up 16-sprite IRQ
+        lda     #20             ; 20 = PAL, 24 = NTSC
+        sta     spr_rate        ; TODO: Actually check model
+        sta     spr_timer
+        ;; Initialize graphics IRQ
+        lda     #$7f            ; Disable clock interrupt
+        sta     $dc0d
+        lda     #$1b            ; First IRQ is just after sprite row
+        sta     $d011
+        lda     #$52
+        sta     $d012
+        lda     #<irq           ; Reassign IRQ vector
+        sta     $0314
+        lda     #>irq
+        sta     $0315
+        lda     #$01            ; Set raster interrupt
+        sta     $d01a
+
 loop:   jsr     getin
         cmp     #'1
         bne     not1
@@ -225,19 +297,31 @@ not3:   cmp     #'4
         lda     gfx_sprites
         eor     #$01
         sta     gfx_sprites
+        beq     +
+        lda     #$ff
+*       sta     $d015           ; Enable all, or no, sprites
         jsr     update_menu
-        ;; TODO: Update interrupts/sprite enable
         jmp     loop
 not4:   cmp     #'5
         bne     loop
         ;; If five is selected, we quit the program.
         lda     #$00
         sta     $d015           ; Disable sprites
-        ;; TODO: Disable spritey interrupts
+        ;; Deconfigure IRQ handler
+        lda     #$00            ; Disable raster IRQ
+        sta     $d01a
+        lda     #$31            ; Restore IRQ handler
+        sta     $0314
+        lda     #$ea
+        sta     $0315
+        lda     #$81            ; Restore clock IRQ
+        sta     $dc0d
+        ;; Final cleanup
         lda     #$93            ; Clear screen
         jmp     chrout          ; and then quit
 
         .scope
+;;; Update the ON/OFF displays for the two toggles.
 update_menu:
         ldy     #$1e
         ldx     #$0c
@@ -284,4 +368,3 @@ wow_sfx:
 
 bumbershoot_sfx:
         .incbin "bumbershoot_rle.bin"
-        ; .byte 0
