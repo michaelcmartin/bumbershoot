@@ -11,6 +11,12 @@
         .space  count   1
         .space  nmidone 1
 
+        .data
+        .org    $c000
+        .space  gfx_disable 1
+        .space  gfx_sprites 1
+
+        .alias  chrout  $ffd2
         .alias  getin   $ffe4
         .alias  plot    $fff0
         .alias  strout  $ab1e
@@ -117,7 +123,11 @@ play_sound:
         sta     $d404
         sta     $d40b
         sta     $d412
-        lda     #$1f            ; Disable any original NMI interrupts
+        lda     gfx_disable     ; Do we need to disable the graphics?
+        beq     +
+        lda     #$8b            ; If so, disable them
+        sta     $d011
+*       lda     #$1f            ; Disable any original NMI interrupts
         sta     $dd0d
         lda     #$00            ; Stop timer A
         sta     $dd0e
@@ -134,8 +144,10 @@ play_sound:
         sta     $dd05
         lda     #$01            ; start timer A
         sta     $dd0e
-*       lda     nmidone
-        beq     -
+*       lda     nmidone         ; Wait until the playback is done
+        beq     -               ; (it will deconfigure itself)
+        lda     #$9b            ; Re-enable graphics
+        sta     $d011
         ;; Fall through to reset_sid
 reset_sid:
         lda     #$00
@@ -152,7 +164,12 @@ main:   lda     #$0e            ; Blue background, light blue border
         lda     #<menu_text     ; Display main menu text
         ldy     #>menu_text
         jsr     strout
-        ;; TODO: Programmatically mark off/on for 3 and 4
+        ;; Initialize menu options
+        ldx     #$00
+        stx     gfx_disable
+        inx
+        stx     gfx_sprites
+        jsr     update_menu
         ;; Initialize sprites
         ldx     #$00
         ldy     #$00
@@ -160,7 +177,8 @@ main:   lda     #$0e            ; Blue background, light blue border
 *       sta     $d000,y
         iny
         pha
-        lda     #$3c
+        ; lda   #$3c
+        lda     #$d8
         sta     $d000,y
         iny
         lda     sprite_colors,x
@@ -181,26 +199,89 @@ main:   lda     #$0e            ; Blue background, light blue border
         sta     $d01d
         lda     #$ff
         sta     $d015
-        ;; Just play a sound and quit for now
-        lda     #<sfx
-        ldy     #>sfx
+        ;; TODO: Set up 16-sprite IRQ
+loop:   jsr     getin
+        cmp     #'1
+        bne     not1
+        lda     #<wow_sfx
+        ldy     #>wow_sfx
         jsr     play_sound
+        jmp     loop
+not1:   cmp     #'2
+        bne     not2
+        lda     #<bumbershoot_sfx
+        ldy     #>bumbershoot_sfx
+        jsr     play_sound
+        jmp     loop
+not2:   cmp     #'3
+        bne     not3
+        lda     gfx_disable
+        eor     #$01
+        sta     gfx_disable
+        jsr     update_menu
+        jmp     loop
+not3:   cmp     #'4
+        bne     not4
+        lda     gfx_sprites
+        eor     #$01
+        sta     gfx_sprites
+        jsr     update_menu
+        ;; TODO: Update interrupts/sprite enable
+        jmp     loop
+not4:   cmp     #'5
+        bne     loop
+        ;; If five is selected, we quit the program.
         lda     #$00
         sta     $d015           ; Disable sprites
-        rts
+        ;; TODO: Disable spritey interrupts
+        lda     #$93            ; Clear screen
+        jmp     chrout          ; and then quit
+
+        .scope
+update_menu:
+        ldy     #$1e
+        ldx     #$0c
+        clc
+        jsr     plot
+        lda     gfx_disable
+        jsr     _boolout
+        ldy     #$1e
+        ldx     #$0d
+        clc
+        jsr     plot
+        lda     gfx_sprites
+        ;; Fall through into _boolout
+_boolout:
+        beq     _no
+        lda     #<on_text
+        ldy     #>on_text
+        bne     _go
+_no:    lda     #<off_text
+        ldy     #>off_text
+_go:    jmp     strout
+        .scend
 
 menu_text:
         .byte   147,13,13,13,13,13,13
         .byte   "         ",5,18,169," C64 PCM SOUND DEMO ",127,146
         .byte   154,13,13,13,"     1. WOW! DIGITAL SOUND!",13
         .byte   "     2. BUMBERSHOOT SONG",13,13
-        .byte   "     3. TOGGLE VIC-II DISABLE ", 152, "<OFF>",154,13
-        .byte   "     4. TOGGLE VIC-II SPRITES ", 5,"<ON >",154,13,13
+        .byte   "     3. TOGGLE VIC-II DISABLE ",13
+        .byte   "     4. TOGGLE VIC-II SPRITES ",13,13
         .byte   "     5. QUIT",13,13,13
         .byte   "       ",5,127,18," PRESS NUMBER TO SELECT ",146,169,154,0
 
-sprite_colors:
-        .byte   0,1,2,3,4,5,7,8,9,10,11,12,13,14,15
+off_text:
+        .byte   152,"<OFF>",154,0
+on_text:
+        .byte   5,"<ON >",154,0
 
-sfx:
-        .incbin "sample.bin"
+sprite_colors:
+        .byte   0,1,2,3,4,5,7,8,9,10,11,12,13,14,15,0,1,2,3,4,5,7
+
+wow_sfx:
+        .incbin "wow_rle.bin"
+
+bumbershoot_sfx:
+        .incbin "bumbershoot_rle.bin"
+        ; .byte 0
