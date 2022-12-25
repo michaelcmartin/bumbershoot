@@ -18,6 +18,7 @@
         .space  spr_rate    1   ; Number of frames between colorshifts
         .space  spr_timer   1   ; Number of frames to next colorshift
         .space  spr_index   1   ; Index into sprite color array
+        .space  pcm_rate    1   ; Number of cycles between samples
 
         ;; KERNAL and BASIC routines
         .alias  chrout  $ffd2
@@ -71,7 +72,7 @@ _endnmi:
         .scend
 
         ;; Model detection code. Relies on cycle counting, so
-        ;; counts as time-critical.
+        ;; counts as time-critical. If carry is set, we're NTSC.
         .scope
 get_model:
         ;; Wait for top of frame
@@ -92,10 +93,10 @@ get_model:
         ;; If we're back at top, we're NTSC
         bit     $d011
         bmi     +
-        ldx     #$01            ; 1 extra cycle/line
-        bne     _done
+        sec                     ; Carry set = NTSC
+        bcs     _done
         ;; Otherwise we are PAL
-*       ldx     #$00            ; 0 extra cycles/line
+*       clc                     ; Carry clear = PAL
 _done:
         cli
         rts
@@ -192,8 +193,8 @@ play_sound:
         sta     $0319
         lda     #$81            ; Enable Timer A NMI
         sta     $dd0d
-        lda     #123            ; Configure timer (123 = PAL, 128 = NTSC)
-        sta     $dd04           ; TODO: Actually use model info
+        lda     pcm_rate        ; Configure timer (123 = PAL, 128 = NTSC)
+        sta     $dd04
         lda     #$00
         sta     $dd05
         lda     #$01            ; start timer A
@@ -226,6 +227,17 @@ main:   lda     #$0e            ; Blue background, light blue border
         inx
         stx     gfx_sprites
         jsr     update_menu
+        ;; Detect system model
+        jsr     get_model
+        bcc     config_pal
+        lda     #128            ; NTSC: 128 cycles per sample
+        ldx     #24             ;       24 frames per colorcycle
+        bne     +
+config_pal:
+        lda     #123            ; PAL:  123 cycles per sample
+        ldx     #20             ;       20 frames per colorcycle
+*       sta     pcm_rate
+        stx     spr_rate
         ;; Initialize sprites
         ldx     #$00
         ldy     #$00
@@ -255,8 +267,7 @@ main:   lda     #$0e            ; Blue background, light blue border
         sta     spr_index
         lda     #$ff
         sta     $d015
-        lda     #20             ; 20 = PAL, 24 = NTSC
-        sta     spr_rate        ; TODO: Actually check model
+        lda     spr_rate
         sta     spr_timer
         ;; Initialize graphics IRQ
         lda     #$7f            ; Disable clock interrupt
