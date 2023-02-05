@@ -5,6 +5,7 @@ helloObs	= HelloWorld.c.o
 helloLibs	= "{Libraries}"Interface.o ∂
 			  "{Libraries}"MacRuntime.o
 
-HelloWorld	ƒƒ	{helloObs}
+HelloWorld	ƒƒ	{helloObs} HelloWorld.r HelloWorld.h
 	Link -o {Targ} {helloObs} {helloLibs} -sym Full
-	SetFile {Targ} -t APPL -c '????'
+	Rez -rd -append -o {Targ} HelloWorld.r
+	SetFile {Targ} -t APPL -c 'BbHW' -a B
