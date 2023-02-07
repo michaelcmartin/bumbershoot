@@ -20,7 +20,7 @@ int HandleMenuEvent(WindowPtr window, long event)
 	switch (menu) {
 	case mApple:
 		if (item == 1) {
-			/* Do the About Dialog, eventually */
+			Alert(rAboutAlert, nil);
 		} else {
 			MenuRef mRef = GetMenuHandle(mApple);
 			Str255 accName;

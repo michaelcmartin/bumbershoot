@@ -126,6 +126,43 @@ resource 'MENU' (mEdit, preload) {
 	}
 };
 
+/* About dialog, adapted shamelessly from the MPW Sample Application */
+
+resource 'ALRT' (rAboutAlert, purgeable) {
+	{40, 20, 160, 310},
+	rAboutAlert,
+	{
+		OK, visible, silent,
+		OK, visible, silent,
+		OK, visible, silent,
+		OK, visible, silent
+	},
+	centerMainScreen
+};
+
+resource 'DITL' (rAboutAlert, purgeable) {
+	{
+		/* [1] */
+		{88, 198, 108, 278},
+		Button {
+			enabled,
+			"OK"
+		},
+		/* [2] */
+		{8, 8, 24, 214},
+		StaticText {
+			disabled,
+			"Hello World Application"
+		},
+		/* [3] */
+		{32, 8, 48, 309},
+		StaticText {
+			disabled,
+			"Copyright © Bumbershoot Software 2023"
+		},
+	}
+};
+
 /* Bundle/Icon information */
 
 type 'BbHW' as 'STR ';
