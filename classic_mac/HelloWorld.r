@@ -182,3 +182,26 @@ resource 'BNDL' (128) {
 resource 'FREF' (128) {
 	'APPL', 0, ""
 };
+
+/* System 7 information */
+
+resource 'SIZE' (-1) {
+	dontSaveScreen,
+	acceptSuspendResumeEvents,
+	enableOptionSwitch,
+	canBackground,
+	multiFinderAware,
+	backgroundAndForeground,
+	dontGetFrontClicks,
+	ignoreChildDiedEvents,
+	not32BitCompatible,
+	reserved,
+	reserved,
+	reserved,
+	reserved,
+	reserved,
+	reserved,
+	reserved,
+	32768,
+	32768
+};
