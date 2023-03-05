@@ -1,0 +1,176 @@
+	INCLUDE 'Devices.a'
+	INCLUDE	'Dialogs.a'
+	INCLUDE	'Files.a'
+	INCLUDE	'Fonts.a'
+	INCLUDE 'MacErrors.a'
+	INCLUDE	'MacTypes.a'
+	INCLUDE	'MacWindows.a'
+	INCLUDE	'Menus.a'
+	INCLUDE	'Processes.a'
+	INCLUDE	'Quickdraw.a'
+	INCLUDE	'StandardFile.a'
+	INCLUDE	'TextEdit.a'
+
+QD	  DS	QDGlobals
+PickerLoc DS	Point
+Reply	  DS	SFReply
+IOReq	  DS	ParamBlockRec
+
+	IMPORT XSSSeedRandom,XSSRandom
+
+;;; WriteLine(index, val) prints out "%d. %08X" for index/val to
+;;; the open file in IOReq. index is passed in D0, while val is
+;;; passed on the stack. IOReq is a global. This is the dumbest
+;;; ABI ever but this is also a program-local function called in
+;;; a tight loop, so, you know, whatever.
+WriteLine	PROC
+	MOVE.L	#$20202020,D1
+	MOVE.L	4(SP),D2	; Collect val before we mess with the stack
+	MOVE.L	D3,-(SP)	; Save D3
+	MOVE.L	D1,-(SP)	; Push 16 spaces onto the stack
+	MOVE.L	D1,-(SP)
+	MOVE.L	D1,-(SP)
+	MOVE.L	D1,-(SP)
+	MOVEQ.L	#10,D1		; Cache our decimal divisor
+	LEA	4(SP),A0	; String pointer for decimal part
+	MOVE.B	#'.',-(A0)	; Write the dot
+	AND.W	#255,D0		; Force D0 to a byte (and thus 3 digits)
+@L1	EXT.L	D0		; Make D0 input a LONG
+	DIVS	D1,D0
+	SWAP	D0		; Get at remainder
+	ADD.B	#'0',D0		; Turn it into a character
+	MOVE.B	D0,-(A0)	; Store it in our string
+	SWAP	D0		; Pull back our quotient
+	TST.W	D0		; Is it zero?
+	BNE.S	@L1		; If not, head back.
+	LEA	@hexits(PC),A1	; Collect address of hexits array
+	LEA	14(SP),A0	; Prepare to write the hex value
+	MOVE.B	#13,-(A0)	; Write the carriage return
+	MOVEQ	#7,D0		; Write eight digits
+@L2	MOVEQ	#$0F,D1		; Hexit mask
+	AND.W	D2,D1		; Take lowest hexit
+	MOVE.B	(A1,D1),D3	; And store it in the string
+	MOVE.B	D3,-(A0)
+	LSR.L	#4,D2		; Next hexit
+	DBRA	D0,@L2
+	;; Now actually do the write
+	MOVEQ	#14,D0
+	MOVE.L	D0,IOReq.ioReqCount
+	MOVE.L	SP,IOReq.ioBuffer
+	LEA	IOReq,A0
+	_PBWriteSync
+	;; Restore registers and stack, then exit
+	ADD	#16,SP
+	MOVE.L	(SP)+,D3
+	RTS
+
+@hexits
+	DC.B	$30,$31,$32,$33,$34,$35,$36,$37
+	DC.B	$38,$39,$41,$42,$43,$44,$45,$46
+	ENDP
+
+Main	MAIN
+	;; Intialize the managers
+	PEA	QD.thePort
+	_InitGraf
+	_InitFonts
+	_InitWindows
+	_InitMenus
+	_TEInit
+	CLR.L	-(SP)
+	_InitDialogs
+	_InitCursor
+
+	;; Compute the location for our file requester
+	MOVE.W	QD.screenBits.bounds.right,D0
+	ADD.W	QD.screenBits.bounds.left,D0
+	LSR.W	#1,D0
+	SUB.W	#150,D0
+	MOVE.W	D0,PickerLoc.h
+	MOVE.W	QD.screenBits.bounds.top,D0
+	ADD.W	QD.screenBits.bounds.bottom,D0
+	LSR.W	#1,D0
+	SUB.W	#50,D0
+	MOVE.W	D0,PickerLoc.v
+
+	;; Get target file location
+	PEA	PickerLoc
+	PEA	@Prompt(PC)
+	PEA	@Default(PC)
+	CLR.L	-(SP)
+	PEA	Reply
+	_SFPutFile
+
+	;; Quit if the user canceled
+	TST.B	SFReply.good
+	BNE.S	@Go
+	_ExitToShell
+
+	;; Clear out the I/O Request Block
+@Go	MOVE.W	#ParamBlockRec.sizeof-1,D0
+	LEA	IOReq,A0
+@L1	CLR.B	(A0)+
+	DBRA	D0,@L1
+
+	;; Create and set type of the file. It's OK if it already exists.
+	MOVE.W	Reply.vRefNum,IOReq.ioVRefNum
+	LEA	Reply.fName,A0
+	MOVE.L	A0,IOReq.ioNamePtr
+	LEA	IOReq,A4	; Stash IOReq here, we'll use it lots
+	MOVE.L	A4,A0
+	_PBCreateSync
+	TST.W	D0
+	BEQ.S	@CreateOK	; noErr case
+	CMP.W	#dupFNErr,D0
+	BEQ.S	@CreateOK
+@Die	_ExitToShell		; We failed, choke and die
+@CreateOK
+	;; Now set the File type and creator
+	CLR.W	IOReq.ioFDirIndex
+	MOVE.L	A4,A0
+	_PBGetFInfoSync
+	MOVE.L	#'TEXT',IOReq.ioFlFndrInfo.fdType
+	MOVE.L	#'ttxt',IOReq.ioFlFndrInfo.fdCreator
+	MOVE.L	A4,A0
+	_PBSetFInfoSync
+	;; And open it for writing
+	MOVE.B	#fsWrPerm,IOReq.ioPermssn
+	MOVE.L	A4,A0
+	_PBOpenSync
+	TST.W	D0
+	BNE.S	@Die
+	;; Truncate it
+	CLR.L	IOReq.ioMisc
+	MOVE.L	A4,A0
+	_PBSetEOFSync
+	;; Set write mode to match normal file operation
+	MOVE.W	#fsAtMark,IOReq.ioPosMode
+	CLR.L	IOReq.ioPosOffset
+
+	MOVEQ.L	#1,D0
+	MOVE.L	D0,-(SP)
+	BSR	XSSSeedRandom
+
+	SUBQ.L	#4,SP	        	; Reserve space for our random number returns
+	MOVE.L	#99,D3
+@L2	BSR	XSSRandom		; Put random number in our reserved space...
+	MOVEQ	#100,D0
+	SUB.L	D3,D0
+	BSR	WriteLine		; ... and use it as an argument to WriteLine
+	DBRA	D3,@L2
+
+	;; Close it and flush volume
+	MOVE.L	A4,A0
+	_PBCloseSync
+	CLR.L	IOReq.ioNamePtr
+	MOVE.L	A4,A0
+	_PBFlushVolSync
+
+	;; We're done, successfully, hooray
+	_ExitToShell
+
+@Prompt	 DC.B	'Select Test Output Location'
+@Default DC.B	'Test Output'
+	ENDMAIN
+
+	END
