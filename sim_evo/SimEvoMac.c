@@ -253,25 +253,32 @@ void main (void)
 	lastUpdate = LMGetTicks();
 
 	while (!done) {
+		int doTick = 0;
 		if (hasWNEvent) {
 			if (!WaitNextEvent(everyEvent, &myEvent, 1, nil)) {
-				if (LMGetTicks() != lastUpdate) {
-					evo_state_t *state;
-					lastUpdate = LMGetTicks();
-					HLock(EvoState);
-					state = (evo_state_t *)(*EvoState);
-					run_cycle(state);
-					seed_garden(state);
-					HUnlock(EvoState);
-				}
-				continue;
+				doTick = 1;
 			}
 		} else {
 			SystemTask();
 			if (!GetNextEvent(everyEvent, &myEvent)) {
-				continue;
+				doTick = 1;
 			}
 		}
+		if (doTick) {
+			if (LMGetTicks() != lastUpdate) {
+				evo_state_t *state;
+				lastUpdate = LMGetTicks();
+				HLock(EvoState);
+				state = (evo_state_t *)(*EvoState);
+				run_cycle(state);
+				if (useGarden) {
+					seed_garden(state);
+				}
+				HUnlock(EvoState);
+			}
+			continue;
+		}
+
 		switch (myEvent.what) {
 		case mouseDown:
 			clickLoc = FindWindow(myEvent.where, &clickWnd);
