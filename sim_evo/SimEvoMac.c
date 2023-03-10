@@ -22,6 +22,7 @@ SysEnvRec environ;
 int hasWNEvent;
 int hasColor;
 int useColor;
+int useGarden;
 
 Handle EvoState;
 
@@ -93,6 +94,24 @@ static void ClearWindow(WindowPtr wnd)
 	EraseRect(&wnd->portRect);
 }
 
+static void PrepareMenus(void)
+{
+	MenuHandle menu;
+	menu = GetMenuHandle(mSettings);
+	if (hasColor) {
+		EnableItem(menu, iColor);
+		CheckItem(menu, iColor, useColor);
+	} else {
+		DisableItem(menu, iColor);
+		CheckItem(menu, iColor, 0);
+	}
+	CheckItem(menu, iGarden, useGarden);
+	DisableItem(menu, iWarp);  /* Until we implement it */
+
+	menu = GetMenuHandle(mFile);
+	DisableItem(menu, iClose);  /* Until we implement New and Close */
+}
+
 static int TrapAvailable(short tNumber, TrapType tType)
 {
 	if ((tType == ToolTrap) &&
@@ -119,6 +138,7 @@ static void DetectCapabilities(void)
 	hasWNEvent = TrapAvailable(_WaitNextEvent, ToolTrap);
 	hasColor = environ.hasColorQD; /* This isn't correct, but it will do for now */
 	useColor = hasColor;
+	useGarden = 1;
 }
 
 static void InitSimulation(unsigned long seed)
@@ -176,6 +196,16 @@ void HandleMenuEvent(WindowPtr window, long event)
 			ExitToShell();
 		}
 		break;
+	case mSettings:
+		if (item == iColor) {
+			useColor = !useColor;
+			SetPort(window);
+			RedrawWorld(window);
+		}
+		if (item == iGarden) {
+			useGarden = !useGarden;
+		}
+		break;
 	default:
 		break;
 	}
@@ -200,7 +230,6 @@ void main (void)
 	TEInit();
 	InitDialogs(nil);
 	InitCursor();
-
 
 	DetectCapabilities();
 
@@ -264,6 +293,7 @@ void main (void)
 				}
 				break;
 			case inMenuBar:
+				PrepareMenus();
 				HandleMenuEvent(wnd, MenuSelect(myEvent.where));
 				break;
 			default:
@@ -272,6 +302,7 @@ void main (void)
 			break;
 		case keyDown:
 			if (myEvent.modifiers & cmdKey) {
+				PrepareMenus();
 				HandleMenuEvent(wnd, MenuKey(myEvent.message & charCodeMask));
 			}
 			break;
