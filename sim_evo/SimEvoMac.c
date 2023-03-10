@@ -23,6 +23,8 @@ int hasWNEvent;
 int hasColor;
 int useColor;
 int useGarden;
+int simActive;
+UInt32 lastUpdate;
 
 Handle EvoState;
 
@@ -109,7 +111,15 @@ static void PrepareMenus(void)
 	DisableItem(menu, iWarp);  /* Until we implement it */
 
 	menu = GetMenuHandle(mFile);
-	DisableItem(menu, iClose);  /* Until we implement New and Close */
+	if (simActive) {
+		DisableItem(menu, iNew);
+		DisableItem(menu, iNewFrom);
+		EnableItem(menu, iClose);
+	} else {
+		EnableItem(menu, iNew);
+		DisableItem(menu, iNewFrom);  /* Until we implement it */
+		DisableItem(menu, iClose);
+	}
 }
 
 static int TrapAvailable(short tNumber, TrapType tType)
@@ -141,14 +151,17 @@ static void DetectCapabilities(void)
 	useGarden = 1;
 }
 
-static void InitSimulation(unsigned long seed)
+static void InitSimulation(WindowPtr wnd, unsigned long seed)
 {
 	evo_state_t *state;
+	ClearWindow(wnd);
 	XSSSeedRandom(seed);
 	HLock(EvoState);
 	state = (evo_state_t *)(*EvoState);
 	initialize(state);
 	HUnlock(EvoState);
+	simActive = 1;
+	lastUpdate = LMGetTicks();
 }
 
 static void RedrawWorld(WindowPtr wnd)
@@ -191,6 +204,16 @@ void HandleMenuEvent(WindowPtr window, long event)
 		}
 		break;
 	case mFile:
+		if (item == iNew) {
+			unsigned long seed;
+			GetDateTime(&seed);
+			InitSimulation(window, seed);
+			ShowWindow(window);
+		}
+		if (item == iClose) {
+			simActive = 0;
+			HideWindow(window);
+		}
 		if (item == iQuit) {
 			HiliteMenu(0);
 			ExitToShell();
@@ -221,7 +244,6 @@ void main (void)
 	int done = 0;
 	int clickLoc = 0;
 	unsigned long seed;
-	UInt32 lastUpdate;
 
 	InitGraf(&qd.thePort);
 	InitFonts();
@@ -247,10 +269,8 @@ void main (void)
 
 	EvoState = NewHandleClear(sizeof(evo_state_t));
 	SetPort(wnd);
-	ClearWindow(wnd);
 	GetDateTime(&seed);
-	InitSimulation(seed);
-	lastUpdate = LMGetTicks();
+	InitSimulation(wnd, seed);
 
 	while (!done) {
 		int doTick = 0;
@@ -265,7 +285,7 @@ void main (void)
 			}
 		}
 		if (doTick) {
-			if (LMGetTicks() != lastUpdate) {
+			if (simActive && LMGetTicks() != lastUpdate) {
 				evo_state_t *state;
 				lastUpdate = LMGetTicks();
 				HLock(EvoState);
