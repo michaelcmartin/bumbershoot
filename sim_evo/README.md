@@ -15,10 +15,11 @@ All versions are made available under the 2-Clause BSD License, reproduced below
 * `simevo.tos` runs on the Atari ST. It shares the same core as the modern editions, but is built with the vbcc and vasm toolkits. The Atari-specific code requires that the compiler be used in a mode where `int` is only 16 bits wide.
 * `AmiEvo` runs on the Commodore Amiga. Like the Atari ST version, it uses the modern core, and is built with the vbcc and vasm toolkits. Unlike the Atari code, `int` is presumed to be 32-bit. The Amiga NDK is not required to build this application.
 * `simevo.com` cannot be built from the Makefile, but is instead built with Turbo C from inside a DOS environment. It shares the same core as the modern editions. Comments in the Makefile will provide build instructions. The resulting program should work on any PC (it only uses 32KB of RAM and a CGA-compatible video mode).
+* `SimEvoMPW.make` is a Makefile for the Macintosh Programmer's Workshop. This version is incomplete but currently targets a Macintosh II running System 7.
 
 ## License
 
-Copyright 2020-2022 Michael C. Martin.
+Copyright 2020-2023 Michael C. Martin.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 

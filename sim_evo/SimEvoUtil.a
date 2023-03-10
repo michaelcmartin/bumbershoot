@@ -1,0 +1,93 @@
+RngState	DS.L	2
+
+;;; void XSSSeedRandom(unsigned long seed)
+;;; Seeds the PRNG. The Macintosh edition uses the same 64-bit Xorshift-
+;;; star PRNG as the modern Linux and Windows ports, but it only
+;;; accepts 32-bit seeds. Its output will match the modern ports if the
+;;; modern port's seed fits in 32 bits.
+XSSSeedRandom	PROC	EXPORT
+	LEA.L	RngState,A0
+	CLR.L	D0
+	ADDQ.L	#1,D0
+	MOVE.L	D0,(A0)+
+	OR.L	4(SP),D0
+	MOVE.L	D0,(A0)+
+	MOVE.L	(SP),A0
+	ADDQ.L	#8,SP
+	JMP	(A0)
+	ENDP
+
+;;; unsigned long XSSRandom(void)
+;;; Returns a random 32-bit integer. The Macintosh edition uses the
+;;; same 64-bit Xorshift-star PRNG as the modern Linux and Windows
+;;; ports. All 32 bits in the return value are random enough to
+;;; rely on, so using bitmask or modulus operators to limit the
+;;; result is safe.
+XSSRandom	PROC	EXPORT
+	LEA.L	RngState,A0
+	MOVEM.L	(A0),D0-D1
+	MOVEM.L	D2-D6,-(SP)
+
+	;; rng_state = rng_state ^ (rng_state >> 12)
+	MOVEQ	#12,D3
+	MOVEQ	#20,D4
+	MOVE.L	D1,D2
+	LSR.L	D3,D2
+	EOR.L	D2,D1
+	MOVE.L	D0,D2
+	LSL.L	D4,D2
+	EOR.L	D2,D1
+	MOVE.L	D0,D2
+	LSR.L	D3,D2
+	EOR.L	D2,D0
+
+	;; rng_state = rng_state ^ (rng_state << 25)
+	MOVEQ	#25,D3
+	MOVE.L	D0,D2
+	LSL.L	D3,D2
+	EOR.L	D2,D0
+	MOVE.L	D1,D2
+	LSR.L	#7,D2
+	EOR.L	D2,D0
+	MOVE.L	D1,D2
+	LSL.L	D3,D2
+	EOR.L	D2,D1
+
+	;; rng_state = rng_state ^ (rng_state >> 27)
+	MOVEQ	#27,D3
+	MOVE.L	D1,D2
+	LSR.L	D3,D2
+	EOR.L	D2,D1
+	MOVE.L	D0,D2
+	LSL.L	#5,D2
+	EOR.L	D2,D1
+	MOVE.L	D0,D2
+	LSR.L	D3,D2
+	EOR.L	D2,D0
+
+	MOVEM.L	D0-D1,(a0)
+
+	;; Return the high 32 bits of the 64-bit product of the RNG
+	;; state and the constant $2545F4914F6CDD1D
+	MOVE.L	#$2545F491,D2
+	MOVE.L	#$4F6CDD1D,D3
+	CLR.L	D4
+	CLR.L	D5
+	MOVEQ	#63,D6
+@1	LSR.L	#1,D0
+	ROXR.L	#1,D1
+	BCC.S	@2
+	ADD.L	D3,D5
+	ADDX.L	D2,D4
+@2	LSL.L	#1,D3
+	ROXL.L	#1,D2
+	DBRA	D6,@1
+	MOVE.L	D4,D0			; High dword of product as retval
+
+	;; Restore all the registers and exit
+	MOVEM.L	(SP)+,D2-D6
+	MOVE.L	D0,4(SP)		; Store return value
+	RTS
+	ENDP
+
+	END
