@@ -23,6 +23,7 @@ int hasWNEvent;
 int hasColor;
 int useColor;
 int useGarden;
+int warpMode;
 int simActive;
 UInt32 lastUpdate;
 
@@ -108,7 +109,7 @@ static void PrepareMenus(void)
 		CheckItem(menu, iColor, 0);
 	}
 	CheckItem(menu, iGarden, useGarden);
-	DisableItem(menu, iWarp);  /* Until we implement it */
+	CheckItem(menu, iWarp, warpMode);
 
 	menu = GetMenuHandle(mFile);
 	if (simActive) {
@@ -149,6 +150,7 @@ static void DetectCapabilities(void)
 	hasColor = environ.hasColorQD; /* This isn't correct, but it will do for now */
 	useColor = hasColor;
 	useGarden = 1;
+	warpMode = 0;
 }
 
 static void InitSimulation(WindowPtr wnd, unsigned long seed)
@@ -228,6 +230,9 @@ void HandleMenuEvent(WindowPtr window, long event)
 		if (item == iGarden) {
 			useGarden = !useGarden;
 		}
+		if (item == iWarp) {
+			warpMode = !warpMode;
+		}
 		break;
 	default:
 		break;
@@ -269,13 +274,14 @@ void main (void)
 
 	EvoState = NewHandleClear(sizeof(evo_state_t));
 	SetPort(wnd);
+	ClearWindow(wnd);
 	GetDateTime(&seed);
 	InitSimulation(wnd, seed);
 
 	while (!done) {
 		int doTick = 0;
 		if (hasWNEvent) {
-			if (!WaitNextEvent(everyEvent, &myEvent, 1, nil)) {
+			if (!WaitNextEvent(everyEvent, &myEvent, warpMode ? 0 : 1, nil)) {
 				doTick = 1;
 			}
 		} else {
@@ -285,16 +291,18 @@ void main (void)
 			}
 		}
 		if (doTick) {
-			if (simActive && LMGetTicks() != lastUpdate) {
-				evo_state_t *state;
-				lastUpdate = LMGetTicks();
-				HLock(EvoState);
-				state = (evo_state_t *)(*EvoState);
-				run_cycle(state);
-				if (useGarden) {
-					seed_garden(state);
-				}
-				HUnlock(EvoState);
+			if (simActive && (warpMode || (LMGetTicks() != lastUpdate))) {
+				do {
+					evo_state_t *state;
+					lastUpdate = LMGetTicks();
+					HLock(EvoState);
+					state = (evo_state_t *)(*EvoState);
+					run_cycle(state);
+					if (useGarden) {
+						seed_garden(state);
+					}
+					HUnlock(EvoState);
+				} while (warpMode && !EventAvail(everyEvent, &myEvent));
 			}
 			continue;
 		}
