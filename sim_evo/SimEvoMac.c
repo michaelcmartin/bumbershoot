@@ -347,7 +347,8 @@ void main (void)
 				break;
 			case inGoAway:
 				if (TrackGoAway(clickWnd, myEvent.where)) {
-					done = 1;
+					simActive = 0;
+					HideWindow(wnd);
 				}
 				break;
 			case inMenuBar:
