@@ -25,6 +25,7 @@ int useColor;
 int useGarden;
 int warpMode;
 int simActive;
+int simPaused;
 UInt32 lastUpdate;
 
 Handle EvoState;
@@ -108,6 +109,7 @@ static void PrepareMenus(void)
 		DisableItem(menu, iColor);
 		CheckItem(menu, iColor, 0);
 	}
+	CheckItem(menu, iPaused, simPaused);
 	CheckItem(menu, iGarden, useGarden);
 	CheckItem(menu, iWarp, warpMode);
 
@@ -151,6 +153,7 @@ static void DetectCapabilities(void)
 	useColor = hasColor;
 	useGarden = 1;
 	warpMode = 0;
+	simPaused = 0;
 }
 
 static void InitSimulation(WindowPtr wnd, unsigned long seed)
@@ -222,6 +225,9 @@ void HandleMenuEvent(WindowPtr window, long event)
 		}
 		break;
 	case mSettings:
+		if (item == iPaused) {
+			simPaused = !simPaused;
+		}
 		if (item == iColor) {
 			useColor = !useColor;
 			SetPort(window);
@@ -291,7 +297,7 @@ void main (void)
 			}
 		}
 		if (doTick) {
-			if (simActive && (warpMode || (LMGetTicks() != lastUpdate))) {
+			if (simActive && !simPaused && (warpMode || (LMGetTicks() != lastUpdate))) {
 				do {
 					evo_state_t *state;
 					lastUpdate = LMGetTicks();

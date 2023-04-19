@@ -65,6 +65,8 @@ resource 'MENU' (mSettings, preload) {
 	0b11111111111111111111111111111111,
 	enabled, "Settings",
 	{
+		"Paused",
+			noicon, nokey, nomark, plain;
 		"Color",
 			noicon, nokey, nomark, plain;
 		"Garden of Eden",

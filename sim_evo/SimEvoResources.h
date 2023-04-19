@@ -18,6 +18,7 @@
 #define	iClear					6
 
 #define mSettings				131		/* Settings menu */
-#define iColor					1
-#define iGarden					2
-#define iWarp					3
+#define iPaused					1
+#define iColor					2
+#define iGarden					3
+#define iWarp					4
