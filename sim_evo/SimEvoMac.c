@@ -98,6 +98,22 @@ static void ClearWindow(WindowPtr wnd)
 	EraseRect(&wnd->portRect);
 }
 
+/* Redraw over all the bugs so they don't partially erase each other for long */
+static void FixBugs(WindowPtr wnd)
+{
+	int i;
+	evo_state_t *state;
+	if (simActive) {
+		SetPort(wnd);
+		HLock(EvoState);
+		state = (evo_state_t *)(*EvoState);
+		for (i = 0; i < state->num_bugs; ++i) {
+			draw_bug(state->bugs[i].x, state->bugs[i].y);
+		}
+		HUnlock(EvoState);
+	}
+}
+
 static void PrepareMenus(void)
 {
 	MenuHandle menu;
@@ -326,6 +342,7 @@ void main (void)
 				}
 				break;
 			case inDrag:
+				FixBugs(wnd);
 				DragWindow(clickWnd, myEvent.where, &dragRect);
 				break;
 			case inGoAway:
@@ -334,6 +351,7 @@ void main (void)
 				}
 				break;
 			case inMenuBar:
+				FixBugs(wnd);
 				PrepareMenus();
 				HandleMenuEvent(wnd, MenuSelect(myEvent.where));
 				break;
@@ -343,6 +361,7 @@ void main (void)
 			break;
 		case keyDown:
 			if (myEvent.modifiers & cmdKey) {
+				FixBugs(wnd);
 				PrepareMenus();
 				HandleMenuEvent(wnd, MenuKey(myEvent.message & charCodeMask));
 			}
