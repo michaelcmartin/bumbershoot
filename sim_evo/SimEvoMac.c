@@ -303,7 +303,8 @@ void main (void)
 	while (!done) {
 		int doTick = 0;
 		if (hasWNEvent) {
-			if (!WaitNextEvent(everyEvent, &myEvent, warpMode ? 0 : 1, nil)) {
+			int tickWait = warpMode ? 0 : (simPaused ? 1000 : 1);
+			if (!WaitNextEvent(everyEvent, &myEvent, tickWait, nil)) {
 				doTick = 1;
 			}
 		} else {
