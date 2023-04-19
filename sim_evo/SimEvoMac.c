@@ -165,7 +165,12 @@ static void DetectCapabilities(void)
 	}
 
 	hasWNEvent = TrapAvailable(_WaitNextEvent, ToolTrap);
-	hasColor = environ.hasColorQD; /* This isn't correct, but it will do for now */
+	if (!environ.hasColorQD) {
+		/* If we don't have Color QuickDraw, we *definitely* don't have a color screen */
+		hasColor = 0;
+	} else {
+		hasColor = TestDeviceAttribute(GetMainDevice(), gdDevType);
+	}
 	useColor = hasColor;
 	useGarden = 1;
 	warpMode = 0;
