@@ -29,6 +29,7 @@ int simPaused;
 UInt32 lastUpdate;
 
 Handle EvoState;
+DialogPtr seedDialog;
 
 /* Implementations of the core simulation callbacks. */
 /* WARNING 1: EvoState must be HLocked before calling anything that calls these! */
@@ -114,6 +115,43 @@ static void FixBugs(WindowPtr wnd)
 	}
 }
 
+static void AppendULong(unsigned long val, StringPtr str)
+{
+	unsigned char buf[16];
+	unsigned char n, dest;
+	n = 0;
+	dest = str[0] + 1;
+	do {
+		buf[n++] = val % 10;
+		val /= 10;
+	} while ((val > 0) && (n < 16));
+	do {
+		str[dest++] = buf[--n] + '0';
+	} while (n > 0);
+	str[0] = dest - 1;
+}
+
+static unsigned long StrToULong(StringPtr str)
+{
+	unsigned long result = 0;
+	unsigned char i;
+	for (i = 1; i <= str[0]; ++i) {
+		if (str[i] >= '0' && str[i] <= '9') {
+			result *= 10;
+			result += str[i]-'0';
+		}
+	}
+	return result;
+}
+
+static void StrCopy(StringPtr dest, StringPtr src)
+{
+	unsigned char i;
+	for (i = 0; i <= src[0]; ++i) {
+		dest[i] = src[i];
+	}
+}
+
 static void PrepareMenus(void)
 {
 	MenuHandle menu;
@@ -136,7 +174,7 @@ static void PrepareMenus(void)
 		EnableItem(menu, iClose);
 	} else {
 		EnableItem(menu, iNew);
-		DisableItem(menu, iNewFrom);  /* Until we implement it */
+		EnableItem(menu, iNewFrom);
 		DisableItem(menu, iClose);
 	}
 }
@@ -180,6 +218,8 @@ static void DetectCapabilities(void)
 static void InitSimulation(WindowPtr wnd, unsigned long seed)
 {
 	evo_state_t *state;
+	Str255 titleStr;
+
 	ClearWindow(wnd);
 	XSSSeedRandom(seed);
 	HLock(EvoState);
@@ -188,6 +228,9 @@ static void InitSimulation(WindowPtr wnd, unsigned long seed)
 	HUnlock(EvoState);
 	simActive = 1;
 	lastUpdate = LMGetTicks();
+	StrCopy(titleStr, "\pSimulated Evolution #");
+	AppendULong(seed, titleStr);
+	SetWTitle(wnd, titleStr);
 }
 
 static void RedrawWorld(WindowPtr wnd)
@@ -235,6 +278,40 @@ void HandleMenuEvent(WindowPtr window, long event)
 			GetDateTime(&seed);
 			InitSimulation(window, seed);
 			ShowWindow(window);
+		}
+		if (item == iNewFrom) {
+			Str255 seedStr;
+			unsigned long seed;
+			Handle dlgItem;
+			short choice, dlgItemType;
+			Rect dlgItemRect;
+			GetDateTime(&seed);
+			seedStr[0] = 0;
+			AppendULong(seed, seedStr);
+			SetPort(seedDialog);
+			ForeColor(blackColor);
+			BackColor(whiteColor);
+			GetDialogItem(seedDialog, 4, &dlgItemType, &dlgItem, &dlgItemRect);
+			SetDialogItemText(dlgItem, seedStr);
+			SelectDialogItemText(seedDialog, 4, 0, 32767);
+			ShowWindow(seedDialog);
+			SelectWindow(seedDialog);
+			GetDialogItem(seedDialog, 1, &dlgItemType, &dlgItem, &dlgItemRect);
+			PenSize(3,3);
+			InsetRect(&dlgItemRect, -4, -4);
+			FrameRoundRect(&dlgItemRect, 16, 16);
+			PenSize(1,1);
+			do {
+				ModalDialog(nil, &choice);
+			} while (choice != 1 & choice != 2);
+			HideWindow(seedDialog);
+			if (choice == 1) {
+				GetDialogItem(seedDialog, 4, &dlgItemType, &dlgItem, &dlgItemRect);
+				GetDialogItemText(dlgItem, seedStr);
+				seed = StrToULong(seedStr);
+				InitSimulation(window, seed);
+				ShowWindow(window);
+			}
 		}
 		if (item == iClose) {
 			simActive = 0;
@@ -298,6 +375,7 @@ void main (void)
 
 	wnd = NewWindow(nil, &windowRect, "\pSimulated Evolution", true,
 			noGrowDocProc, (WindowPtr)-1L, true, 0);
+	seedDialog = GetNewDialog(rNewFrom, nil, nil);
 
 	EvoState = NewHandleClear(sizeof(evo_state_t));
 	SetPort(wnd);

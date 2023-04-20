@@ -1,5 +1,6 @@
 #define	rMenuBar	128				/* application's menu bar */
 #define rAboutAlert	128				/* The About dialog */
+#define rNewFrom	129				/* The "New From Seed" dialog */
 
 #define	mApple					128		/* Apple menu */
 #define	iAbout					1

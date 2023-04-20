@@ -113,6 +113,37 @@ resource 'DITL' (rAboutAlert, purgeable) {
 	}
 };
 
+resource 'DLOG' (rNewFrom, "New From Seed…") {
+	{ 40, 40, 125, 340 },
+	dboxProc, invisible, noGoAway, 0x0, rNewFrom, "New From Seed", centerMainScreen
+};
+
+resource 'DITL' (rNewFrom, purgeable) {
+	{
+		/* [1] */
+		{ 52, 207, 72, 287 },
+		Button {
+			Enabled, "OK"
+		},
+		/* [2] */
+		{ 52, 114, 72, 194 },
+		Button {
+			Enabled, "Cancel"
+		},
+		/* [3] */
+		{ 13, 13, 29, 128 },
+		StaticText {
+			disabled,
+			"Simulation Seed:"
+		},
+		/* [4] */
+		{ 13, 141, 29, 287 },
+		EditText {
+			enabled, ""
+		},
+	}
+};
+
 /* Bundle/Icon information */
 
 /*
