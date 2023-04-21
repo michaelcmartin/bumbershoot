@@ -254,6 +254,23 @@ static void RedrawWorld(WindowPtr wnd)
 	HUnlock(EvoState);
 }
 
+static pascal Boolean SeedDialogFilter(DialogRef theDialog, EventRecord *theEvent, DialogItemIndex *itemHit)
+{
+	if (theEvent->what == keyDown && !(theEvent->modifiers & cmdKey)) {
+		char c = theEvent->message & charCodeMask;
+		if (c == 0x0D) {   /* RETURN hit? */
+			if (itemHit) *itemHit = 1;   /* If so, that's ENTER */
+			return TRUE;
+		}
+		if ((c >= 32 && c < '0') || (c > '9' && c <= 255)) {
+			/* Typed a key that they shouldn't have typed */
+			theEvent->message = nullEvent;
+		}
+	}
+	(void)theDialog; /* Unused argument */
+	return FALSE;
+}
+
 void HandleMenuEvent(WindowPtr window, long event)
 {
 	int item = LoWord(event);
@@ -302,7 +319,7 @@ void HandleMenuEvent(WindowPtr window, long event)
 			FrameRoundRect(&dlgItemRect, 16, 16);
 			PenSize(1,1);
 			do {
-				ModalDialog(nil, &choice);
+				ModalDialog(SeedDialogFilter, &choice);
 			} while (choice != 1 & choice != 2);
 			HideWindow(seedDialog);
 			if (choice == 1) {
