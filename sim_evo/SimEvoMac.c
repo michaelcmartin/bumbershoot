@@ -256,7 +256,7 @@ static void RedrawWorld(WindowPtr wnd)
 
 static pascal Boolean SeedDialogFilter(DialogRef theDialog, EventRecord *theEvent, DialogItemIndex *itemHit)
 {
-	if (theEvent->what == keyDown && !(theEvent->modifiers & cmdKey)) {
+	if (theEvent->what == keyDown) {
 		char c = theEvent->message & charCodeMask;
 		if (c == 0x0D) {   /* RETURN hit? */
 			if (itemHit) *itemHit = 1;   /* If so, that's ENTER */
