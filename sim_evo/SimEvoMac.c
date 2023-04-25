@@ -117,14 +117,14 @@ static void FixBugs(WindowPtr wnd)
 
 static void AppendULong(unsigned long val, StringPtr str)
 {
-	unsigned char buf[16];
+	unsigned char buf[20];
 	unsigned char n, dest;
 	n = 0;
 	dest = str[0] + 1;
 	do {
 		buf[n++] = val % 10;
 		val /= 10;
-	} while ((val > 0) && (n < 16));
+	} while ((val > 0) && (n < 20));
 	do {
 		str[dest++] = buf[--n] + '0';
 	} while (n > 0);
