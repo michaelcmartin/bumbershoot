@@ -254,23 +254,6 @@ static void RedrawWorld(WindowPtr wnd)
 	HUnlock(EvoState);
 }
 
-static pascal Boolean SeedDialogFilter(DialogRef theDialog, EventRecord *theEvent, DialogItemIndex *itemHit)
-{
-	if (theEvent->what == keyDown) {
-		char c = theEvent->message & charCodeMask;
-		if (c == 0x0D) {   /* RETURN hit? */
-			if (itemHit) *itemHit = 1;   /* If so, that's ENTER */
-			return TRUE;
-		}
-		if ((c >= 32 && c < '0') || (c > '9' && c <= 255)) {
-			/* Typed a key that they shouldn't have typed */
-			theEvent->message = nullEvent;
-		}
-	}
-	(void)theDialog; /* Unused argument */
-	return FALSE;
-}
-
 void HandleMenuEvent(WindowPtr window, long event)
 {
 	int item = LoWord(event);
@@ -319,7 +302,35 @@ void HandleMenuEvent(WindowPtr window, long event)
 			FrameRoundRect(&dlgItemRect, 16, 16);
 			PenSize(1,1);
 			do {
-				ModalDialog(SeedDialogFilter, &choice);
+				ModalDialog(nil, &choice);
+				if (choice == 4) {
+					int i, n, s, e, s0, e0;
+					TEPtr textEdit;
+					/* User did something to the text box; revalidate */
+					GetDialogItem(seedDialog, 4, &dlgItemType, &dlgItem, &dlgItemRect);
+					GetDialogItemText(dlgItem, seedStr);
+					textEdit = *(((DialogPeek)seedDialog)->textH);
+					i = 1;
+					n = 1;
+					s = textEdit->selStart;
+					e = textEdit->selEnd;
+					s0 = s;
+					e0 = e;
+					while (n <= seedStr[0]) {
+						if (seedStr[n] >= '0' && seedStr[n] <= '9') {
+							seedStr[i++] = seedStr[n];
+						} else {
+							if (n <= s0) --s;
+							if (n <= e0) --e;
+						}
+						++n;
+					}
+					if (i != n) {
+						seedStr[0] = i-1;
+						SetDialogItemText(dlgItem, seedStr);
+						SelectDialogItemText(seedDialog, 4, s, e);
+					}
+				}
 			} while (choice != 1 & choice != 2);
 			HideWindow(seedDialog);
 			if (choice == 1) {
