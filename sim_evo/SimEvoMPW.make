@@ -5,8 +5,7 @@ simEvoObs	= SimEvoMac.c.o SimEvo.c.o SimEvoUtil.a.o
 sharedLibs	= "{Libraries}"Interface.o ∂
 			  "{Libraries}"MacRuntime.o
 
-# Add `-a B` to SetFile once it gets a bundle
 SimEvo	ƒƒ	{simEvoObs} SimEvo.r
 	Link -o {Targ} {simEvoObs} {sharedLibs} -sym off
 	Rez -rd -append -o {Targ} SimEvo.r
-	SetFile {Targ} -t APPL -c 'BbSE'
+	SetFile {Targ} -t APPL -c 'BbSE' -a B
