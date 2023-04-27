@@ -331,7 +331,7 @@ void HandleMenuEvent(WindowPtr window, long event)
 						SelectDialogItemText(seedDialog, 4, s, e);
 					}
 				}
-			} while (choice != 1 & choice != 2);
+			} while (choice != 1 && choice != 2);
 			HideWindow(seedDialog);
 			if (choice == 1) {
 				GetDialogItem(seedDialog, 4, &dlgItemType, &dlgItem, &dlgItemRect);
