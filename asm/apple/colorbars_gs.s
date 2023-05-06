@@ -28,10 +28,14 @@
         plb
 
         ;; Clear the screen, set 320/palette 0 across the board
-        ldx     #$7dc7
-:       stz     $2000,x
-        dex
-        bpl     :-
+        lda     #$7d
+        xba
+        lda     #$c7
+        stz     $2000
+        ldx     #$2000
+        txy
+        iny
+        mvn     #$e1,#$e1
 
         ;; Load palettes
         ldx     #$003f
