@@ -15,75 +15,62 @@
         clc
         xce
         rep     #$10
-        sep     #$20
 
         ;; Enter Super Hi-Res mode
         lda     #$c0
         tsb     $c029
 
-        ;; Save original data bank, change it to $E1
-        phb
-        lda     #$e1
-        pha
-        plb
-
         ;; Clear the screen, set 320/palette 0 across the board
-        lda     #$7d
-        xba
-        lda     #$c7
-        stz     $2000
+        lda     #$00
         ldx     #$2000
-        txy
-        iny
-        mvn     #$e1,#$e1
+        ldy     #$7dc8
+        jsr     slab
 
         ;; Load palettes
-        ldx     #$003f
-:       lda     f:palettes,x
-        sta     $9e00,x
-        dex
-        bpl     :-
+        .a16
+        phb                     ; MVN trashes DBR
+        rep     #$20
+        lda     #$003f
+        ldx     #palettes
+        ldy     #$9e00
+        mvn     #$00,#$e1
+        sep     #$20
+        plb                     ; Restore DBR
+        .a8
 
         ;; Draw the color bars
-        ldx     #$00c8          ; Line count
-        ldy     #$0000          ; Screen pointer
-line:   phx
+        ldy     #$00c8          ; Line count
+        ldx     #$2000          ; Screen pointer
+line:   phy
         lda     #$00
-bar:    ldx     #$000a
-:       sta     $2000, y
-        iny
-        dex
-        bne     :-
+bar:    ldy     #$000a
+        jsr     slab
         clc
         adc     #$11
         bcc     bar
-        plx
-        dex
+        ply
+        dey
         bne     line
 
         jsr     key
 
         ;; Swap to other palette
-        ldx     #$00c7
         lda     #$01
-:       sta     $9d00,x
-        dex
-        bpl     :-
-
+        ldx     #$9d00
+        ldy     #$00c8
+        jsr     slab
         jsr     key
 
         ;; Split-screen palette
-        ldx     #$0063
-:       stz     $9d00,x
-        dex
-        bpl     :-
-
+        lda     #$00
+        ldx     #$9d00
+        ldy     #$0064
+        jsr     slab
         jsr     key
 
-        ;; Leave super-high-res, restore data bank and emulation mode
+        ;; Leave super-high-res, restore emulation mode
         lda     #$c0
         trb     $c029
-        plb
         sec
         xce
 
@@ -99,6 +86,26 @@ bar:    ldx     #$000a
 key:    bit     $c000
         bpl     key
         bit     $c010
+        rts
+
+        ;; Blit Y (16) copies of A (8) to X (16) in bank E1.
+        ;; A and Y are unchanged; X points just past the last byte written.
+slab:   sta     $e10000,x
+        phb                     ; MVN trashes DBR
+        pha
+        phy
+        rep     #$20
+        tya
+        dec     a
+        dec     a
+        txy
+        iny
+        mvn     #$e1,#$e1
+        tyx
+        sep     #$20
+        ply
+        pla
+        plb
         rts
 
 palettes:
