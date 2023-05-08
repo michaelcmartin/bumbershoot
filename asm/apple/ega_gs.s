@@ -4,93 +4,95 @@
 ;;;      ca65 ega_gs.s && ld65 -t none -o EGA.GRID#ff2000 ega_gs.o
 ;;; ----------------------------------------------------------------------
         .p816
-        .a8
+        .a16
         .i16
         .org    $2000
 
-        ;; Leave emulation mode, 8-bit accumulator/memory, 16-bit indices
-        clc
+        ;; Initial setup
+        clc                     ; Leave emulation mode
         xce
-        phb
-        rep     #$10
+        rep     #$30            ; 16-bit everything during startup
+        tsx                     ; Extract 6502 stack pointer
+        lda     #$0fff          ; Reassign stack to pages 09-0F
+        tcs
+        phx                     ; Save 6502 stack at top of new stack
+        phd                     ; Save original direct page
+        phb                     ; and data bank
+        lda     #$0800          ; Change direct page to $0800
+        tcd
 
-        ;; Enter Super Hi-Res mode
-        lda     #$c0
-        tsb     $c029
+        ;; Load 9 palettes, set data bank to #$E1
+        lda     #$011f
+        ldx     #palettes
+        ldy     #$9e00
+        mvn     #$00,#$e1
 
         ;; Clear the screen
-        lda     #$00
-        sta     $e12000
-        rep     #$20
-        .a16
+        stz     $2000
         lda     #$7cfe
         ldx     #$2000
         txy
         iny
         mvn     #$e1,#$e1
 
-        ;; Load 9 palettes
-        lda     #$011f
-        ldx     #palettes
-        ldy     #$9e00
-        mvn     #$00,#$e1
-        sep     #$20
+        sep     #$20            ; A8 mode for main program logic
         .a8
+
+        lda     #$c0            ; Enter Super High-Res mode
+        tsb     $c029
 
         ;; Select the control codes for each line: $80 for the top and
         ;; bottom 8, then 23 lines of 1-8 each. Two lines of 80-col
         ;; text, and the rest is 16-color graphics
         lda     #$80
         ldx     #$0000
-        ldy     #8
-:       sta     $9d00,x
-        sta     $9dc0,x
+        ldy     #$0008
+:       sta     $9d00,x         ; Lines 0-7
+        sta     $9dc0,x         ; Lines 192-199
         inx
         dey
         bne     :-
 
         lda     #$01            ; .X is 8 here, which we want
-:       ldy     #23
+:       ldy     #23             ; 23 lines per block
 :       sta     $9d00,x
         inx
         dey
         bne     :-
-        inc     a
-        cmp     #$09
-        bne     :--
+        inc     a               ; Next block has next palette
+        cmp     #$09            ; Have we done all 8?
+        bne     :--             ; If not, next block
 
-        ;; Thanks to the last MVN instruction, the DBR is now
-        ;; #$E1. Fortunately for us, that's exactly where we want it!
-
-        ldy     #64
-        ldx     #$05b1
-        lda     #$11
+        ;; Draw the EGA grid
+        ldy     #64             ; 64 boxes to draw
+        ldx     #$05b1          ; Starting at (34, 9)
+        lda     #$11            ; And fill color 1
 draw_grid:
-        jsr     box
-        clc
+        jsr     box             ; Draw one box
+        clc                     ; Advance to next color
         adc     #$11
-        cmp     #$99
-        bne     @right
-        rep     #$21
+        cmp     #$99            ; Have we done all 8?
+        bne     @right          ; If so, move right
+        rep     #$21            ; Otherwise move down. A16, CLC.
         .a16
-        txa
+        txa                     ; .X += (160*23) - (16*7)
         adc     #$df0
         tax
         sep     #$20
         .a8
-        lda     #$11
+        lda     #$11            ; And reset to color 1 for next row
         bra     @next
-@right: pha
-        rep     #$21
+@right: pha                     ; Stash 8-bit color
+        rep     #$21            ; A16 and CLC
         .a16
-        txa
+        txa                     ; .X += 16 (move right)
         adc     #$0010
         tax
         sep     #$20
         .a8
-        pla
-@next:  dey
-        bne     draw_grid
+        pla                     ; Restore 8-bit color value
+@next:  dey                     ; Have we drawn all 64?
+        bne     draw_grid       ; If not, back we go
 
         ;; Wait for keypress
 :       bit     $c000
@@ -102,15 +104,18 @@ draw_grid:
         trb     $c029
 
         ;; Back to ProDOS
-        plb
-        sec
+        plb                     ; Restore DBR
+        pld                     ; Restore Direct Page
+        pla                     ; Restore original stack
+        tcs
+        sec                     ; Resume emulation mode
         xce
-	jsr	$bf00
-	.byte	$65
-	.word	:+
-	brk				; Unreachable
-:       .byte	4
-	.byte	0, 0, 0, 0, 0, 0
+        jsr     $bf00           ; ProDOS QUIT call
+        .byte   $65
+        .word   :+
+        brk                     ; Unreachable
+:       .byte   4               ; ProDOS QUIT params
+        .byte   0, 0, 0, 0, 0, 0
 
 ;;; Draw a bordered box with fill pattern .A(8) at screen address
 ;;; .X(16).
