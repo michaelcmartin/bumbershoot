@@ -96,6 +96,20 @@ draw_grid:
 @next:  dey                     ; Have we drawn all 64?
         bne     draw_grid       ; If not, back we go
 
+        ;; Draw the header and footer text
+        ldx     #$0022
+        ldy     #header
+        jsr     drawstr_80
+
+        lda     #$00
+        ldx     #$7810
+:       pha
+        jsr     drawchar_40
+        pla
+        inc     a
+        cmp     #32
+        bne     :-
+
         ;; Wait for keypress
 :       bit     $c000
         bpl     :-
@@ -163,6 +177,130 @@ box:    phy
         ply
         rts
 
+;;; ----------------------------------------------------------------------
+;;;   Text drawing routines
+;;; ----------------------------------------------------------------------
+
+        ;; Direct page locations used by the system
+        row_count := $00
+        char_row  := $01
+        str_ptr   := $02
+
+drawstr_80:
+        phy
+        sty     str_ptr
+        lda     #$00
+        sta     str_ptr+2
+        ldy     #$0000
+:       lda     [str_ptr],y
+        bmi     @done
+        jsr     drawchar_80
+        iny
+        bra     :-
+@done:  ply
+        rts
+
+charaddr:
+        rep     #$20
+        .a16
+        and     #$ff
+        asl     a               ; Y = A * 8
+        asl     a
+        asl     a
+        tax
+        sep     #$20
+        .a8
+        rts
+
+drawchar_80:
+        phx
+        phy
+        txy
+        jsr     charaddr
+        lda     #$08
+        sta     row_count
+:       lda     f:font,x
+        sta     char_row
+        jsr     @decode_byte
+        jsr     @decode_byte
+        rep     #$20
+        .a16
+        tya
+        clc
+        adc     #158
+        tay
+        sep     #$20
+        .a8
+        inx
+        dec     row_count
+        bne     :-
+        ply
+        plx
+        inx
+        inx
+        rts
+@decode_byte:
+        lda     #$00
+        asl     char_row
+        bcc     :+
+        ora     #$C0
+:       asl     char_row
+        bcc     :+
+        ora     #$30
+:       asl     char_row
+        bcc     :+
+        ora     #$0C
+:       asl     char_row
+        bcc     :+
+        ora     #$03
+:       sta     $2000,y
+        iny
+        rts
+
+drawchar_40:
+        phx
+        phy
+        txy
+        jsr     charaddr
+        lda     #$08
+        sta     row_count
+:       lda     f:font,x
+        sta     char_row
+        jsr     @decode_byte
+        jsr     @decode_byte
+        jsr     @decode_byte
+        jsr     @decode_byte
+        rep     #$20
+        .a16
+        tya
+        clc
+        adc     #156
+        tay
+        sep     #$20
+        .a8
+        inx
+        dec     row_count
+        bne     :-
+        ply
+        plx
+        inx
+        inx
+        inx
+        inx
+        rts
+@decode_byte:
+        lda     #$00
+        asl     char_row
+        bcc     :+
+        ora     #$F0
+:       asl     char_row
+        bcc     :+
+        ora     #$0F
+:       ora     $2000,y
+        sta     $2000,y
+        iny
+        rts
+
 palettes:
         ;; Palette 0: For our 640x480 mode, black-red-green-white
         .word   $0000,$0f00,$00f0,$0fff,$0000,$0f00,$00f0,$0fff
@@ -186,3 +324,24 @@ palettes:
         .word   $0ffa,$0000,$0000,$0000,$0000,$0000,$0000,$0fff
         .word   $0000,$0555,$055f,$05f5,$05ff,$0f55,$0f5f,$0ff5
         .word   $0fff,$0000,$0000,$0000,$0000,$0000,$0000,$0fff
+
+.macro  scrcode arg
+        .repeat .strlen(arg), i
+        .if     (.strat(arg, i) < 32) || (.strat(arg, i) >= 96)
+                .error "Illegal character in scrcode string"
+        .elseif     .strat(arg, i) >= 64
+                .byte .strat(arg,i) - 64
+        .else
+                .byte .strat(arg,i)
+        .endif
+        .endrep
+.endmacro
+
+header: scrcode "FLEXING ON DOS-EGA GRAPHICS WHILE WE STILL CAN"
+        .byte 255
+
+        ;; Font table. This is an 1-bit font definition that uses the
+        ;; C64 screen code order, so we'll need to do some translation
+        ;; to actually get anywhere with this. char4 and char16 (above)
+        ;; manage that feat.
+font:   .include "../fonts/sinestra.s"
