@@ -40,6 +40,8 @@
 
         lda     #$c0            ; Enter Super High-Res mode
         tsb     $c029
+        lda     #$0f            ; Black border
+        trb     $c034
 
         ;; Select the control codes for each line: $80 for the top and
         ;; bottom 8, then 23 lines of 1-8 each. Two lines of 80-col
