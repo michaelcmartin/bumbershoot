@@ -97,18 +97,20 @@ draw_grid:
         bne     draw_grid       ; If not, back we go
 
         ;; Draw the header and footer text
-        ldx     #$0022
+        ldx     #$001b
         ldy     #header
         jsr     drawstr_80
 
-        lda     #$00
-        ldx     #$7810
-:       pha
+        ldx     #$7828
+        ldy     #footer
+        jsr     drawstr_80
+
+        ;; Label grid entries
+        lda     #$33
+        ldx     #$6f24
         jsr     drawchar_40
-        pla
-        inc     a
-        cmp     #32
-        bne     :-
+        lda     #$06
+        jsr     drawchar_40
 
         ;; Wait for keypress
 :       bit     $c000
@@ -335,11 +337,11 @@ palettes:
                 .byte .strat(arg,i)
         .endif
         .endrep
+        .byte   255
 .endmacro
 
-header: scrcode "FLEXING ON DOS-EGA GRAPHICS WHILE WE STILL CAN"
-        .byte 255
-
+header: scrcode "FLEXING ON IBM PC GRAPHICS IN 1986 WHILE WE STILL CAN"
+footer: scrcode "80-COLUMN TEXT WITH ALL 64 EGA COLORS!!!"
         ;; Font table. This is an 1-bit font definition that uses the
         ;; C64 screen code order, so we'll need to do some translation
         ;; to actually get anywhere with this. char4 and char16 (above)
