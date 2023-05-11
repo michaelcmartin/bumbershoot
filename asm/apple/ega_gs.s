@@ -106,11 +106,40 @@ draw_grid:
         jsr     drawstr_80
 
         ;; Label grid entries
-        lda     #$33
-        ldx     #$6f24
+        ldx     #$0a14
+        lda     #$00            ; Clear entire 16-bit accumulator
+        xba
+        lda     #$00
+labels: pha
+        lsr                     ; Extract high nybble
+        lsr
+        lsr
+        lsr
+        jsr     tohex
         jsr     drawchar_40
-        lda     #$06
+        lda     1,s             ; Recover without popping
+        and     #$0f
+        jsr     tohex
         jsr     drawchar_40
+        lda     1,s             ; Recover again
+        and     #$07            ; End of line?
+        cmp     #$07
+        rep     #$21            ; 16-bit accumulator for address sums
+        .a16
+        beq     :+
+        txa                     ; Not end of line:
+        adc     #8              ; Move one box right
+        bra     :++
+:       txa                     ; End of line:
+        adc     #$de8           ; Move one box down and seven left
+:       tax
+        lda     #$0000          ; Clear out B again
+        sep     #$20            ; Before returning to 8-bit
+        .a8
+        pla                     ; Recover box index
+        inc     a               ; next index
+        cmp     #64             ; All 64 done?
+        bne     labels          ; If not, continue
 
         ;; Wait for keypress
 :       bit     $c000
@@ -303,6 +332,13 @@ drawchar_40:
         iny
         rts
 
+tohex:  clc
+        adc     #$30
+        cmp     #$3A
+        bcc     :+
+        sbc     #$39
+:       rts
+
 palettes:
         ;; Palette 0: For our 640x480 mode, black-red-green-white
         .word   $0000,$0f00,$00f0,$0fff,$0000,$0f00,$00f0,$0fff
@@ -342,6 +378,7 @@ palettes:
 
 header: scrcode "FLEXING ON IBM PC GRAPHICS IN 1986 WHILE WE STILL CAN"
 footer: scrcode "80-COLUMN TEXT WITH ALL 64 EGA COLORS!!!"
+
         ;; Font table. This is an 1-bit font definition that uses the
         ;; C64 screen code order, so we'll need to do some translation
         ;; to actually get anywhere with this. char4 and char16 (above)
