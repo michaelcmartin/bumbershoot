@@ -3,41 +3,32 @@
 *   Build with Ophis and Merlin 32:
 *     $ ophis ../fonts/sinestra.s -o sinestra.bin
 *     $ merlin32 ega_gs.s
-*     $ rename EGA ega#ff2000
+*     $ rename EGA ega#b30000
 **********************************************************************
-              DSK     EGA
-              TYP     $FF
-              ORG     $2000
+              MX      %00              ; Full 16-bit mode
+              REL
+              LNK     EGA.l
 
-START         CLC                   ; Leave emulation mode
-              XCE
-              REP     #$30          ; 16-bit everything during startup
-              TSX                   ; Extract 6502 stack pointer
-              LDA     #$0FFF        ; Reassign stack to pages 09-0F
-              TCS
-              PHX                   ; Save 6502 stack at top of new stack
-              PHD                   ; Save original direct page
-              PHB                   ; and data bank
-              LDA     #$0800        ; Change direct page to $0800
-              TCD
-
-              LDA     #$011F        ; Load 9 palettes
+START         LDA     #$011F           ; Load 9 palettes
               LDX     #PALETTES
               LDY     #$9E00
-              MVN     #$00,#$E1     ; and set data bank to #$E1
+              MVN     #^PALETTES,#$E1  ; and set data bank to #$E1
 
-              STZ     $2000         ; Clear the screen
+              STZ     $2000            ; Clear the screen
               LDA     #$7CFE
               LDX     #$2000
               TXY
               INY
               MVN     #$E1,#$E1
 
-              SEP     #$20          ; A8 mode for main program logic
+              SEP     #$20             ; A8 mode for main program logic
 
-              LDA     #$C0          ; Enter Super High-Res mode
+              LDA     #$C0             ; Enter Super High-Res mode
               TSB     $C029
-              LDA     #$0F          ; Black border
+              LDA     $C034            ; Load current border color
+              AND     #$0F             ; Mask to only border color
+              PHA                      ; Save to end of program
+              LDA     #$0F             ; Set border color to black
               TRB     $C034
 
 *** Select the control codes for each line: $80 for the top and
@@ -46,48 +37,48 @@ START         CLC                   ; Leave emulation mode
               LDA     #$80
               LDX     #$0000
               LDY     #$0008
-:1            STA     $9D00,X       ; Lines 0-7
-              STA     $9DC0,X       ; Lines 192-199
+:1            STA     $9D00,X          ; Lines 0-7
+              STA     $9DC0,X          ; Lines 192-199
               INX
               DEY
               BNE     :1
 
-              LDA     #$01          ; .X is 8 here, which we want
-:2            LDY     #23           ; 23 lines per block
+              LDA     #$01             ; .X is 8 here, which we want
+:2            LDY     #23              ; 23 lines per block
 :3            STA     $9D00,X
               INX
               DEY
               BNE     :3
-              INC                   ; Next block has next palette
-              CMP     #$09          ; Have we done all 8?
-              BNE     :2            ; If not, next block
+              INC                      ; Next block has next palette
+              CMP     #$09             ; Have we done all 8?
+              BNE     :2               ; If not, next block
 
 *** Draw the EGA grid
-              LDY     #64           ; 64 boxes to draw
-              LDX     #$05B1        ; Starting at (34, 9)
-              LDA     #$11          ; And fill color 1
+              LDY     #64              ; 64 boxes to draw
+              LDX     #$05B1           ; Starting at (34, 9)
+              LDA     #$11             ; And fill color 1
 DRAW_GRID
-              JSR     BOX           ; Draw one box
-              CLC                   ; Advance to next color
+              JSR     BOX              ; Draw one box
+              CLC                      ; Advance to next color
               ADC     #$11
-              CMP     #$99          ; Have we done all 8?
-              BNE     :RIGHT        ; If so, move right
-              REP     #$21          ; Otherwise move down. A16, CLC.
-              TXA                   ; .X += (160*23) - (16*7)
+              CMP     #$99             ; Have we done all 8?
+              BNE     :RIGHT           ; If so, move right
+              REP     #$21             ; Otherwise move down. A16, CLC.
+              TXA                      ; .X += (160*23) - (16*7)
               ADC     #$DF0
               TAX
               SEP     #$20
-              LDA     #$11          ; And reset to color 1 for next row
+              LDA     #$11             ; And reset to color 1 for next row
               BRA     :NEXT
-:RIGHT        PHA                   ; Stash 8-bit color
-              REP     #$21          ; A16 and CLC
-              TXA                   ; .X += 16 (move right)
+:RIGHT        PHA                      ; Stash 8-bit color
+              REP     #$21             ; A16 and CLC
+              TXA                      ; .X += 16 (move right)
               ADC     #$0010
               TAX
               SEP     #$20
-              PLA                   ; Restore 8-bit color value
-:NEXT         DEY                   ; Have we drawn all 64?
-              BNE     DRAW_GRID     ; If not, back we go
+              PLA                      ; Restore 8-bit color value
+:NEXT         DEY                      ; Have we drawn all 64?
+              BNE     DRAW_GRID        ; If not, back we go
 
 *** Draw the header and footer text
               LDX     #$001B
@@ -102,54 +93,47 @@ DRAW_GRID
               LDX     #$0A14
               LDA     #$00
 LABELS        PHA
-              LSR                   ; Extract high nybble
+              LSR                      ; Extract high nybble
               LSR
               LSR
               LSR
               JSR     TOHEX
               JSR     DRAWCHAR_40
-              LDA     1,S           ; Recover without popping
+              LDA     1,S              ; Recover without popping
               AND     #$0F
               JSR     TOHEX
               JSR     DRAWCHAR_40
-              LDA     1,S           ; Recover again
-              AND     #$07          ; End of line?
+              LDA     1,S              ; Recover again
+              AND     #$07             ; End of line?
               CMP     #$07
-              REP     #$21          ; 16-bit accumulator for address sums
+              REP     #$21             ; 16-bit accumulator for address sums
               BEQ     :4
-              TXA                   ; Not end of line:
-              ADC     #8            ; Move one box right
+              TXA                      ; Not end of line:
+              ADC     #8               ; Move one box right
               BRA     :5
-:4            TXA                   ; End of line:
-              ADC     #$DE8         ; Move one box down and seven left
-:5            TAX                   ; Pass back the address
-              SEP     #$20          ; and return to 8-bit
-              PLA                   ; Recover box index
-              INC                   ; next index
-              CMP     #64           ; All 64 done?
-              BNE     LABELS        ; If not, continue
+:4            TXA                      ; End of line:
+              ADC     #$DE8            ; Move one box down and seven left
+:5            TAX                      ; Pass back the address
+              SEP     #$20             ; and return to 8-bit
+              PLA                      ; Recover box index
+              INC                      ; next index
+              CMP     #64              ; All 64 done?
+              BNE     LABELS           ; If not, continue
 
-:6            BIT     $C000         ; Wait for keypress
+:6            BIT     $C000            ; Wait for keypress
               BPL     :6
               BIT     $C010
 
-              LDA     #$C0          ; Leave Super Hi-Res mode
-              TRB     $C029
+              PLA                      ; Recover border color
+              TSB     $C034            ; And set it back to what it was
 
-*** Back to ProDOS
-              PLB                   ; Restore DBR
-              PLD                   ; Restore Direct Page
-              PLA                   ; Restore original stack
-              TCS
-              SEC                   ; Resume emulation mode
-              XCE
-              JSR     $BF00         ; ProDOS QUIT call
-              DFB     $65
-              DA      :7
-              BRK                   ; Unreachable
-:7            DFB     4             ; ProDOS QUIT params
-              DFB     0,0,0,0,0,0
-              MX      %10           ; Fix register widths
+*** Back to GS/OS
+              JSL     $E100A8          ; GS/OS QUIT call
+              DA      $29
+              ADRL    :7
+              BRK                      ; Unreachable
+:7            ADRL    0                ; GS/OS QUIT params
+              DA      0
 
 *** Draw a bordered box with fill pattern .A(8) at screen address
 *** .X(16).
@@ -206,7 +190,8 @@ STR_PTR       DS      3
 
 DRAWSTR_80    PHY
               STY     STR_PTR
-              LDA     #$00
+              PHK                      ; String pointers are in the program bank
+              PLA
               STA     STR_PTR+2
               LDY     #$0000
 :1            LDA     [STR_PTR],Y
@@ -219,7 +204,7 @@ DRAWSTR_80    PHY
 
 CHARADDR      REP     #$20
               AND     #$FF
-              ASL                   ; X = A * 8
+              ASL                      ; X = A * 8
               ASL
               ASL
               TAX
@@ -352,6 +337,3 @@ FOOTER        INV     '80-COLUMN TEXT WITH ALL 64 EGA COLORS!!!'
 *** coincidence, that happens to perfectly match Apple II inverse
 *** text order, so the INV directive will handle any conversions.
 FONT          PUTBIN  sinestra.bin
-
-
-
