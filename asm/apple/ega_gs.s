@@ -1,392 +1,357 @@
-;;; ----------------------------------------------------------------------
-;;;   EGA demo screen for the Apple IIgs
-;;;   Build with this command:
-;;;      ca65 ega_gs.s && ld65 -t none -o EGA.GRID#ff2000 ega_gs.o
-;;; ----------------------------------------------------------------------
-        .p816
-        .a16
-        .i16
-        .org    $2000
+**********************************************************************
+*   EGA demo screen for the Apple IIgs
+*   Build with Ophis and Merlin 32:
+*     $ ophis ../fonts/sinestra.s -o sinestra.bin
+*     $ merlin32 ega_gs.s
+*     $ rename EGA ega#ff2000
+**********************************************************************
+              DSK     EGA
+              TYP     $FF
+              ORG     $2000
 
-        ;; Initial setup
-        clc                     ; Leave emulation mode
-        xce
-        rep     #$30            ; 16-bit everything during startup
-        tsx                     ; Extract 6502 stack pointer
-        lda     #$0fff          ; Reassign stack to pages 09-0F
-        tcs
-        phx                     ; Save 6502 stack at top of new stack
-        phd                     ; Save original direct page
-        phb                     ; and data bank
-        lda     #$0800          ; Change direct page to $0800
-        tcd
+START         CLC                   ; Leave emulation mode
+              XCE
+              REP     #$30          ; 16-bit everything during startup
+              TSX                   ; Extract 6502 stack pointer
+              LDA     #$0FFF        ; Reassign stack to pages 09-0F
+              TCS
+              PHX                   ; Save 6502 stack at top of new stack
+              PHD                   ; Save original direct page
+              PHB                   ; and data bank
+              LDA     #$0800        ; Change direct page to $0800
+              TCD
 
-        ;; Load 9 palettes, set data bank to #$E1
-        lda     #$011f
-        ldx     #palettes
-        ldy     #$9e00
-        mvn     #$00,#$e1
+              LDA     #$011F        ; Load 9 palettes
+              LDX     #PALETTES
+              LDY     #$9E00
+              MVN     #$00,#$E1     ; and set data bank to #$E1
 
-        ;; Clear the screen
-        stz     $2000
-        lda     #$7cfe
-        ldx     #$2000
-        txy
-        iny
-        mvn     #$e1,#$e1
+              STZ     $2000         ; Clear the screen
+              LDA     #$7CFE
+              LDX     #$2000
+              TXY
+              INY
+              MVN     #$E1,#$E1
 
-        sep     #$20            ; A8 mode for main program logic
-        .a8
+              SEP     #$20          ; A8 mode for main program logic
 
-        lda     #$c0            ; Enter Super High-Res mode
-        tsb     $c029
-        lda     #$0f            ; Black border
-        trb     $c034
+              LDA     #$C0          ; Enter Super High-Res mode
+              TSB     $C029
+              LDA     #$0F          ; Black border
+              TRB     $C034
 
-        ;; Select the control codes for each line: $80 for the top and
-        ;; bottom 8, then 23 lines of 1-8 each. Two lines of 80-col
-        ;; text, and the rest is 16-color graphics
-        lda     #$80
-        ldx     #$0000
-        ldy     #$0008
-:       sta     $9d00,x         ; Lines 0-7
-        sta     $9dc0,x         ; Lines 192-199
-        inx
-        dey
-        bne     :-
+*** Select the control codes for each line: $80 for the top and
+*** bottom 8, then 23 lines of 1-8 each. Two lines of 80-col
+*** text, and the rest is 16-color graphics
+              LDA     #$80
+              LDX     #$0000
+              LDY     #$0008
+:1            STA     $9D00,X       ; Lines 0-7
+              STA     $9DC0,X       ; Lines 192-199
+              INX
+              DEY
+              BNE     :1
 
-        lda     #$01            ; .X is 8 here, which we want
-:       ldy     #23             ; 23 lines per block
-:       sta     $9d00,x
-        inx
-        dey
-        bne     :-
-        inc     a               ; Next block has next palette
-        cmp     #$09            ; Have we done all 8?
-        bne     :--             ; If not, next block
+              LDA     #$01          ; .X is 8 here, which we want
+:2            LDY     #23           ; 23 lines per block
+:3            STA     $9D00,X
+              INX
+              DEY
+              BNE     :3
+              INC                   ; Next block has next palette
+              CMP     #$09          ; Have we done all 8?
+              BNE     :2            ; If not, next block
 
-        ;; Draw the EGA grid
-        ldy     #64             ; 64 boxes to draw
-        ldx     #$05b1          ; Starting at (34, 9)
-        lda     #$11            ; And fill color 1
-draw_grid:
-        jsr     box             ; Draw one box
-        clc                     ; Advance to next color
-        adc     #$11
-        cmp     #$99            ; Have we done all 8?
-        bne     @right          ; If so, move right
-        rep     #$21            ; Otherwise move down. A16, CLC.
-        .a16
-        txa                     ; .X += (160*23) - (16*7)
-        adc     #$df0
-        tax
-        sep     #$20
-        .a8
-        lda     #$11            ; And reset to color 1 for next row
-        bra     @next
-@right: pha                     ; Stash 8-bit color
-        rep     #$21            ; A16 and CLC
-        .a16
-        txa                     ; .X += 16 (move right)
-        adc     #$0010
-        tax
-        sep     #$20
-        .a8
-        pla                     ; Restore 8-bit color value
-@next:  dey                     ; Have we drawn all 64?
-        bne     draw_grid       ; If not, back we go
+*** Draw the EGA grid
+              LDY     #64           ; 64 boxes to draw
+              LDX     #$05B1        ; Starting at (34, 9)
+              LDA     #$11          ; And fill color 1
+DRAW_GRID
+              JSR     BOX           ; Draw one box
+              CLC                   ; Advance to next color
+              ADC     #$11
+              CMP     #$99          ; Have we done all 8?
+              BNE     :RIGHT        ; If so, move right
+              REP     #$21          ; Otherwise move down. A16, CLC.
+              TXA                   ; .X += (160*23) - (16*7)
+              ADC     #$DF0
+              TAX
+              SEP     #$20
+              LDA     #$11          ; And reset to color 1 for next row
+              BRA     :NEXT
+:RIGHT        PHA                   ; Stash 8-bit color
+              REP     #$21          ; A16 and CLC
+              TXA                   ; .X += 16 (move right)
+              ADC     #$0010
+              TAX
+              SEP     #$20
+              PLA                   ; Restore 8-bit color value
+:NEXT         DEY                   ; Have we drawn all 64?
+              BNE     DRAW_GRID     ; If not, back we go
 
-        ;; Draw the header and footer text
-        ldx     #$001b
-        ldy     #header
-        jsr     drawstr_80
+*** Draw the header and footer text
+              LDX     #$001B
+              LDY     #HEADER
+              JSR     DRAWSTR_80
 
-        ldx     #$7828
-        ldy     #footer
-        jsr     drawstr_80
+              LDX     #$7828
+              LDY     #FOOTER
+              JSR     DRAWSTR_80
 
-        ;; Label grid entries
-        ldx     #$0a14
-        lda     #$00            ; Clear entire 16-bit accumulator
-        xba
-        lda     #$00
-labels: pha
-        lsr                     ; Extract high nybble
-        lsr
-        lsr
-        lsr
-        jsr     tohex
-        jsr     drawchar_40
-        lda     1,s             ; Recover without popping
-        and     #$0f
-        jsr     tohex
-        jsr     drawchar_40
-        lda     1,s             ; Recover again
-        and     #$07            ; End of line?
-        cmp     #$07
-        rep     #$21            ; 16-bit accumulator for address sums
-        .a16
-        beq     :+
-        txa                     ; Not end of line:
-        adc     #8              ; Move one box right
-        bra     :++
-:       txa                     ; End of line:
-        adc     #$de8           ; Move one box down and seven left
-:       tax
-        lda     #$0000          ; Clear out B again
-        sep     #$20            ; Before returning to 8-bit
-        .a8
-        pla                     ; Recover box index
-        inc     a               ; next index
-        cmp     #64             ; All 64 done?
-        bne     labels          ; If not, continue
+*** Label grid entries
+              LDX     #$0A14
+              LDA     #$00
+LABELS        PHA
+              LSR                   ; Extract high nybble
+              LSR
+              LSR
+              LSR
+              JSR     TOHEX
+              JSR     DRAWCHAR_40
+              LDA     1,S           ; Recover without popping
+              AND     #$0F
+              JSR     TOHEX
+              JSR     DRAWCHAR_40
+              LDA     1,S           ; Recover again
+              AND     #$07          ; End of line?
+              CMP     #$07
+              REP     #$21          ; 16-bit accumulator for address sums
+              BEQ     :4
+              TXA                   ; Not end of line:
+              ADC     #8            ; Move one box right
+              BRA     :5
+:4            TXA                   ; End of line:
+              ADC     #$DE8         ; Move one box down and seven left
+:5            TAX                   ; Pass back the address
+              SEP     #$20          ; and return to 8-bit
+              PLA                   ; Recover box index
+              INC                   ; next index
+              CMP     #64           ; All 64 done?
+              BNE     LABELS        ; If not, continue
 
-        ;; Wait for keypress
-:       bit     $c000
-        bpl     :-
-        bit     $c010
+:6            BIT     $C000         ; Wait for keypress
+              BPL     :6
+              BIT     $C010
 
-        ;; Leave Super Hi-Res mode
-        lda     #$c0
-        trb     $c029
+              LDA     #$C0          ; Leave Super Hi-Res mode
+              TRB     $C029
 
-        ;; Back to ProDOS
-        plb                     ; Restore DBR
-        pld                     ; Restore Direct Page
-        pla                     ; Restore original stack
-        tcs
-        sec                     ; Resume emulation mode
-        xce
-        jsr     $bf00           ; ProDOS QUIT call
-        .byte   $65
-        .word   :+
-        brk                     ; Unreachable
-:       .byte   4               ; ProDOS QUIT params
-        .byte   0, 0, 0, 0, 0, 0
+*** Back to ProDOS
+              PLB                   ; Restore DBR
+              PLD                   ; Restore Direct Page
+              PLA                   ; Restore original stack
+              TCS
+              SEC                   ; Resume emulation mode
+              XCE
+              JSR     $BF00         ; ProDOS QUIT call
+              DFB     $65
+              DA      :7
+              BRK                   ; Unreachable
+:7            DFB     4             ; ProDOS QUIT params
+              DFB     0,0,0,0,0,0
+              MX      %10           ; Fix register widths
 
-;;; Draw a bordered box with fill pattern .A(8) at screen address
-;;; .X(16).
-box:    phy
-        phx
-        phx
-        pha
-        lda     #$ff
-        ldy     #14
-:       sta     $2000,x
-        sta     $2c80,x
-        inx
-        dey
-        bne     :-
-        lda     #19
-        pha
-@line:  rep     #$21
-        .a16
-        lda     3,s
-        adc     #160
-        sta     3,s
-        tax
-        sep     #$20
-        .a8
-        lda     #$ff
-        sta     $2000,x
-        sta     $200d,x
-        lda     2,s
-        inx
-        ldy     #$0c
-:       sta     $2000,x
-        inx
-        dey
-        bne     :-
-        lda     1,s
-        dec     a
-        sta     1,s
-        bne     @line
-        pla
-        pla
-        plx
-        plx
-        ply
-        rts
+*** Draw a bordered box with fill pattern .A(8) at screen address
+*** .X(16).
+BOX           PHY
+              PHX
+              PHX
+              PHA
+              LDA     #$FF
+              LDY     #14
+:1            STA     $2000,X
+              STA     $2C80,X
+              INX
+              DEY
+              BNE     :1
+              LDA     #19
+              PHA
+:LINE         REP     #$21
+              MX      %00
+              LDA     3,S
+              ADC     #160
+              STA     3,S
+              TAX
+              SEP     #$20
+              MX      %10
+              LDA     #$FF
+              STA     $2000,X
+              STA     $200D,X
+              LDA     2,S
+              INX
+              LDY     #$0C
+:2            STA     $2000,X
+              INX
+              DEY
+              BNE     :2
+              LDA     1,S
+              DEC     A
+              STA     1,S
+              BNE     :LINE
+              PLA
+              PLA
+              PLX
+              PLX
+              PLY
+              RTS
 
-;;; ----------------------------------------------------------------------
-;;;   Text drawing routines
-;;; ----------------------------------------------------------------------
+**********************************************************************
+*     Text drawing routines
+**********************************************************************
+              DUM     0
+ROW_COUNT     DFB     0
+CHAR_ROW      DFB     0
+STR_PTR       DS      3
+              DEND
 
-        ;; Direct page locations used by the system
-        row_count := $00
-        char_row  := $01
-        str_ptr   := $02
+DRAWSTR_80    PHY
+              STY     STR_PTR
+              LDA     #$00
+              STA     STR_PTR+2
+              LDY     #$0000
+:1            LDA     [STR_PTR],Y
+              BMI     :DONE
+              JSR     DRAWCHAR_80
+              INY
+              BRA     :1
+:DONE         PLY
+              RTS
 
-drawstr_80:
-        phy
-        sty     str_ptr
-        lda     #$00
-        sta     str_ptr+2
-        ldy     #$0000
-:       lda     [str_ptr],y
-        bmi     @done
-        jsr     drawchar_80
-        iny
-        bra     :-
-@done:  ply
-        rts
+CHARADDR      REP     #$20
+              AND     #$FF
+              ASL                   ; X = A * 8
+              ASL
+              ASL
+              TAX
+              SEP     #$20
+              RTS
 
-charaddr:
-        rep     #$20
-        .a16
-        and     #$ff
-        asl     a               ; Y = A * 8
-        asl     a
-        asl     a
-        tax
-        sep     #$20
-        .a8
-        rts
+DRAWCHAR_80   PHX
+              PHY
+              TXY
+              JSR     CHARADDR
+              LDA     #$08
+              STA     ROW_COUNT
+:1            LDAL    FONT,X
+              STA     CHAR_ROW
+              JSR     :DECODE_BYTE
+              JSR     :DECODE_BYTE
+              REP     #$20
+              TYA
+              CLC
+              ADC     #158
+              TAY
+              SEP     #$20
+              INX
+              DEC     ROW_COUNT
+              BNE     :1
+              PLY
+              PLX
+              INX
+              INX
+              RTS
+:DECODE_BYTE  LDA     #$00
+              ASL     CHAR_ROW
+              BCC     :2
+              ORA     #$C0
+:2            ASL     CHAR_ROW
+              BCC     :3
+              ORA     #$30
+:3            ASL     CHAR_ROW
+              BCC     :4
+              ORA     #$0C
+:4            ASL     CHAR_ROW
+              BCC     :5
+              ORA     #$03
+:5            STA     $2000,Y
+              INY
+              RTS
 
-drawchar_80:
-        phx
-        phy
-        txy
-        jsr     charaddr
-        lda     #$08
-        sta     row_count
-:       lda     f:font,x
-        sta     char_row
-        jsr     @decode_byte
-        jsr     @decode_byte
-        rep     #$20
-        .a16
-        tya
-        clc
-        adc     #158
-        tay
-        sep     #$20
-        .a8
-        inx
-        dec     row_count
-        bne     :-
-        ply
-        plx
-        inx
-        inx
-        rts
-@decode_byte:
-        lda     #$00
-        asl     char_row
-        bcc     :+
-        ora     #$C0
-:       asl     char_row
-        bcc     :+
-        ora     #$30
-:       asl     char_row
-        bcc     :+
-        ora     #$0C
-:       asl     char_row
-        bcc     :+
-        ora     #$03
-:       sta     $2000,y
-        iny
-        rts
+DRAWCHAR_40   PHX
+              PHY
+              TXY
+              JSR     CHARADDR
+              LDA     #$08
+              STA     ROW_COUNT
+:1            LDAL    FONT,X
+              STA     CHAR_ROW
+              JSR     :DECODE_BYTE
+              JSR     :DECODE_BYTE
+              JSR     :DECODE_BYTE
+              JSR     :DECODE_BYTE
+              REP     #$20
+              TYA
+              CLC
+              ADC     #156
+              TAY
+              SEP     #$20
+              INX
+              DEC     ROW_COUNT
+              BNE     :1
+              PLY
+              PLX
+              INX
+              INX
+              INX
+              INX
+              RTS
+:DECODE_BYTE  LDA     #$FF
+              ASL     CHAR_ROW
+              BCC     :2
+              AND     #$0F
+:2            ASL     CHAR_ROW
+              BCC     :3
+              AND     #$F0
+:3            PHA
+              AND     $2000,Y
+              STA     $2000,Y
+              PLA
+              EOR     #$FF
+              AND     #$EE
+              ORA     $2000,Y
+              STA     $2000,Y
+              INY
+              RTS
 
-drawchar_40:
-        phx
-        phy
-        txy
-        jsr     charaddr
-        lda     #$08
-        sta     row_count
-:       lda     f:font,x
-        sta     char_row
-        jsr     @decode_byte
-        jsr     @decode_byte
-        jsr     @decode_byte
-        jsr     @decode_byte
-        rep     #$20
-        .a16
-        tya
-        clc
-        adc     #156
-        tay
-        sep     #$20
-        .a8
-        inx
-        dec     row_count
-        bne     :-
-        ply
-        plx
-        inx
-        inx
-        inx
-        inx
-        rts
-@decode_byte:
-        lda     #$ff
-        asl     char_row
-        bcc     :+
-        and     #$0f
-:       asl     char_row
-        bcc     :+
-        and     #$f0
-:       pha
-        and     $2000,y
-        sta     $2000,y
-        pla
-        eor     #$ff
-        and     #$ee
-        ora     $2000,y
-        sta     $2000,y
-        iny
-        rts
+TOHEX         CLC
+              ADC     #$30
+              CMP     #$3A
+              BCC     :1
+              SBC     #$39
+:1            RTS
 
-tohex:  clc
-        adc     #$30
-        cmp     #$3A
-        bcc     :+
-        sbc     #$39
-:       rts
+*** Palette 0: For our 640x480 mode, black-red-green-white
+PALETTES      DA      $0000,$0F00,$00F0,$0FFF,$0000,$0F00,$00F0,$0FFF
+              DA      $0000,$0F00,$00F0,$0FFF,$0000,$0F00,$00F0,$0FFF
+*** Palettes 1-8: The full EGA palette, in order, in indices
+*** 1-8 in each palette. Color 0 is always black and 15 is
+*** always 75% gray.
+              DA      $0000,$0000,$000A,$00A0,$00AA,$0A00,$0A0A,$0AA0
+              DA      $0AAA,$0000,$0000,$0000,$0000,$0000,$0FFF,$0CCC
+              DA      $0000,$0005,$000F,$00A5,$00AF,$0A05,$0A0F,$0AA5
+              DA      $0AAF,$0000,$0000,$0000,$0000,$0000,$0DDE,$0CCC
+              DA      $0000,$0050,$005A,$00F0,$00FA,$0A50,$0A5A,$0AF0
+              DA      $0AFA,$0000,$0000,$0000,$0000,$0000,$0BBD,$0CCC
+              DA      $0000,$0055,$005F,$00F5,$00FF,$0A55,$0A5F,$0AF5
+              DA      $0AFF,$0000,$0000,$0000,$0000,$0000,$099C,$0CCC
+              DA      $0000,$0500,$050A,$05A0,$05AA,$0F00,$0F0A,$0FA0
+              DA      $0FAA,$0000,$0000,$0000,$0000,$0000,$077B,$0CCC
+              DA      $0000,$0505,$050F,$05A5,$05AF,$0F05,$0F0F,$0FA5
+              DA      $0FAF,$0000,$0000,$0000,$0000,$0000,$055A,$0CCC
+              DA      $0000,$0550,$055A,$05F0,$05FA,$0F50,$0F5A,$0FF0
+              DA      $0FFA,$0000,$0000,$0000,$0000,$0000,$0339,$0CCC
+              DA      $0000,$0555,$055F,$05F5,$05FF,$0F55,$0F5F,$0FF5
+              DA      $0FFF,$0000,$0000,$0000,$0000,$0000,$011E,$0CCC
 
-palettes:
-        ;; Palette 0: For our 640x480 mode, black-red-green-white
-        .word   $0000,$0f00,$00f0,$0fff,$0000,$0f00,$00f0,$0fff
-        .word   $0000,$0f00,$00f0,$0fff,$0000,$0f00,$00f0,$0fff
-        ;; Palettes 1-8: The full EGA palette, in order, in indices
-        ;; 1-8 in each palette. Color 0 is always black and 15 is
-        ;; always 75% gray.
-        .word   $0000,$0000,$000a,$00a0,$00aa,$0a00,$0a0a,$0aa0
-        .word   $0aaa,$0000,$0000,$0000,$0000,$0000,$0fff,$0ccc
-        .word   $0000,$0005,$000f,$00a5,$00af,$0a05,$0a0f,$0aa5
-        .word   $0aaf,$0000,$0000,$0000,$0000,$0000,$0dde,$0ccc
-        .word   $0000,$0050,$005a,$00f0,$00fa,$0a50,$0a5a,$0af0
-        .word   $0afa,$0000,$0000,$0000,$0000,$0000,$0bbd,$0ccc
-        .word   $0000,$0055,$005f,$00f5,$00ff,$0a55,$0a5f,$0af5
-        .word   $0aff,$0000,$0000,$0000,$0000,$0000,$099c,$0ccc
-        .word   $0000,$0500,$050a,$05a0,$05aa,$0f00,$0f0a,$0fa0
-        .word   $0faa,$0000,$0000,$0000,$0000,$0000,$077b,$0ccc
-        .word   $0000,$0505,$050f,$05a5,$05af,$0f05,$0f0f,$0fa5
-        .word   $0faf,$0000,$0000,$0000,$0000,$0000,$055a,$0ccc
-        .word   $0000,$0550,$055a,$05f0,$05fa,$0f50,$0f5a,$0ff0
-        .word   $0ffa,$0000,$0000,$0000,$0000,$0000,$0339,$0ccc
-        .word   $0000,$0555,$055f,$05f5,$05ff,$0f55,$0f5f,$0ff5
-        .word   $0fff,$0000,$0000,$0000,$0000,$0000,$011e,$0ccc
+HEADER        INV     'FLEXING ON IBM PC GRAPHICS IN 1986 WHILE WE STILL CAN'
+              DFB     255
+FOOTER        INV     '80-COLUMN TEXT WITH ALL 64 EGA COLORS!!!'
+              DFB     255
 
-.macro  scrcode arg
-        .repeat .strlen(arg), i
-        .if     (.strat(arg, i) < 32) || (.strat(arg, i) >= 96)
-                .error "Illegal character in scrcode string"
-        .elseif     .strat(arg, i) >= 64
-                .byte .strat(arg,i) - 64
-        .else
-                .byte .strat(arg,i)
-        .endif
-        .endrep
-        .byte   255
-.endmacro
+*** Font table. This is uses C64 screen code order, but by a happy
+*** coincidence, that happens to perfectly match Apple II inverse
+*** text order, so the INV directive will handle any conversions.
+FONT          PUTBIN  sinestra.bin
 
-header: scrcode "FLEXING ON IBM PC GRAPHICS IN 1986 WHILE WE STILL CAN"
-footer: scrcode "80-COLUMN TEXT WITH ALL 64 EGA COLORS!!!"
 
-        ;; Font table. This is an 1-bit font definition that uses the
-        ;; C64 screen code order, so we'll need to do some translation
-        ;; to actually get anywhere with this. char4 and char16 (above)
-        ;; manage that feat.
-font:   .include "../fonts/sinestra.s"
+
