@@ -3,11 +3,10 @@
 *   Build with Ophis and Merlin 32:
 *     $ ophis ../fonts/sinestra.s -o sinestra.bin
 *     $ merlin32 ega_gs.s
-*     $ rename EGA ega#b30000
 **********************************************************************
               MX      %00              ; Full 16-bit mode
               REL
-              LNK     EGA.l
+              LNK     ega#b30000.l
 
 START         LDA     #$011F           ; Load 9 palettes
               LDX     #PALETTES
@@ -129,11 +128,9 @@ LABELS        PHA
 
 *** Back to GS/OS
               JSL     $E100A8          ; GS/OS QUIT call
-              DA      $29
+              DA      $2029
               ADRL    :7
-              BRK                      ; Unreachable
-:7            ADRL    0                ; GS/OS QUIT params
-              DA      0
+:7            DA      0                ; No parameters
 
 *** Draw a bordered box with fill pattern .A(8) at screen address
 *** .X(16).
