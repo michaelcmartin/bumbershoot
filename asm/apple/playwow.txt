@@ -1,0 +1,9 @@
+            DSK   play.wow#b30000
+            TYP   $B3
+
+            ASM   playwav.s
+            SNA   Main
+
+            ASM   sfx_wow.s
+            KND   $1101
+            SNA   Wav.Dat
