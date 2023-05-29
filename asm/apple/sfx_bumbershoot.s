@@ -1,5 +1,5 @@
             REL
-            LNK     WOW.L
+            LNK     SFX.DAT.L
 
             ENT     SFXLEN
 SFX         ENT

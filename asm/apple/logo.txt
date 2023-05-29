@@ -1,0 +1,13 @@
+            DSK   logo#b30000
+            TYP   $B3
+
+            ASM   showlogo.s
+            SNA   code
+
+            ASM   gfx_bumbershoot.s
+            KND   $1101
+            SNA   gfx.dat
+
+            ASM   sfx_bumbershoot.s
+            KND   $1101
+            SNA   wav.dat
