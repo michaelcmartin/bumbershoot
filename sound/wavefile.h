@@ -14,5 +14,5 @@ typedef struct wavefile_s {
 } wavefile_t;
 
 int wavefile_parse(wavefile_t *parsed, FILE *f);
-
+int wavefile_parsebuf(wavefile_t *parsed, unsigned char *buf, unsigned int buf_len);
 #endif

@@ -1,6 +1,7 @@
 #include "wavefile.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static uint32_t
 u32(const unsigned char *p)
@@ -24,7 +25,7 @@ typedef struct chunk_s {
     uint8_t *data;
 } chunk_t;
 
-int
+static int
 read_chunk(chunk_t *chunk, FILE *f)
 {
     uint8_t header[8];
@@ -61,33 +62,22 @@ read_chunk(chunk_t *chunk, FILE *f)
     return 1;
 }
 
-int
-wavefile_parse(wavefile_t *parsed, FILE *f)
+static int
+wavefile_parse_chunk(wavefile_t *parsed, chunk_t *chunk)
 {
-    chunk_t chunk;
     uint8_t *data;
     int had_format = 0;
     uint32_t res_sz, wave_sz, index;
-    if (!parsed) {
-        return 0;
-    }
-    parsed->valid = 0;
-    parsed->filemem = NULL;
-    parsed->data = NULL;
-    parsed->data_size = 0;
-    if (!read_chunk(&chunk, f)) {
-        fprintf(stderr, "Could not load wave file\n");
-        return 0;
-    }
-    if (chunk.length < 4 ||
-        chunk.tag       != 0x46464952 ||         /* 'RIFF' */
-        u32(chunk.data) != 0x45564157) {         /* 'WAVE' */
+
+    if (chunk->length < 4 ||
+        chunk->tag       != 0x46464952 ||         /* 'RIFF' */
+        u32(chunk->data) != 0x45564157) {         /* 'WAVE' */
         fprintf(stderr, "Not a wave file\n");
         return 0;
     }
-    wave_sz = chunk.length;
-    parsed->filemem = chunk.data;
-    data = chunk.data;
+    wave_sz = chunk->length;
+    parsed->filemem = chunk->data;
+    data = chunk->data;
     index = 4;
     while (index < wave_sz) {
         uint32_t tag = u32(data+index);
@@ -136,4 +126,51 @@ wavefile_parse(wavefile_t *parsed, FILE *f)
     }
     parsed->valid = 1;
     return 1;
+}
+
+int
+wavefile_parse(wavefile_t *parsed, FILE *f)
+{
+    chunk_t chunk;
+    if (!parsed) {
+        return 0;
+    }
+    parsed->valid = 0;
+    parsed->filemem = NULL;
+    parsed->data = NULL;
+    parsed->data_size = 0;
+    if (!read_chunk(&chunk, f)) {
+        fprintf(stderr, "Could not load wave file\n");
+        return 0;
+    }
+    return wavefile_parse_chunk(parsed, &chunk);
+}
+
+int
+wavefile_parsebuf(wavefile_t *parsed, unsigned char *buf, unsigned int buf_len)
+{
+    chunk_t chunk;
+    if (!parsed) {
+        return 0;
+    }
+    parsed->valid = 0;
+    parsed->filemem = NULL;
+    parsed->data = NULL;
+    parsed->data_size = 0;
+    if (buf_len < 8) {
+        return 0;
+    }
+    chunk.tag = u32(buf);
+    chunk.length = u32(buf+4);
+    if (buf_len < chunk.length + 8) {
+        fprintf(stderr, "In-memory buffer chunk too small\n");
+        return 0;
+    }
+    chunk.data = malloc(chunk.length);
+    if (!chunk.data) {
+        fprintf(stderr, "Out of memory\n");
+        return 0;
+    }
+    memcpy(chunk.data, buf+8, chunk.length);
+    return wavefile_parse_chunk(parsed, &chunk);
 }
