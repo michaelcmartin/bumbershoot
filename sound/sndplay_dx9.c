@@ -1,3 +1,7 @@
+/**********************************************************************
+ * Audio clip playback demo: DirectX 9/DirectSound
+ * Bumbershoot Software, 2023
+ **********************************************************************/
 #include <stdlib.h>
 
 #include <windows.h>
@@ -9,13 +13,17 @@
 #include "sndplay_dx9-res.h"
 
 /* Interpreted resource data */
-wavefile_t wow, bumbershoot;
-LPDIRECTSOUNDBUFFER wow_buf, bumbershoot_buf;
-DWORD font[64][64];
+static wavefile_t wow, bumbershoot;
+static DWORD font[64][64];
 
+/* DirectX resources */
 static dx9win_t dx9win;
 static LPDIRECTSOUND8 audio_device;
+static LPDIRECTSOUNDBUFFER wow_buf, bumbershoot_buf;
 
+/********** RESOURCE EXTRACTORS **********/
+
+/* Pull a binary blob out of the resource segment */
 static const unsigned char*
 get_res(int rsrc, unsigned int* sz)
 {
@@ -32,6 +40,8 @@ get_res(int rsrc, unsigned int* sz)
     return LockResource(resource);
 }
 
+/* Load the font data out of the resource segment, and convert each
+ * character to a 64-pixel sequence. */
 static void
 load_font(void)
 {
@@ -52,6 +62,8 @@ load_font(void)
     }
 }
 
+/* Extract a 16kHz 8-bit mono WAV out of the resource segment and
+ * cache its parsed form. */
 static int
 load_wav(wavefile_t* target, int resource)
 {
@@ -60,6 +72,10 @@ load_wav(wavefile_t* target, int resource)
     return wavefile_parsebuf(target, dat, sz);
 }
 
+/********** DirectSound Support Routines **********/
+
+/* Given a parsed WAV file, produce a DirectSound buffer that
+ * represents that audio clip. */
 static int
 alloc_clip(LPDIRECTSOUNDBUFFER* clip, wavefile_t* wave)
 {
@@ -94,6 +110,20 @@ alloc_clip(LPDIRECTSOUNDBUFFER* clip, wavefile_t* wave)
     return 0;
 }
 
+/* Silence any other playing clips and start playing the given clip
+ * from the start. */
+static void
+play_clip(LPDIRECTSOUNDBUFFER clip)
+{
+    IDirectSoundBuffer_Stop(wow_buf);
+    IDirectSoundBuffer_Stop(bumbershoot_buf);
+    IDirectSoundBuffer_SetCurrentPosition(clip, 0);
+    IDirectSoundBuffer_Play(clip, 0, 0, 0);
+}
+
+/********** VIDEO SUPPORT ROUTINES **********/
+
+/* Draw a string in the loaded font into the dx9win pixmap. */
 static void
 draw_string(dx9win_t *win, int x, int y, const char *msg)
 {
@@ -111,15 +141,10 @@ draw_string(dx9win_t *win, int x, int y, const char *msg)
     }
 }
 
-static void
-play_clip(LPDIRECTSOUNDBUFFER clip)
-{
-    IDirectSoundBuffer_Stop(wow_buf);
-    IDirectSoundBuffer_Stop(bumbershoot_buf);
-    IDirectSoundBuffer_SetCurrentPosition(clip, 0);
-    IDirectSoundBuffer_Play(clip, 0, 0, 0);
-}
+/********** MAIN PROGRAM **********/
 
+/* Window procedure. React appropriately to resize and window-close
+ * messages, and play any clips asked for by keyboard presses. */
 static LRESULT CALLBACK
 WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -147,12 +172,15 @@ _tWinMain(HINSTANCE hInstance, HINSTANCE ignored, LPTSTR cmdLine, int nCmdShow) 
     HWND hWnd;
     MSG msg;
 
+    /* Verify that our audio resources are OK */
     load_wav(&wow, WOW_WAV);
     load_wav(&bumbershoot, BUMBERSHOOT_WAV);
     if (!wow.valid || !bumbershoot.valid) {
         MessageBox(NULL, _T("Bundled sound clips are corrupt"), _T("Flagrant System Error"), MB_ICONEXCLAMATION);
         return 1;
     }
+
+    /* Set up video */
     hWnd = dx9win_init(&dx9win, NULL, _T("DirectX Sound Clip Demo"), WindowProc, 640, 480, 320, 240, FALSE);
     if (!hWnd) {
         MessageBox(NULL, _T("Could not initialize DirectX 9."), _T("Flagrant System Error"), MB_ICONEXCLAMATION);
@@ -161,22 +189,25 @@ _tWinMain(HINSTANCE hInstance, HINSTANCE ignored, LPTSTR cmdLine, int nCmdShow) 
     dx9win.filter = D3DTEXF_NONE;
     ZeroMemory(dx9win.pixels, sizeof(DWORD) * dx9win.width * dx9win.height);
 
+    /* Set up audio, and create our clip buffers */
     if (FAILED(DirectSoundCreate8(NULL, &audio_device, NULL))) {
         MessageBox(NULL, _T("Could not initialize audio driver"), _T("Flagrant System Error"), MB_ICONEXCLAMATION);
         dx9win_uninit(&dx9win);
         return 1;
     }
-
     IDirectSound8_SetCooperativeLevel(audio_device, hWnd, DSSCL_NORMAL);
     alloc_clip(&wow_buf, &wow);
     alloc_clip(&bumbershoot_buf, &bumbershoot);
 
+    /* Draw our display. The pixmap persists across frames, so we only
+     * have to do this once. */
     load_font();
     draw_string(&dx9win, 76,   8, "SDL AUDIO CLIP PLAYER");
     draw_string(&dx9win, 72, 108, "1. WOW! DIGITAL SOUND!");
     draw_string(&dx9win, 72, 124, "2. BUMBERSHOOT SONG");
     draw_string(&dx9win, 80, 224, "CLOSE WINDOW TO QUIT");
 
+    /* Main event loop. Everything exciting happens in WindowProc. */
     while (TRUE) {
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             TranslateMessage(&msg);
@@ -195,10 +226,14 @@ _tWinMain(HINSTANCE hInstance, HINSTANCE ignored, LPTSTR cmdLine, int nCmdShow) 
         Sleep(20);
     }
 
+    /* Clean up audio */
     if (wow_buf) IDirectSoundBuffer_Release(wow_buf);
     if (bumbershoot_buf) IDirectSoundBuffer_Release(bumbershoot_buf);
     IDirectSound8_Release(audio_device);
 
+    /* Clean up video */
     dx9win_uninit(&dx9win);
+
+    /* Quit to Windows */
     return (int)msg.wParam;
 }
