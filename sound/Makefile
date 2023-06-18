@@ -20,8 +20,8 @@ conv_iigs: conv_iigs.c wavefile.c wavefile.h
 revbits: revbits.c
 	$(CC) $(CFLAGS) -o $@ revbits.c
 
-sndplay: sndplay.c wavefile.c wavefile.h sinestra.c wow.c bumbershoot.c
-	$(CC) $(CFLAGS) -o $@ `sdl2-config --cflags` sndplay.c wavefile.c sinestra.c wow.c bumbershoot.c `sdl2-config --libs`
+sndplay_sdl2: sndplay_sdl2.c wavefile.c wavefile.h sinestra.c wow.c bumbershoot.c
+	$(CC) $(CFLAGS) -o $@ `sdl2-config --cflags` sndplay_sdl2.c wavefile.c sinestra.c wow.c bumbershoot.c `sdl2-config --libs`
 
 sndplay_dx9.exe: sndplay_dx9.c wavefile.c wavefile.h sndplay_dx9-res.o ../win32/dx9pixmap.c ../win32/dx9pixmap.h
 	$(CC) $(CFLAGS) -mwindows -municode -D_UNICODE -I../win32 -o $@ sndplay_dx9.c wavefile.c ../win32/dx9pixmap.c sndplay_dx9-res.o -ld3d9 -ldsound

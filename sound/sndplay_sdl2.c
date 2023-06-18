@@ -1,3 +1,7 @@
+/**********************************************************************
+ * Audio clip playback demo: SDL2
+ * Bumbershoot Software, 2023
+ **********************************************************************/
 #include <SDL2/SDL.h>
 #include "wavefile.h"
 
@@ -13,11 +17,14 @@ extern unsigned int bumbershoot_wav_len;
 /* Interpreted resource data */
 wavefile_t wow, bumbershoot;
 
+/* Convert a 512-byte C64 font bitmap into a 64x64 SDL texture for
+ * text display. The resulting texture will have ASCII characters
+ * 32-95 in that order, left to right, top to bottom. */
 SDL_Texture *
 load_font(SDL_Renderer *renderer, unsigned char *dat, size_t len)
 {
     unsigned char pixmap[16384];
-    int i = 8192; /* Start halfway through to fix screencode nonsense */
+    int i;
     for (int row = 0; row < 8; ++row) {
         for (int col = 0; col < 8; ++col) {
             for (int char_row = 0; char_row < 8; ++char_row) {
@@ -45,6 +52,9 @@ load_font(SDL_Renderer *renderer, unsigned char *dat, size_t len)
     return tex;
 }
 
+/* Given a font (loaded using the function above) and a message,
+ * render the string onto the display with a single blit per
+ * letter. */
 void
 draw_string(SDL_Renderer *renderer, SDL_Texture *font, int x, int y, const char *msg)
 {
@@ -72,15 +82,17 @@ main(int argc, char **argv)
     SDL_Renderer *renderer;
     SDL_AudioSpec wanted_audio, got_audio;
     SDL_AudioDeviceID audio_device = 0;
+
+    /* Initialize SDL generally */
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER) < 0) {
         return 3;
     }
 
+    /* Initialize SDL graphics */
     if (SDL_CreateWindowAndRenderer(640,480, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
         return 3;
     }
-
-    SDL_SetWindowTitle(window, "Font Test");
+    SDL_SetWindowTitle(window, "SDL2 Sound Clip Demo");
     SDL_RenderSetLogicalSize(renderer, 320, 240);
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 
@@ -92,6 +104,7 @@ main(int argc, char **argv)
         return 2;
     }
 
+    /* Initialize SDL audio: 16kHz 8-bit mono */
     SDL_zero(wanted_audio);
     wanted_audio.freq=16000;
     wanted_audio.format = AUDIO_U8;
@@ -110,14 +123,12 @@ main(int argc, char **argv)
     wavefile_parsebuf(&bumbershoot, bumbershoot_wav, bumbershoot_wav_len);
     if (!wow.valid) { fprintf(stderr, "WOW did not load.\n"); }
     if (!bumbershoot.valid) { fprintf(stderr, "BUMBERSHOOT did not load.\n"); }
+
+    /* Main event loop */
     int done = 0;
     while (!done) {
         SDL_Event event;
-        SDL_Rect dest;
-        dest.x = 128;
-        dest.y = 88;
-        dest.w = 64;
-        dest.h = 64;
+
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 done = 1;
@@ -131,11 +142,13 @@ main(int argc, char **argv)
                     chosen = NULL;
                 }
                 if (chosen) {
+                    /* A clip was selected, so play it! */
                     SDL_ClearQueuedAudio(audio_device);
                     SDL_QueueAudio(audio_device, chosen->data, chosen->data_size);
                 }
             }
         }
+        /* Display the menu */
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
         SDL_RenderClear(renderer);
         draw_string(renderer, font, 76,   8, "SDL AUDIO CLIP PLAYER");
@@ -146,6 +159,7 @@ main(int argc, char **argv)
         SDL_Delay(20);
     }
 
+    /* Shut down */
     SDL_CloseAudioDevice(audio_device);
     SDL_DestroyTexture(font);
     SDL_DestroyRenderer(renderer);
