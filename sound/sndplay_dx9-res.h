@@ -1,0 +1,8 @@
+#ifndef DXSOUNDCLIP_RES_H_
+#define DXSOUNDCLIP_RES_H_
+
+#define SINESTRA_BIN 101
+#define WOW_WAV 102
+#define BUMBERSHOOT_WAV 103
+
+#endif

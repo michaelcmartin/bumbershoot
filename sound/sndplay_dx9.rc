@@ -1,0 +1,5 @@
+#include "sndplay_dx9-res.h"
+
+SINESTRA_BIN RCDATA "sinestra.bin"
+WOW_WAV RCDATA "wow.wav"
+BUMBERSHOOT_WAV RCDATA "bumbershoot.wav"

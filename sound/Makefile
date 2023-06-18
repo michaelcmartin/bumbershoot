@@ -23,6 +23,9 @@ revbits: revbits.c
 sndplay: sndplay.c wavefile.c wavefile.h sinestra.c wow.c bumbershoot.c
 	$(CC) $(CFLAGS) -o $@ `sdl2-config --cflags` sndplay.c wavefile.c sinestra.c wow.c bumbershoot.c `sdl2-config --libs`
 
+sndplay_dx9.exe: sndplay_dx9.c wavefile.c wavefile.h sndplay_dx9-res.o ../win32/dx9pixmap.c ../win32/dx9pixmap.h
+	$(CC) $(CFLAGS) -mwindows -municode -D_UNICODE -I../win32 -o $@ sndplay_dx9.c wavefile.c ../win32/dx9pixmap.c sndplay_dx9-res.o -ld3d9 -ldsound
+
 sinestra.bin: ../asm/fonts/sinestra.s
 	ophis -o sinestra.bin ../asm/fonts/sinestra.s
 
@@ -35,5 +38,8 @@ wow.c: wow.wav
 bumbershoot.c: bumbershoot.wav
 	xxd -i bumbershoot.wav > bumbershoot.c
 
+sndplay_dx9-res.o: sndplay_dx9.rc sinestra.bin wow.wav bumbershoot.wav
+	windres -o $@ $<
+
 clean:
-	rm -f conv_amiga conv_dos conv_nes_pcm conv_nes_dmc revbits conv_iigs sndplay wow.c bumbershoot.c sinestra.c sinestra.bin
+	rm -f conv_amiga conv_dos conv_nes_pcm conv_nes_dmc revbits conv_iigs sndplay wow.c bumbershoot.c sinestra.c sinestra.bin sndplay.exe sndplay_dx9.exe sndplay_dx9-res.o
