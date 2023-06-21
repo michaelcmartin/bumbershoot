@@ -202,7 +202,7 @@ _tWinMain(HINSTANCE hInstance, HINSTANCE ignored, LPTSTR cmdLine, int nCmdShow) 
     /* Draw our display. The pixmap persists across frames, so we only
      * have to do this once. */
     load_font();
-    draw_string(&dx9win, 76,   8, "SDL AUDIO CLIP PLAYER");
+    draw_string(&dx9win, 76,   8, "DX9 AUDIO CLIP PLAYER");
     draw_string(&dx9win, 72, 108, "1. WOW! DIGITAL SOUND!");
     draw_string(&dx9win, 72, 124, "2. BUMBERSHOOT SONG");
     draw_string(&dx9win, 80, 224, "CLOSE WINDOW TO QUIT");
