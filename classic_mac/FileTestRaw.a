@@ -11,10 +11,10 @@
 	INCLUDE	'StandardFile.a'
 	INCLUDE	'TextEdit.a'
 
-QD	  DS	QDGlobals
+QD	DS	QDGlobals
 PickerLoc DS	Point
-Reply	  DS	SFReply
-IOReq	  DS	ParamBlockRec
+Reply	DS	SFReply
+IOReq	DS	ParamBlockRec
 
 	IMPORT XSSSeedRandom,XSSRandom
 
@@ -84,17 +84,17 @@ Main	MAIN
 	;; Compute the location for our file requester
 	MOVE.W	QD.screenBits.bounds.right,D0
 	ADD.W	QD.screenBits.bounds.left,D0
-	LSR.W	#1,D0
+	ASR.W	#1,D0
 	SUB.W	#150,D0
 	MOVE.W	D0,PickerLoc.h
 	MOVE.W	QD.screenBits.bounds.top,D0
 	ADD.W	QD.screenBits.bounds.bottom,D0
-	LSR.W	#1,D0
+	ASR.W	#1,D0
 	SUB.W	#50,D0
 	MOVE.W	D0,PickerLoc.v
 
 	;; Get target file location
-	PEA	PickerLoc
+	MOVE.L	PickerLoc,-(SP)
 	PEA	@Prompt(PC)
 	PEA	@Default(PC)
 	CLR.L	-(SP)
@@ -102,7 +102,7 @@ Main	MAIN
 	_SFPutFile
 
 	;; Quit if the user canceled
-	TST.B	SFReply.good
+	TST.B	Reply.good
 	BNE.S	@Go
 	_ExitToShell
 
@@ -151,12 +151,12 @@ Main	MAIN
 	MOVE.L	D0,-(SP)
 	BSR	XSSSeedRandom
 
-	SUBQ.L	#4,SP	        	; Reserve space for our random number returns
+	SUBQ.L	#4,SP		; Reserve space for our random number returns
 	MOVE.L	#99,D3
-@L2	BSR	XSSRandom		; Put random number in our reserved space...
+@L2	BSR	XSSRandom	; Put random number in our reserved space...
 	MOVEQ	#100,D0
 	SUB.L	D3,D0
-	BSR	WriteLine		; ... and use it as an argument to WriteLine
+	BSR	WriteLine	; ... and use it as an argument to WriteLine
 	DBRA	D3,@L2
 
 	;; Close it and flush volume
@@ -169,7 +169,7 @@ Main	MAIN
 	;; We're done, successfully, hooray
 	_ExitToShell
 
-@Prompt	 DC.B	'Select Test Output Location'
+@Prompt	DC.B	'Select Test Output Location'
 @Default DC.B	'Test Output'
 	ENDMAIN
 

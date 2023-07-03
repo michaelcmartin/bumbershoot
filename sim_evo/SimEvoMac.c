@@ -194,14 +194,31 @@ static int TrapAvailable(short tNumber, TrapType tType)
 
 static void DetectCapabilities(void)
 {
-	SysEnvirons(1, &environ);
-	if (environ.machineType < 0) {
+	unsigned char *romBase = (unsigned char *)LMGetROMBase();
+	unsigned char machineVer = romBase[8];
+	unsigned char romVer = romBase[9];
+	Boolean tooOld = false;
+
+	useGarden = 1;
+	warpMode = 0;
+	simPaused = 0;
+
+	if (romVer == 0xFF || (machineVer == 0x00 && romVer < 0x75)) {
+		/* 64KB ROM! */
+		tooOld = true;
+	} else {
+		/* Safe to check if we're at least System 4 */
+		tooOld = !TrapAvailable(_SysEnvirons, OSTrap);
+	}
+
+	if (tooOld) {
 		hasWNEvent = 0;
 		hasColor = 0;
 		useColor = 0;
 		return;
 	}
 
+	SysEnvirons(1, &environ);
 	hasWNEvent = TrapAvailable(_WaitNextEvent, ToolTrap);
 	if (!environ.hasColorQD) {
 		/* If we don't have Color QuickDraw, we *definitely* don't have a color screen */
@@ -210,9 +227,6 @@ static void DetectCapabilities(void)
 		hasColor = TestDeviceAttribute(GetMainDevice(), gdDevType);
 	}
 	useColor = hasColor;
-	useGarden = 1;
-	warpMode = 0;
-	simPaused = 0;
 }
 
 static void InitSimulation(WindowPtr wnd, unsigned long seed)
