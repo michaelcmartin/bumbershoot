@@ -5,7 +5,7 @@
 #define STBI_PNG_ONLY
 #include "stb_image.h"
 
-uint8_t logo[30720];
+uint8_t semigraph[16384], bitfont[512], font[4096];
 uint16_t palette[256];
 uint16_t cga[16] = {
     0x0000, 0x5400, 0x02a0, 0x56a0,
@@ -14,50 +14,53 @@ uint16_t cga[16] = {
     0x295f, 0x7d5f, 0x2bff, 0x7fff
 };
 
-void convert(unsigned char *img)
+void make_semigraphics(void)
 {
-    int x, y, i;
-    /* Preload initial palette to CGA equivalent */
-    for (i = 0; i < 16; ++i) {
-        palette[i] = cga[i];
+    int i, l, r;
+    for (i = 0; i < 8192; ++i) {
+        semigraph[i] = 0;
     }
-    for (i = 16; i < 256; ++i) {
-        palette[i] = 0;
-    }
-    /* Clear image */
-    for (i = 0; i < 30720; ++i) {
-        logo[i] = 0;
-    }
-    /* Actual convertible characters from 16-176 */
-    for (y = 0; y < 192; ++y) {
-        int row = y * 192;
-        for (x = 16; x < 176; ++x) {
-            int i = (row + x) * 4;
-            int r = img[i] >> 4;
-            int g = img[i+1] >> 4;
-            int b = img[i+2] >> 4;
-            r = (r << 1) | ((r & 8) ? 1 : 0);
-            g = (g << 1) | ((g & 8) ? 1 : 0);
-            b = (b << 1) | ((b & 8) ? 1 : 0);
-            int col = r + (g << 5) + (b << 10);
-            if (col != 0) {
-                /* Black stays black; everything else, we find it in
-                 * the palette and add it if it's not there */
-                for (i = 1; i < 256; ++i) {
-                    if (palette[i] == 0) {
-                        palette[i] = col;
-                        break;
-                    }
-                    if (palette[i] == col) {
-                        break;
-                    }
-                }
-                if (i == 256) {
-                    printf("Out of palette space!\n");
-                    return;
-                }
-                logo[y * 160 + x - 16] = i;
+    i = 0;
+    for (l = 0; l < 16; ++l) {
+        for (r = 0; r < 16; ++r) {
+            int j;
+            for (j = 0; j < 4; ++j) {
+                semigraph[i++] = l;
+                semigraph[i++] = l;
+                semigraph[i++] = l;
+                semigraph[i++] = l;
+                semigraph[i++] = r;
+                semigraph[i++] = r;
+                semigraph[i++] = r;
+                semigraph[i++] = r;
             }
+            for (j = 0; j < 32; ++j) {
+                semigraph[i++] = 0;
+            }
+        }
+    }
+}
+
+void make_font(void)
+{
+    int i, j, k, n, b, v;
+    for (i = 0; i < 4096; ++i) {
+        font[i] = 0;
+    }
+    i = 256; j = 0;
+    for (n = 0; n < 64; ++n) {
+        for (k = 0; k < 8; ++k) {
+            v = bitfont[i];
+            for (b = 0; b < 8; ++b) {
+                if (v & 0x80) {
+                    font[j] = (k != 3 && k != 4) ? 7 : 15;
+                    if (b < 7 && k < 7) font[j+9] = 8;
+                }
+                v <<= 1;
+                ++j;
+            }
+            ++i;
+            if (i >= 512) i -= 512;
         }
     }
 }
@@ -104,33 +107,20 @@ int main(int argc, char **argv)
 {
     int w, h, n;
     unsigned char *p;
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
-        return 1;
-    }
-    unsigned char *img = stbi_load(argv[1], &w, &h, &n, 4);
-    if (!img) {
-        fprintf(stderr, "Could not load %s\n", argv[1]);
-        return 1;
-    }
-    if (w != 192 || h != 192) {
-        printf("This is not the correct source image\n");
-        stbi_image_free(img);
-        return 1;
-    }
-    convert(img);
-    FILE *f = fopen("bumberlogo.bin", "wb");
-    encode(f, logo, 160, 192, 8);
+    make_semigraphics();
+    FILE *f = fopen("ancillary.bin", "wb");
+    encode(f, semigraph, 8, 2048, 4);
     if (f) { fclose(f); }
-    f = fopen("bumberpal.bin", "wb");
-    if (f) {
-        for (n = 0; n < 256; ++n) {
-            if (n > 0 && palette[n] == 0) break;
-            fputc(palette[n] & 0xff, f);
-            fputc(palette[n] >> 8, f);
-        }
-        fclose(f);
+    f = fopen("font_1bpp.bin", "rb");
+    if (!f) {
+        fprintf(stderr, "font_1bpp.bin not found, skipping\n");
+        return 0;
     }
-    stbi_image_free(img);
+    fread(bitfont, 1, 512, f);
+    fclose(f);
+    make_font();
+    f = fopen("ancillary.bin", "ab");
+    encode(f, font, 8, 512, 4);
+    if (f) { fclose(f); }
     return 0;
 }
