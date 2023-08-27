@@ -23,7 +23,9 @@
 	.zeropage
 xscr:	.res	2
 yscr:	.res	2
-pict:	.res	2
+pict:	.res	3
+draw_state:
+	.res	1
 
 	.segment "CODE"
 
@@ -31,7 +33,6 @@ main:	sep	#$30
 	.a8
 	.i8
 
-	;; Main program begins here
 	phk
 	plb
 	stz	$2121			; Load palette
@@ -42,9 +43,7 @@ main:	sep	#$30
 	cpx	#colors_end-colors
 	bne	:-
 
-	lda	#$01
-	sta	$2105			; Mode 3, 8BPP/4BPP
-	rep	#$30
+	rep	#$30			; Load semigraphics and font
 	.a16
 	.i16
 	stz	$2116
@@ -56,23 +55,15 @@ main:	sep	#$30
 	cpx	#ancillary_end-ancillary
 	bne	:-
 
-	ldx	#$7fff
-:	lda	f:pbmp_0,x
-	sta	$7f0000,x
-	dex
-	bpl	:-
-
 	stz	xscr			; zero out the scroll registers
 	stz	yscr			; (16-bit writes)
 	lda	#(pbmp_0 & $ffff)	; Point to first image
 	sta	pict
-
 	sep	#$20
 	.a8
-	lda	#$63			; BG1 Tilemap at $6000, 64x64
-	sta	$2107
-	lda	#$73			; BG2 Tilemap at $7000, 64x64
-	sta	$2108
+	lda	#^pbmp_0
+	sta	pict+2
+	stz	draw_state
 
 	;; Clear 8bpp screen
 	ldx	#$6000			; Clear entire screen
@@ -88,14 +79,19 @@ main:	sep	#$30
 	dex
 	bne	:-
 
-	lda	#^pbmp_0
+	lda	pict+2
 	ldx	pict
 	jsr	make_pixmap
 	jsr	load_pixmap
 
-@disp:	lda	#$03
-	sta	$212c			; Enable BG1 and BG2
-
+@disp:	lda	#$01			; Mode 1, 4BPP/4BPP/2BPP
+	sta	$2105
+	lda	#$63			; BG1 Tilemap at $6000, 64x64
+	sta	$2107
+	lda	#$73			; BG2 Tilemap at $7000, 64x64
+	sta	$2108
+	lda	#$03			; Enable BG1 and BG2
+	sta	$212c
 	lda	#$0f			; Enable display
 	sta	$2100
 
@@ -159,7 +155,7 @@ VBLANK:	rep	#$30
 	sta	$4200
 	lda	#$8f			; Force blank
 	sta	$2100
-	lda	#^pbmp_0
+	lda	#pict+2
 	jsr	make_pixmap
 	jsr	load_pixmap
 	lda	#$0f			; Re-enable display
