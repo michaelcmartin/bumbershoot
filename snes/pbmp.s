@@ -127,7 +127,8 @@ VBLANK:	rep	#$30
 :	lsr	a			; Up?
 	bcc	:+
 	dec	yscr
-:	sep	#$10
+:	sep	#$30			; Set scroll values
+	.a8
 	.i8
 	ldx	xscr
 	ldy	xscr+1
@@ -141,10 +142,14 @@ VBLANK:	rep	#$30
 	sty	$210e
 	stx	$2110
 	sty	$2110
-	rep	#$30
-	.i16
 	lsr	a			; Start?
-	bcc	done
+	bcc	nopress
+	lda	draw_state
+	bne	done
+	inc	draw_state
+	rep	#$30
+	.a16
+	.i16
 	lda	pict
 	eor	#(pbmp_0 ^ pbmp_1)
 	sta	pict
@@ -162,6 +167,9 @@ VBLANK:	rep	#$30
 	sta	$2100
 	lda	#$81
 	sta	$4200			; Re-enable VBLANK
+	bra	done
+nopress:				; Start OK again
+	stz	draw_state
 done:	rep	#$30
 	ply
 	plx
