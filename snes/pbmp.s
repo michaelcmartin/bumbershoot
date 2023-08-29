@@ -29,32 +29,70 @@ draw_state:
 
 	.segment "CODE"
 
-main:	sep	#$30
+main:	sep	#$20
+	rep	#$10
 	.a8
-	.i8
+	.i16
 
 	phk
 	plb
-	stz	$2121			; Load palette
-	ldx	#$00
-:	lda	colors,x
-	sta	$2122
-	inx
-	cpx	#colors_end-colors
-	bne	:-
+	stz	$4300			; DMA0: linear forward copy A->B
+	lda	#$22			; into CGRAM
+	sta	$4301
+	stz	$2121			; Load palette starting at 0
+	lda	#^colors		; Set DMA source address
+	ldx	#(colors & $ffff)
+	stx	$4302
+	sta	$4304
+	ldx	#colors_end-colors	; Set DMA transfer size
+	stx	$4305
+	lda	#$01			; Send DMA
+	sta	$420b
+
+	sta	$4300			; VRAM word copy this time
+	lda	#$18
+	sta	$4301
+	lda	#^ancillary
+	ldx	#(ancillary & $ffff)
+	stx	$4302
+	sta	$4304
+	ldx	#ancillary_end-ancillary
+	stx	$4305
+	stz	$2116			; Copy into VRAM $0000
+	stz	$2117
+	lda	#$01
+	sta	$420b
+
+	ldx	#$6000			; Clear tilemap area
+	stx	$2116
+	lda	#$09			; Fixed ROM->VRAM copy
+	sta	$4300
+	lda	#^zero
+	ldx	#(zero & $ffff)
+	stx	$4302
+	sta	$4304
+	ldx	#$4000
+	stx	$4305
+	lda	#$01
+	sta	$420b
+	ldx	#$7000
+	stx	$2116
+	lda	#$08			; Only write the high bytes
+	sta	$4300
+	lda	#$19
+	sta	$4301
+	lda	#^vflip
+	ldx	#(vflip & $ffff)
+	stx	$4302
+	sta	$4304
+	ldx	#$1000
+	stx	$4305
+	lda	#$01
+	sta	$420b
 
 	rep	#$30			; Load semigraphics and font
 	.a16
 	.i16
-	stz	$2116
-	ldx	#$00
-:	lda	f:ancillary,x
-	sta	$2118
-	inx
-	inx
-	cpx	#ancillary_end-ancillary
-	bne	:-
-
 	stz	xscr			; zero out the scroll registers
 	stz	yscr			; (16-bit writes)
 	lda	#(pbmp_0 & $ffff)	; Point to first image
@@ -64,20 +102,6 @@ main:	sep	#$30
 	lda	#^pbmp_0
 	sta	pict+2
 	stz	draw_state
-
-	;; Clear 8bpp screen
-	ldx	#$6000			; Clear entire screen
-	stx	$2116
-	ldy	#$0000			; First blank 4bpp tile
-	ldx	#$1000			; 4096 tiles
-:	sty	$2118
-	dex
-	bne	:-
-	ldy	#$8000			; Flip every tile in BG2
-	ldx	#$1000
-:	sty	$2118
-	dex
-	bne	:-
 
 	lda	pict+2
 	ldx	pict
@@ -233,19 +257,27 @@ done:	plb				; Restore data bank
 .endproc
 
 .proc	load_pixmap
-	ldx	#$6000			; Create main bitmap
+	ldx	#$6000			; Write to tilemaps
 	stx	$2116
 	lda	#$00			; Only write low byte
 	sta	$2115
-	ldx	#$0000			; Write 8 nametables
-:	lda	$7f8000,x
-	sta	$2118
-	inx
-	cpx	#$2000
-	bne	:-
+	stz	$4300			; Linear copy
+	lda	#$18			; into low byte
+	sta	$4301
+	lda	#$7f			; From RAM image
+	ldx	#$8000
+	stx	$4302
+	sta	$4304
+	ldx	#$2000			; Write 8 nametables worth
+	stx	$4305
+	lda	#$01
+	sta	$420b
 	rts
 .endproc
 
+	;; Raw data for the VRAM DMA initialization
+zero:	.byte	$00
+vflip:	.byte	$80
 
 colors:	.incbin "res/bumberpal.bin"
 colors_end:
