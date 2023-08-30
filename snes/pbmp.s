@@ -27,6 +27,11 @@ pict:	.res	3
 draw_state:
 	.res	1
 
+	;; Draw state 0: normal operation, all memory static
+	;; Draw state 1: switch requested, WRAM changing
+	;; Draw state 2: render requested, VRAM changing
+	;; Draw state 3: waiting for input reset, all memory static
+
 	.segment "CODE"
 
 main:	sep	#$20
@@ -121,7 +126,24 @@ main:	sep	#$20
 
 	lda	#$81			; Enable joypad auto-read
 	sta	$4200			; and VBLANK NMI
-@loop:	jmp	@loop
+
+@loop:	lda	draw_state		; Has a switch been requested?
+	cmp	#$01
+	bne	@loop
+
+	rep	#$20
+	.a16
+	lda	pict
+	eor	#(pbmp_0 ^ pbmp_1)
+	sta	pict
+	tax
+	sep	#$20
+	.a8
+	lda	#pict+2
+	jsr	make_pixmap
+
+	inc	draw_state
+	bra	@loop
 
 VBLANK:	rep	#$30
 	.i16
@@ -130,12 +152,48 @@ VBLANK:	rep	#$30
 	phy
 	sep	#$20
 	.a8
+	lda	draw_state
+	cmp	#$02
+	beq	blit
 :	lda	$4212			; Has the controller started reading?
 	lsr	a
 	bcc	:-
 :	lda	$4212			; Is the controller ready?
 	lsr	a
 	bcs	:-
+	jsr	read_joy
+	bcc	nopress
+	;; START is down. If we're in state 0, go to state 1.
+	lda	draw_state
+	bne	done
+	inc	draw_state
+	bra	done
+blit:	lda	#$01			; Disable NMI
+	sta	$4200
+	lda	#$8f			; Force blank
+	sta	$2100
+	jsr	load_pixmap
+	jsr	read_joy		; No delays needed for joyread here
+	lda	#$0f			; Re-enable display
+	sta	$2100
+	lda	#$81
+	sta	$4200			; Re-enable VBLANK
+	inc	draw_state		; Advance to state 3
+	bra	done
+nopress:
+	;; If we're in state 3, return to state 0
+	lda	draw_state
+	cmp	#$03
+	bne	done
+	stz	draw_state
+done:	rep	#$30
+	ply
+	plx
+	pla
+	rti
+
+	;; Read controller. Update x_scr and y_scr, START in carry
+.proc	read_joy
 	lda	$4219			; Read the directional part
 	rep	#$20			; We'll need 16-bit memory here
 	.a16
@@ -167,38 +225,10 @@ VBLANK:	rep	#$30
 	stx	$2110
 	sty	$2110
 	lsr	a			; Start?
-	bcc	nopress
-	lda	draw_state
-	bne	done
-	inc	draw_state
-	rep	#$30
-	.a16
+	rep	#$10
 	.i16
-	lda	pict
-	eor	#(pbmp_0 ^ pbmp_1)
-	sta	pict
-	tax
-	sep	#$20
-	.a8
-	lda	#$01			; Disable NMI
-	sta	$4200
-	lda	#$8f			; Force blank
-	sta	$2100
-	lda	#pict+2
-	jsr	make_pixmap
-	jsr	load_pixmap
-	lda	#$0f			; Re-enable display
-	sta	$2100
-	lda	#$81
-	sta	$4200			; Re-enable VBLANK
-	bra	done
-nopress:				; Start OK again
-	stz	draw_state
-done:	rep	#$30
-	ply
-	plx
-	pla
-	rti
+	rts
+.endproc
 
 	;; Convenience macro for make_pixmap
 .macro	combine src_offset, dest_offset
