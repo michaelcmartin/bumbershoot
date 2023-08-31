@@ -96,15 +96,12 @@ main:	sep	#$20
 	lda	#$01
 	sta	$420b
 
-	rep	#$30			; Load semigraphics and font
-	.a16
-	.i16
-	stz	xscr			; zero out the scroll registers
-	stz	yscr			; (16-bit writes)
-	lda	#(pbmp_0 & $ffff)	; Point to first image
-	sta	pict
-	sep	#$20
-	.a8
+	;; Load semigraphics and font
+	ldx	#$0000			; zero out the scroll registers
+	stx	xscr
+	stx	yscr
+	ldx	#(pbmp_0 & $ffff)	; Point to first image
+	stx	pict
 	lda	#^pbmp_0
 	sta	pict+2
 	stz	draw_state
