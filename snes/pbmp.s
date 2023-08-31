@@ -30,7 +30,8 @@ draw_state:
 	;; Draw state 0: normal operation, all memory static
 	;; Draw state 1: switch requested, WRAM changing
 	;; Draw state 2: render requested, VRAM changing
-	;; Draw state 3: waiting for input reset, all memory static
+	;; Draw state 3: render progressing, VRAM changing
+	;; Draw state 4: waiting for input reset, all memory static
 
 	.segment "CODE"
 
@@ -111,6 +112,11 @@ main:	sep	#$20
 	lda	pict+2
 	ldx	pict
 	jsr	make_pixmap
+	ldx	#$6000
+	ldy	#$8000
+	jsr	load_pixmap
+	ldx	#$7000
+	ldy	#$9000
 	jsr	load_pixmap
 
 @disp:	lda	#$01			; Mode 1, 4BPP/4BPP/2BPP
@@ -153,8 +159,11 @@ VBLANK:	rep	#$30
 	sep	#$20
 	.a8
 	lda	draw_state
-	cmp	#$02
-	beq	blit
+	dec	a
+	dec	a			; Blit phase 1?
+	beq	blit1
+	dec	a
+	beq	blit2			; Blit phase 2?
 :	lda	$4212			; Has the controller started reading?
 	lsr	a
 	bcc	:-
@@ -168,24 +177,22 @@ VBLANK:	rep	#$30
 	bne	done
 	inc	draw_state
 	bra	done
-blit:	lda	#$01			; Disable NMI
-	sta	$4200
-	lda	#$8f			; Force blank
-	sta	$2100
-	jsr	load_pixmap
-	jsr	read_joy		; No delays needed for joyread here
-	lda	#$0f			; Re-enable display
-	sta	$2100
-	lda	#$81
-	sta	$4200			; Re-enable VBLANK
-	inc	draw_state		; Advance to state 3
-	bra	done
 nopress:
-	;; If we're in state 3, return to state 0
+	;; START is up. If we're in state 4, return to state 0.
 	lda	draw_state
-	cmp	#$03
+	cmp	#$04
 	bne	done
 	stz	draw_state
+	bra	done
+blit1:	ldx	#$6000
+	ldy	#$8000
+	jsr	load_pixmap
+	bra	scroll
+blit2:	ldx	#$7000
+	ldy	#$9000
+	jsr	load_pixmap
+scroll:	jsr	read_joy		; No delays needed for joyread here
+	inc	draw_state		; Advance to next state
 done:	rep	#$30
 	ply
 	plx
@@ -286,19 +293,19 @@ done:	plb				; Restore data bank
 	rts
 .endproc
 
+	;; .X = VRAM destination
+	;; .Y = WRAM source (bank 7F)
 .proc	load_pixmap
-	ldx	#$6000			; Write to tilemaps
-	stx	$2116
+	stx	$2116			; Save destination
 	lda	#$00			; Only write low byte
 	sta	$2115
 	stz	$4300			; Linear copy
 	lda	#$18			; into low byte
 	sta	$4301
 	lda	#$7f			; From RAM image
-	ldx	#$8000
-	stx	$4302
+	sty	$4302
 	sta	$4304
-	ldx	#$2000			; Write 8 nametables worth
+	ldx	#$1000			; Write 4 nametables worth
 	stx	$4305
 	lda	#$01
 	sta	$420b
