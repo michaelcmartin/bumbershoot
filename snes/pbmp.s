@@ -10,15 +10,15 @@
 
 	;; https://snes.nesdev.org/wiki/ROM_header
 	.segment "ROMINFO"
-	.byte	$20			; SlowROM, LoROM
+	.byte	$30			; FastROM, LoROM
 	.byte	0
 	.byte	$07			; 128KB
 	.byte	0,0,0,0
 	.word	$aaaa, $5555
 
 	.segment "VECTORS"
-	.word	0,0,0,0,0,VBLANK,0,0
-	.word	0,0,0,0,0,0,RESET,0
+	.word	0,0,0,0,0,VBLANK & $ffff,0,0
+	.word	0,0,0,0,0,0,RESET & $ffff,0
 
 	.zeropage
 xscr:	.res	2
@@ -42,6 +42,10 @@ main:	sep	#$20
 
 	phk
 	plb
+
+	lda	#$01			; Enable FastROM
+	sta	$420d
+
 	stz	$4300			; DMA0: linear forward copy A->B
 	lda	#$22			; into CGRAM
 	sta	$4301
@@ -127,6 +131,7 @@ main:	sep	#$20
 	lda	#$0f			; Enable display
 	sta	$2100
 
+	lda	$4210			; Clear VBLANK flag
 	lda	#$81			; Enable joypad auto-read
 	sta	$4200			; and VBLANK NMI
 
@@ -148,7 +153,8 @@ main:	sep	#$20
 	inc	draw_state
 	bra	@loop
 
-VBLANK:	rep	#$30
+VBLANK:	jml	:+
+:	rep	#$30
 	.i16
 	pha
 	phx
