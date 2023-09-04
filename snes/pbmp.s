@@ -2,7 +2,7 @@
 	.a16
 	.i16
 
-	.import	RESET, seed_rnd, rnd
+	.import	RESET
 	.export	main
 
 	.segment "TITLE"

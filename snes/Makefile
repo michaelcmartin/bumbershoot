@@ -7,8 +7,8 @@ all: $(BINARIES)
 logo.smc: snes_init.o logo.o lorom128.cfg
 	ld65 -C lorom128.cfg -o logo.smc snes_init.o logo.o
 
-pbmp.smc: snes_init.o pbmp.o lorom128.cfg
-	ld65 -C lorom128.cfg -o pbmp.smc snes_init.o pbmp.o
+pbmp.smc: snes_init.o pbmp.o lorom128f.cfg
+	ld65 -C lorom128f.cfg -o pbmp.smc snes_init.o pbmp.o
 
 clean:
 	rm -f $(BINARIES) $(OBJS) $(TOOLS) res/*.bin
