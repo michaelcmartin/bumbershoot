@@ -1,5 +1,5 @@
-OBJS = snes_init.o logo.o pbmp.o
-TOOLS = makelogo make_gfx pbmpconv
+OBJS = snes_init.o logo.o pbmp.o lz4dec.o
+TOOLS = makelogo make_gfx pbmpconv lz4_unframe
 BINARIES = logo.smc pbmp.smc
 
 all: $(BINARIES)
@@ -42,6 +42,9 @@ makelogo: support/makelogo.c
 
 pbmpconv: support/pbmpconv.c
 	gcc -o pbmpconv -I../win32 support/pbmpconv.c -lm
+
+lz4_unframe: support/lz4_unframe.c
+	gcc -o lz4_unframe support/lz4_unframe.c
 
 logo.o: res/bumberlogo.bin res/bumberpal.bin
 pbmp.o: res/bumberpal.bin res/pbmp_0.bin res/pbmp_1.bin res/ancillary.bin
