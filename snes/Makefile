@@ -1,4 +1,4 @@
-OBJS = snes_init.o logo.o pbmp.o lz4dec.o
+OBJS = snes_init.o logo.o pbmp.o lz4dec.o xss.o xs16.o
 TOOLS = makelogo make_gfx pbmpconv lz4_unframe
 BINARIES = logo.smc pbmp.smc
 
