@@ -30,7 +30,7 @@ len:	.res	2
 loop:	lda	[srcptr],y		; load lengths byte
 	iny
 	pha				; save it for reprocessing
-	lsr				; Shift left 4 to get literals
+	lsr				; Shift right 4 to get literals
 	lsr				;    length nybble
 	lsr
 	lsr
