@@ -12,10 +12,15 @@ rnd_y:	.res	2
 ;;; seed_rnd: Seed the PRNG.
 ;;; INPUT: 32-bit seed in .AX (MX must both be 16-bit).
 ;;; OUTPUT: None.
-;;; TRASHES: .A
+;;; TRASHES: .AX (any zero in the reg becomes 1)
 .proc	seed_rnd
-	ora	#$01
-	sta	rnd_x
+	cmp	#$00
+	bne	:+
+	inc	a
+:	cpx	#$00
+	bne	:+
+	inx
+:	sta	rnd_x
 	stx	rnd_y
 	rts
 .endproc

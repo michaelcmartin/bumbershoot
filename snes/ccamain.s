@@ -79,8 +79,8 @@ main:	sep	#$20
 
 	rep	#$20
 	.a16
-	lda	#$0001
-	tax
+	lda	#$000a
+	ldx	#$0001
 	jsr	seed_rnd
 	sep	#$20
 	.a8
