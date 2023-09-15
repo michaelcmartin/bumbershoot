@@ -4,7 +4,7 @@
 
 	.import	RESET, lz4dec, rnd, seed_rnd
 	.import	init_pixmap, make_pixmap, load_pixmap
-	.import	init_cca
+	.import	init_cca, step_cca
 	.export	main
 
 	.segment "TITLE"
@@ -112,7 +112,42 @@ main:	sep	#$20
 	lda	#$81			; Enable joypad auto-read
 	sta	$4200			; and VBLANK NMI
 
-@loop:	jmp	@loop
+@loop:	ldx	#$0000
+	ldy	#$4000
+	jsr	step_cca
+
+	lda	#$7f
+	ldx	#$0000
+	jsr	make_pixmap
+	lda	#$8f
+	sta	$2100
+	ldx	#$6000
+	ldy	#$8000
+	jsr	load_pixmap
+	ldx	#$7000
+	ldy	#$9000
+	jsr	load_pixmap
+	lda	#$0f
+	sta	$2100
+
+	ldx	#$4000
+	ldy	#$0000
+	jsr	step_cca
+
+	lda	#$7f
+	ldx	#$4000
+	jsr	make_pixmap
+	lda	#$8f
+	sta	$2100
+	ldx	#$6000
+	ldy	#$8000
+	jsr	load_pixmap
+	ldx	#$7000
+	ldy	#$9000
+	jsr	load_pixmap
+	lda	#$0f
+	sta	$2100
+	jmp	@loop
 
 VBLANK:	jml	:+
 :
