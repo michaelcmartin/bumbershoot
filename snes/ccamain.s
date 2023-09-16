@@ -25,10 +25,21 @@
 	.zeropage
 xscr:	.res	2
 yscr:	.res	2
+draw_state:
+	.res	1
+
+.macro	blit
+	.local	lp
+lp:	bit	draw_state
+	bmi	lp
+	lda	#$fe
+	sta	draw_state
+.endmacro
 
 	.segment "CODE"
 
-main:	sep	#$20
+.proc	main
+	sep	#$20
 	rep	#$10
 	.a8
 	.i16
@@ -76,10 +87,11 @@ main:	sep	#$20
 	ldx	#$0000			; zero out the scroll registers
 	stx	xscr
 	stx	yscr
+	stz	draw_state		; and the draw state
 
 	rep	#$20
 	.a16
-	lda	#$000a
+	lda	#$000a			; Match sega port for now
 	ldx	#$0001
 	jsr	seed_rnd
 	sep	#$20
@@ -97,7 +109,7 @@ main:	sep	#$20
 	ldy	#$9000
 	jsr	load_pixmap
 
-@disp:	lda	#$01			; Mode 1, 4BPP/4BPP/2BPP
+	lda	#$01			; Mode 1, 4BPP/4BPP/2BPP
 	sta	$2105
 	lda	#$63			; BG1 Tilemap at $6000, 64x64
 	sta	$2107
@@ -112,23 +124,14 @@ main:	sep	#$20
 	lda	#$81			; Enable joypad auto-read
 	sta	$4200			; and VBLANK NMI
 
-@loop:	ldx	#$0000
+loop:	ldx	#$0000
 	ldy	#$4000
 	jsr	step_cca
 
 	lda	#$7f
 	ldx	#$0000
 	jsr	make_pixmap
-	lda	#$8f
-	sta	$2100
-	ldx	#$6000
-	ldy	#$8000
-	jsr	load_pixmap
-	ldx	#$7000
-	ldy	#$9000
-	jsr	load_pixmap
-	lda	#$0f
-	sta	$2100
+	blit
 
 	ldx	#$4000
 	ldy	#$0000
@@ -137,21 +140,53 @@ main:	sep	#$20
 	lda	#$7f
 	ldx	#$4000
 	jsr	make_pixmap
-	lda	#$8f
-	sta	$2100
+	blit
+	bra	loop
+.endproc
+
+.proc	VBLANK
+	jml	:+
+:	rep	#$30
+	phb
+	pha
+	phx
+	phy
+	sep	#$20
+	.a8
+	.i16
+	lda	#$80
+	pha
+	plb
+	lda	draw_state
+	bpl	idle_states
+	;; We have real work to do
+	inc	a
+	beq	blit2
+	;; Blit phase 1 (state -2)
 	ldx	#$6000
 	ldy	#$8000
-	jsr	load_pixmap
-	ldx	#$7000
+	bra	doblit
+blit2:	ldx	#$7000
 	ldy	#$9000
-	jsr	load_pixmap
-	lda	#$0f
-	sta	$2100
-	jmp	@loop
-
-VBLANK:	jml	:+
-:
+doblit:	jsr	load_pixmap
+	jsr	read_joy
+	inc	draw_state
+	bra	done
+idle_states:
+	lda	$4212			; Has the controller started reading?
+	lsr	a
+	bcc	idle_states
+:	lda	$4212			; Is the controller ready?
+	lsr	a
+	bcs	:-
+	jsr	read_joy		; TODO: Handle start button
+done:	rep	#$30
+	ply
+	plx
+	pla
+	plb
 	rti
+.endproc
 
 	;; Read controller. Update x_scr and y_scr, START in carry
 .proc	read_joy
