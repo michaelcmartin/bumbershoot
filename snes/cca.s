@@ -37,6 +37,7 @@ write2:	pha
 	lsr
 	lsr
 	sta	a:$0000,x
+	inx
 	rts
 .endproc
 
