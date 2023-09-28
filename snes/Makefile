@@ -1,10 +1,11 @@
 OBJS = snes_init.o \
        logo.o \
        pbmpmain.o \
+       snesdigi.o \
        ccamain.o cca.o \
        lz4dec.o pbmp.o xss.o xs16.o
 TOOLS = makelogo make_gfx pbmpconv lz4_unframe
-BINARIES = logo.smc pbmp.smc cca.smc
+BINARIES = logo.smc pbmp.smc snesdigi.smc cca.smc
 
 all: $(BINARIES)
 
@@ -14,7 +15,10 @@ logo.smc: snes_init.o logo.o lorom128.cfg
 pbmp.smc: snes_init.o pbmpmain.o pbmp.o lorom128f.cfg
 	ld65 -C lorom128f.cfg -o pbmp.smc snes_init.o pbmpmain.o pbmp.o
 
-cca.smc: snes_init.o ccamain.o cca.o lz4dec.o pbmp.o xs16.o
+snesdigi.smc: snes_init.o snesdigi.o lorom128.cfg
+	ld65 -C lorom128.cfg -o snesdigi.smc snes_init.o snesdigi.o
+
+cca.smc: snes_init.o ccamain.o cca.o lz4dec.o pbmp.o xs16.o lorom128f.cfg
 	ld65 -C lorom128f.cfg -o cca.smc snes_init.o ccamain.o cca.o lz4dec.o pbmp.o xs16.o
 
 clean:
@@ -59,3 +63,4 @@ lz4_unframe: support/lz4_unframe.c
 logo.o: res/bumberlogo.bin res/bumberpal.bin
 pbmpmain.o: res/bumberpal.bin res/pbmp_0.bin res/pbmp_1.bin res/ancillary.bin
 ccamain.o: res/lz4gfx.bin res/bumberpal.bin
+snesdigi.o: res/bumbershoot.brr
