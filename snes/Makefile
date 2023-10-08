@@ -4,6 +4,7 @@ OBJS = snes_init.o \
        snesdigi.o \
        ccamain.o cca.o \
        lz4dec.o pbmp.o xss.o xs16.o
+SPCOBJS = spc_digi.bin
 TOOLS = makelogo make_gfx pbmpconv lz4_unframe
 BINARIES = logo.smc pbmp.smc snesdigi.smc cca.smc
 
@@ -22,10 +23,13 @@ cca.smc: snes_init.o ccamain.o cca.o lz4dec.o pbmp.o xs16.o lorom128f.cfg
 	ld65 -C lorom128f.cfg -o cca.smc snes_init.o ccamain.o cca.o lz4dec.o pbmp.o xs16.o
 
 clean:
-	rm -f $(BINARIES) $(OBJS) $(TOOLS) res/*.bin
+	rm -f $(BINARIES) $(OBJS) $(SPCOBJS) $(TOOLS) res/*.bin
 
 $(OBJS): %.o: %.s
 	ca65 $<
+
+$(SPCOBJS): %.bin: %.s
+	spcasm -f plain $< $@
 
 res/bumberlogo.bin: makelogo res/orig/logosnes.png
 	cd res && ../makelogo orig/logosnes.png
@@ -47,9 +51,6 @@ res/pbmp_0.bin: pbmpconv res/orig/pbmp_0.png res/bumberpal.bin
 
 res/pbmp_1.bin: pbmpconv res/orig/pbmp_1.png res/bumberpal.bin
 	cd res && ../pbmpconv orig/pbmp_1.png pbmp_1.bin
-
-spc_digi.bin: spc_digi.s
-	spcasm -f plain spc_digi.s spc_digi.bin
 
 make_gfx: support/make_gfx.c
 	gcc -o make_gfx -I../win32 support/make_gfx.c -lm
