@@ -48,6 +48,9 @@ res/pbmp_0.bin: pbmpconv res/orig/pbmp_0.png res/bumberpal.bin
 res/pbmp_1.bin: pbmpconv res/orig/pbmp_1.png res/bumberpal.bin
 	cd res && ../pbmpconv orig/pbmp_1.png pbmp_1.bin
 
+spc_digi.bin: spc_digi.s
+	spcasm -f plain spc_digi.s spc_digi.bin
+
 make_gfx: support/make_gfx.c
 	gcc -o make_gfx -I../win32 support/make_gfx.c -lm
 
@@ -63,4 +66,4 @@ lz4_unframe: support/lz4_unframe.c
 logo.o: res/bumberlogo.bin res/bumberpal.bin
 pbmpmain.o: res/bumberpal.bin res/pbmp_0.bin res/pbmp_1.bin res/ancillary.bin
 ccamain.o: res/lz4gfx.bin res/bumberpal.bin
-snesdigi.o: res/bumbershoot.brr
+snesdigi.o: res/bumbershoot.brr spc_digi.bin

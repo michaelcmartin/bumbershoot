@@ -142,19 +142,8 @@ spcdata:
 	;; Directory
 	.word	sampleSPC, sampleSPC
 
-	;; Config/playback code
-	.byte	$cd,$00,$f5,$48,$02,$fd,$f5,$47,$02,$30,$06,$3d,$3d,$da,$f2,$2f
-	.byte	$f1,$e8,$fc,$c4,$f2,$e4,$f3,$28,$01,$d0,$0c,$e4,$f4,$68,$ad,$d0
-	.byte	$f0,$e4,$f5,$68,$de,$d0,$ea,$e8,$ed,$c4,$f4,$e8,$fe,$c4,$f5,$e8
-	.byte	$5c,$8d,$01,$da,$f2,$e4,$f4,$68,$ed,$d0,$fa,$e4,$f5,$68,$fe,$d0
-	.byte	$f4,$2f,$fe
+	.incbin "spc_digi.bin",$204
 
-	;; DSP configuration data
-	.word	$206c,$004c,$ff5c,$025d
-	.word	$7f00,$7f01,$0002,$0803,$0004,$0005,$e006,$7f07
-	.word	$005c,$007c,$003d,$004d,$7f0c,$7f1c,$002c,$003c,$014c
-	.byte	$ff
-
-        ;; Sample data
+	;; Sample data
 sample:	.incbin	"res/bumbershoot.brr"
 spcdata_end:
