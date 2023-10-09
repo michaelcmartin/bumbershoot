@@ -19,6 +19,9 @@
 	.word	0,0,0,0,0,VBLANK,0,0
 	.word	0,0,0,0,0,0,RESET,0
 
+	.zeropage
+joy0:	.res	1
+
 	.segment "CODE"
 
 .proc	main
@@ -56,16 +59,19 @@
 	lda	#$10			; And read it from $1000
 	sta	$2107
 
+	lda	#^spcdata
+	ldx	#(spcdata & $ffff)
+	ldy	#(spcdata_end - spcdata)
 	jsr	load_sound
 
-	stz	$00			; Zero out our controller marker
+	stz	joy0			; Zero out our controller marker
 
 	lda	#$81			; Enable joypad auto-read
 	sta	$4200			; and VBLANK NMI
 
 	ldy	#$dead			; Cache abort code
 	ldx	#$feed			; Check for completion code
-wait:	lda	$00
+wait:	lda	joy0
 	beq	ok
 	sty	$2140			; If start pressed, send abort code
 ok:	cpx	$2140
@@ -75,6 +81,12 @@ ok:	cpx	$2140
 	sta	$2140			; (8-bit to dodge bug)
 	lda	#$fe
 	sta	$2141
+
+	;; Set up song playback
+	lda	#^songdata
+	ldx	#(songdata & $ffff)
+	ldy	#(songdata_end - songdata)
+	jsr	load_sound
 
 	lda	#$0f			; Enable display
 	sta	$2100
@@ -94,13 +106,21 @@ loop:	jmp	loop
 	bcs	:-
 	lda	$4219			; Load controller state
 	and	#$10			; Mask out START button
-	sta	$00			; And cache that where main can see it
+	sta	joy0			; And cache that where main can see it
 	rep	#$30
 	pla
 	rti
 .endproc
 
+	.zeropage
+spc_addr: .res 3
+
+	.segment "CODE"
+
 .proc	load_sound
+	;; store source pointer
+	stx	spc_addr
+	sta	spc_addr+2
 	;; Wait for boot
 	ldx	#$bbaa
 :	cpx	$2140
@@ -114,18 +134,19 @@ loop:	jmp	loop
 :	cmp	$2140
 	bne	:-
 	;; Copy data over
-	ldx	#$0000
-copy:	lda	f:spcdata,x
+	tyx
+	ldy	#$0000
+copy:	lda	[spc_addr],y
 	sta	$2141
-	txa
+	tya
 	sta	$2140
 :	cmp	$2140
 	bne	:-
-	inx
-	cpx	#spcdata_end-spcdata
+	iny
+	dex
 	bne	copy
 	;; Run program
-	txa
+	tya
 	inc	a
 	ldx	#$0204
 	stx	$2142
@@ -135,6 +156,10 @@ copy:	lda	f:spcdata,x
 	bne	:-
 	rts
 .endproc
+
+songdata:
+	.incbin "spc_mus.bin",$200
+songdata_end:
 
 	.segment "BANK1"
 spcdata:

@@ -4,7 +4,7 @@ OBJS = snes_init.o \
        snesdigi.o \
        ccamain.o cca.o \
        lz4dec.o pbmp.o xss.o xs16.o
-SPCOBJS = spc_digi.bin
+SPCOBJS = spc_digi.bin spc_mus.bin
 TOOLS = makelogo make_gfx pbmpconv lz4_unframe
 BINARIES = logo.smc pbmp.smc snesdigi.smc cca.smc
 
@@ -67,4 +67,4 @@ lz4_unframe: support/lz4_unframe.c
 logo.o: res/bumberlogo.bin res/bumberpal.bin
 pbmpmain.o: res/bumberpal.bin res/pbmp_0.bin res/pbmp_1.bin res/ancillary.bin
 ccamain.o: res/lz4gfx.bin res/bumberpal.bin
-snesdigi.o: res/bumbershoot.brr spc_digi.bin
+snesdigi.o: res/bumbershoot.brr spc_digi.bin spc_mus.bin
