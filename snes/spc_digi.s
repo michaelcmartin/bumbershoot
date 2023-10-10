@@ -1,4 +1,7 @@
-	org	$0204
+	org	$0200
+
+	;; Directory
+	word    sample, sample
 
 	mov	x,#0
 loop:	mov	a,!table+x
@@ -38,3 +41,5 @@ table:	dw	$206c,$ff5c,$025d
 	dw	$0002,$0803,$0004,$0005,$e006,$7f07,$7f00,$7f01
 	dw	$005c,$007c,$003d,$004d,$7f0c,$7f1c,$002c,$003c,$014c
 	db	$ff
+
+sample:	incbin	"res/bumbershoot.brr"

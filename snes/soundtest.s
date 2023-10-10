@@ -138,12 +138,5 @@ songdata_end:
 
 	.segment "BANK1"
 spcdata:
-	sampleSPC = (sample - spcdata) + $200
-	;; Directory
-	.word	sampleSPC, sampleSPC
-
-	.incbin "spc_digi.bin",$204
-
-	;; Sample data
-sample:	.incbin	"res/bumbershoot.brr"
+	.incbin "spc_digi.bin",$200
 spcdata_end:
