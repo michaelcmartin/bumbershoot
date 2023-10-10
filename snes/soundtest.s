@@ -2,7 +2,7 @@
 	.a16
 	.i16
 
-	.import	RESET
+	.import	RESET, load_sound
 	.export	main
 
 	.segment "TITLE"
@@ -110,51 +110,6 @@ loop:	jmp	loop
 	rep	#$30
 	pla
 	rti
-.endproc
-
-	.zeropage
-spc_addr: .res 3
-
-	.segment "CODE"
-
-.proc	load_sound
-	;; store source pointer
-	stx	spc_addr
-	sta	spc_addr+2
-	;; Wait for boot
-	ldx	#$bbaa
-:	cpx	$2140
-	bne	:-
-	;; Set write address
-	ldx	#$0200
-	stx	$2142
-	lda	#$cc
-	sta	$2141
-	sta	$2140
-:	cmp	$2140
-	bne	:-
-	;; Copy data over
-	tyx
-	ldy	#$0000
-copy:	lda	[spc_addr],y
-	sta	$2141
-	tya
-	sta	$2140
-:	cmp	$2140
-	bne	:-
-	iny
-	dex
-	bne	copy
-	;; Run program
-	tya
-	inc	a
-	ldx	#$0204
-	stx	$2142
-	stz	$2141
-	sta	$2140
-:	cmp	$2140
-	bne	:-
-	rts
 .endproc
 
 songdata:
