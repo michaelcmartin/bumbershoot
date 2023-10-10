@@ -159,6 +159,26 @@ copy:	lda	[spc_addr],y
 
 songdata:
 	.incbin "spc_mus.bin",$200
+
+	;; DSP setup
+	.byte	$6c,$20,$0c,$7f,$1c,$7f,$2c,$00,$3c,$00,$4c,$00,$5c,$ff,$2d,$00
+	.byte	$3d,$00,$4d,$00,$5d,$02,$5c,$00
+
+	;; Instrument/Envelope control
+	.byte	$00,$7f,$01,$7f,$04,$00,$05,$9f,$06,$1a
+
+	;; Play scale
+	.byte	$02,$5f,$03,$08,$5c,$00,$4c,$01,$9c,$5c,$01,$84
+	.byte	$02,$65,$03,$09,$5c,$00,$4c,$01,$9c,$5c,$01,$84
+	.byte	$02,$8c,$03,$0a,$5c,$00,$4c,$01,$9c,$5c,$01,$84
+	.byte	$02,$2c,$03,$0b,$5c,$00,$4c,$01,$9c,$5c,$01,$84
+	.byte	$02,$8b,$03,$0c,$5c,$00,$4c,$01,$9c,$5c,$01,$84
+	.byte	$02,$14,$03,$0e,$5c,$00,$4c,$01,$9c,$5c,$01,$84
+	.byte	$02,$cd,$03,$0f,$5c,$00,$4c,$01,$9c,$5c,$01,$84
+	.byte	$02,$be,$03,$10,$5c,$00,$4c,$01,$9c,$5c,$01,$84
+
+	;; Pause, then loop back to start of scale
+	.byte	$5c,$00,$f0,$80,$22,$00
 songdata_end:
 
 	.segment "BANK1"
