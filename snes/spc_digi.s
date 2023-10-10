@@ -11,7 +11,7 @@ loop:	mov	a,!table+x
 	bne	loop
 
 wait:	mov	$f2,#$fc		; Check ENDX
-	byte	$aa,$f3,$00		; MOV1 C,$f3.0
+	mov1	c,$f3.0
 	bcs	signal
 	mov	a,#$ad			; Check for CPU signal
 	cbne	$f4,wait
