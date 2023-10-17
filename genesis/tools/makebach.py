@@ -1,4 +1,12 @@
 #!/usr/bin/python
+
+# Add the sound directory to pythonpath so we can import our music macros
+import os.path
+import sys
+
+musicpath = os.path.dirname(os.path.realpath(sys.argv[0]))
+sys.path.insert(0, os.path.join(musicpath, '..', '..', 'sound'))
+
 import musicmacro
 
 conv_factor = 53693100.0 / 0x7e000000
@@ -39,30 +47,7 @@ def set_note(score, voice, note, length, time):
     score[ontime].append((0x28, 0xf0+voice))
     score[offtime].append((0x28, voice))
 
-voice1_a = """T120O3L8GB>DG<A>F#G4<G4G4GB>DG<A>F#G4<G4G4
-L4O4EEE8G8DDD8G8CL8DC<B>C<A2.
-O3L8GB>DG<A>F#G4<G4G4GB>DG<A>F#G4<G4G4
-O4L8E4DC<BA>D4C<BAGL12AB>C<L4DF#G2."""
-voice1_b = """O3L8GABAGF#G4E4E4>GF#EGF#EF#4<B4B4
-O4L8GF#EGF#EL4F#<B>EL12F#GAL4<B>D#ED#8E8F#
-O4L8G4GF#EDE4EDC<B>C4C<BAGF#4EF#D4
-O3L4ADDBDD>CL8DC<B>C<A2.
-O3L8GB>DG<A>F#G4<G4G4GB>DG<A>F#G4<G4G4
-O4L8E4DC<BA>D4C<BAGABL4DF#G2."""
-
-voice2_a = """T120O2L8G2D4<GB>DGD<BG2>D4<GB>DGD<B
-O2L4CGC<B>G<BA>F#GL8DEF#DEF#
-O2L8G2D4<GB>DGD<BG2>D4<GB>DGD<B
-O2L4CEG<B>DGCDDGD<G"""
-voice2_b = """O2L4ED#<B>E<BE>EGBL8<B>D#F#BF#D#
-O2L4EGB<B>AGAB<B>E2.
-O1L4B>DGCDE<AB>CD<AD
-O2L8F#DF#DF#DGDGDGDF#4D4G4DEF#DEF#
-O2L8G2D4<GB>DGD<BG2>D4<GB>DGD<B
-O2L4CEG<B>DGC2DGD<G"""
-
-voice1 = voice1_a + voice1_a + voice1_b + voice1_b
-voice2 = voice2_a + voice2_a + voice2_b + voice2_b
+(voice1, voice2) = musicmacro.bach_sample
 
 piano = [0x71, 0x0d, 0x33, 0x01, # Detune/Multiple
          0x23, 0x2d, 0x26, 0x00, # Total level

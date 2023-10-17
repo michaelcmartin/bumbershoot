@@ -43,6 +43,9 @@ res/ancillary.bin: make_gfx res/font_1bpp.bin
 res/lz4gfx.bin: res/ancillary.bin res/bumberlogo.bin lz4_unframe
 	cd res && cat ancillary.bin bumberlogo.bin > bulk.bin && lz4 bulk.bin && ../lz4_unframe bulk.bin.lz4 && mv compressed.bin lz4gfx.bin && rm bulk.bin bulk.bin.lz4
 
+res/lz4mus.bin: spc_mus.bin ../sound/musicmacro.py support/snesbach.py lz4_unframe
+	python3 support/snesbach.py spc_mus.bin bulk.bin && lz4 bulk.bin && ./lz4_unframe bulk.bin.lz4 && mv compressed.bin res/lz4mus.bin && rm bulk.bin bulk.bin.lz4
+
 res/font_1bpp.bin: ../asm/fonts/sinestra.s
 	ophis -o res/font_1bpp.bin ../asm/fonts/sinestra.s
 
