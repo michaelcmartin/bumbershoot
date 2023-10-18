@@ -14,13 +14,13 @@
 	.segment "ROMINFO"
 	.byte	$30			; FastROM, LoROM
 	.byte	0
-	.byte	$07			; 128KB
+	.byte	$06			; 64KB
 	.byte	0,0,0,0
 	.word	$aaaa, $5555
 
 	.segment "VECTORS"
-	.word	0,0,0,0,0,VBLANK & $ffff,0,0
-	.word	0,0,0,0,0,0,RESET & $ffff,0
+	.addr	0,0,0,0,0,VBLANK,0,0
+	.addr	0,0,0,0,0,0,RESET,0
 
 	.zeropage
 xscr:	.res	2
@@ -30,9 +30,10 @@ draw_state:
 
 .macro	blit
 	.local	lp
-lp:	bit	draw_state
-	bmi	lp
-	lda	#$fe
+	lda	#$00
+lp:	cmp	draw_state
+	bne	lp
+	lda	#$02
 	sta	draw_state
 .endmacro
 
@@ -151,34 +152,37 @@ loop:	ldx	#$0000
 	pha
 	phx
 	phy
-	sep	#$20
-	.a8
-	.i16
-	lda	#$80
+	sep	#$30			; Need .i8 here so that TAX
+	.a8				; doesn't pollute our jump address
+	.i8				; with the leftover accumulator high
+	lda	#$80			; byte, even in .a8 mode!
 	pha
 	plb
 	lda	draw_state
-	bpl	idle_states
-	;; We have real work to do
-	inc	a
-	beq	blit2
-	;; Blit phase 1 (state -2)
+	asl	a
+	tax
+	rep	#$10
+	.i16
+	jmp	(vtable,x)
+vtable:	.addr	do_cca_idle, do_cca_blit2, do_cca_blit1
+
+do_cca_blit1:
 	ldx	#$6000
 	ldy	#$8000
 	bra	doblit
-blit2:	ldx	#$7000
+
+do_cca_blit2:
+	ldx	#$7000
 	ldy	#$9000
+	;; Fall through to doblit
+
 doblit:	jsr	load_pixmap
 	jsr	read_joy
-	inc	draw_state
+	dec	draw_state
 	bra	done
-idle_states:
-	lda	$4212			; Has the controller started reading?
-	lsr	a
-	bcc	idle_states
-:	lda	$4212			; Is the controller ready?
-	lsr	a
-	bcs	:-
+
+do_cca_idle:
+	jsr	wait_for_joy
 	jsr	read_joy		; TODO: Handle start button
 done:	rep	#$30
 	ply
@@ -186,6 +190,17 @@ done:	rep	#$30
 	pla
 	plb
 	rti
+.endproc
+
+	;; Wait until the controller has started, then finished, reading.
+.proc	wait_for_joy
+:	lda	$4212			; Has the controller started reading?
+	lsr	a
+	bcc	:-
+:	lda	$4212			; Is the controller ready?
+	lsr	a
+	bcs	:-
+	rts
 .endproc
 
 	;; Read controller. Update x_scr and y_scr, START in carry
@@ -230,3 +245,9 @@ colors:	.incbin "res/bumberpal.bin"
 colors_end:
 
 gfxdat:	.incbin "res/lz4gfx.bin"
+musdat: .incbin "res/lz4mus.bin"
+
+	.segment "BANK1"
+digidata:
+	.incbin "spc_digi.bin", $200
+digidata_end:

@@ -19,8 +19,8 @@ pbmp.smc: snes_init.o pbmpmain.o pbmp.o lorom128f.cfg
 soundtest.smc: snes_init.o soundtest.o audio.o lorom128.cfg
 	ld65 -C lorom128.cfg -o soundtest.smc snes_init.o soundtest.o audio.o
 
-cca.smc: snes_init.o ccamain.o cca.o lz4dec.o pbmp.o xs16.o lorom128f.cfg
-	ld65 -C lorom128f.cfg -o cca.smc snes_init.o ccamain.o cca.o lz4dec.o pbmp.o xs16.o
+cca.smc: snes_init.o ccamain.o cca.o audio.o lz4dec.o pbmp.o xs16.o lorom64f.cfg
+	ld65 -C lorom64f.cfg -o cca.smc snes_init.o ccamain.o cca.o audio.o lz4dec.o pbmp.o xs16.o
 
 clean:
 	rm -f $(BINARIES) $(OBJS) $(SPCOBJS) $(TOOLS) res/*.bin
@@ -68,6 +68,6 @@ lz4_unframe: support/lz4_unframe.c
 	gcc -o lz4_unframe support/lz4_unframe.c
 
 logo.o: res/bumberlogo.bin res/bumberpal.bin
-pbmpmain.o: res/bumberpal.bin res/pbmp_0.bin res/pbmp_1.bin res/ancillary.bin
-ccamain.o: res/lz4gfx.bin res/bumberpal.bin
+pbmpmain.o: res/ancillary.bin res/bumberpal.bin res/pbmp_0.bin res/pbmp_1.bin
+ccamain.o: res/bumberpal.bin res/lz4gfx.bin res/lz4mus.bin spc_digi.bin
 soundtest.o: res/bumbershoot.brr spc_digi.bin spc_mus.bin
