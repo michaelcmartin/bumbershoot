@@ -5,6 +5,7 @@
 	.import	RESET, lz4dec, rnd, seed_rnd
 	.import	init_pixmap, make_pixmap, load_pixmap
 	.import	init_cca, step_cca
+	.import	load_sound
 	.export	main
 
 	.segment "TITLE"
@@ -125,14 +126,40 @@ showlogo:
 	sta	$212c
 	lda	#$0f			; Enable display
 	sta	$2100
+	lda	#^digidata		; load and run sound playback program
+	ldx	#(digidata & $ffff)
+	ldy	#(digidata_end - digidata)
+	jsr	load_sound
+
 	lda	$4210			; Clear VBLANK flag
 	lda	#$81			; Enable joypad auto-read
 	sta	$4200			; and VBLANK NMI
 
-forever:
-	bra	forever			; Temp: replace with sound code
+	;; TODO: Abort if START is pressed
+	ldx	#$feed
+:	cpx	$2140			; Wait for completion signal
+	bne	:-
 
 	;; Set up CCA display
+	lda	#$8f			; Disable display
+	sta	$2100
+	stz	$4200			; Disable VBLANK interrupts
+
+	;; Decompress and run music program before we reuse the
+	;; decompression space as CCA data
+	lda	#$ed			; Acknowledge digital sound
+	sta	$2140			; and reset SPC-700
+	lda	#$fe
+	sta	$2141
+	lda	#^musdat
+	ldx	#(musdat & $ffff)
+	ldy	#$0000
+	jsr	lz4dec
+	txy				; Put decompressed length in .Y
+	lda	#$7f
+	ldx	#$0000
+	jsr	load_sound
+
 
 	jsr	init_pixmap
 
@@ -177,6 +204,7 @@ forever:
 	lda	#$81			; Enable joypad auto-read
 	sta	$4200			; and VBLANK NMI
 
+	;; Main update loop. TODO: reset if START is pressed
 loop:	ldx	#$0000
 	ldy	#$4000
 	jsr	step_cca
