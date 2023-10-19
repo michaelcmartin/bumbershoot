@@ -28,12 +28,18 @@ yscr:	.res	2
 draw_state:
 	.res	1
 
+        ;; draw_state enum
+GLOBAL_IDLE = 0
+CCA_IDLE    = 1
+CCA_BLIT2   = 2
+CCA_BLIT1   = 3
+
 .macro	blit
 	.local	lp
-	lda	#$00
+	lda	#CCA_IDLE
 lp:	cmp	draw_state
 	bne	lp
-	lda	#$02
+	lda	#CCA_BLIT1
 	sta	draw_state
 .endmacro
 
@@ -88,7 +94,8 @@ lp:	cmp	draw_state
 	ldx	#$0000			; zero out the scroll registers
 	stx	xscr
 	stx	yscr
-	stz	draw_state		; and the draw state
+	lda	#CCA_IDLE		; and initialize draw state
+	sta	draw_state
 
 	rep	#$20
 	.a16
@@ -164,7 +171,7 @@ loop:	ldx	#$0000
 	rep	#$10
 	.i16
 	jmp	(vtable,x)
-vtable:	.addr	do_cca_idle, do_cca_blit2, do_cca_blit1
+vtable:	.addr	do_global_idle, do_cca_idle, do_cca_blit2, do_cca_blit1
 
 do_cca_blit1:
 	ldx	#$6000
@@ -184,6 +191,8 @@ doblit:	jsr	load_pixmap
 do_cca_idle:
 	jsr	wait_for_joy
 	jsr	read_joy		; TODO: Handle start button
+
+do_global_idle:
 done:	rep	#$30
 	ply
 	plx
