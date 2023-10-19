@@ -89,6 +89,51 @@ lp:	cmp	draw_state
 	lda	#$01
 	sta	$420b
 
+	;; Set up Logo display
+	stz	draw_state		; GLOBAL_IDLE vblank
+	lda	#$03			; Graphics mode 3
+	sta	$2105
+	lda	#$60			; BG1 at $6000, 32x32
+	sta	$2107
+
+	ldx	#$6000			; Clear screen to tile $0280
+	stx	$2116			; (First "blank" 8bpp tile)
+	ldy	#$0280
+	ldx	#$0400
+:	sty	$2118
+	dex
+	bne	:-
+
+	ldx	#$6046			; Create main bitmap image
+	stx	$2116
+	ldx	#$00a0
+bmaplp:	lda	#$14
+:	stx	$2118
+	inx
+	cpx	#$280
+	beq	showlogo
+	dec	a
+	bne	:-
+	lda	#$0c
+:	sty	$2118			; Y is still blank tile $0280
+	dec	a
+	bne	:-
+	bra	bmaplp
+
+showlogo:
+	lda	#$01			; Enable BG1
+	sta	$212c
+	lda	#$0f			; Enable display
+	sta	$2100
+	lda	$4210			; Clear VBLANK flag
+	lda	#$81			; Enable joypad auto-read
+	sta	$4200			; and VBLANK NMI
+
+forever:
+	bra	forever			; Temp: replace with sound code
+
+	;; Set up CCA display
+
 	jsr	init_pixmap
 
 	ldx	#$0000			; zero out the scroll registers
