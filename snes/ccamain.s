@@ -2,7 +2,7 @@
 	.a16
 	.i16
 
-	.import	RESET, lz4dec, rnd, seed_rnd
+	.import	RESET, lz4dec, rnd, seed_rnd, mix_rnd
 	.import	init_pixmap, make_pixmap, load_pixmap
 	.import	init_cca, step_cca
 	.import	load_sound
@@ -24,9 +24,19 @@
 	.addr	0,0,0,0,0,0,RESET,0
 
 	.zeropage
+frame_count:
+	.res	2
 xscr:	.res	2
 yscr:	.res	2
 draw_state:
+	.res	1
+last_ctl:
+	.res	1
+curr_ctl:
+	.res	1
+new_ctl:
+	.res	1
+start_pressed:
 	.res	1
 
         ;; draw_state enum
@@ -92,6 +102,10 @@ lp:	cmp	draw_state
 
 	;; Set up Logo display
 	stz	draw_state		; GLOBAL_IDLE vblank
+	stz	last_ctl		; Clear controller logic
+	stz	start_pressed
+	stz	frame_count
+	stz	frame_count+1
 	lda	#$03			; Graphics mode 3
 	sta	$2105
 	lda	#$60			; BG1 at $6000, 32x32
@@ -135,13 +149,20 @@ showlogo:
 	lda	#$81			; Enable joypad auto-read
 	sta	$4200			; and VBLANK NMI
 
-	;; TODO: Abort if START is pressed
 	ldx	#$feed
 :	cpx	$2140			; Wait for completion signal
-	bne	:-
+	beq	:+
+	lda	start_pressed
+	beq	:-
+	lda	#$ad
+	sta	$2140
+	lda	#$de
+	sta	$2141
+	stz	start_pressed
+	bra	:-
 
 	;; Set up CCA display
-	lda	#$8f			; Disable display
+:	lda	#$8f			; Disable display
 	sta	$2100
 	stz	$4200			; Disable VBLANK interrupts
 
@@ -159,7 +180,6 @@ showlogo:
 	lda	#$7f
 	ldx	#$0000
 	jsr	load_sound
-
 
 	jsr	init_pixmap
 
@@ -204,24 +224,37 @@ showlogo:
 	lda	#$81			; Enable joypad auto-read
 	sta	$4200			; and VBLANK NMI
 
-	;; Main update loop. TODO: reset if START is pressed
-loop:	ldx	#$0000
+	;; Main update loop
+loop:	lda	start_pressed
+	bne	reset_cca
+	ldx	#$0000
 	ldy	#$4000
+	jsr	step_cca
+
+	lda	#$7f
+	ldx	#$4000
+	jsr	make_pixmap
+	blit
+
+	lda	start_pressed
+	bne	reset_cca
+	ldx	#$4000
+	ldy	#$0000
 	jsr	step_cca
 
 	lda	#$7f
 	ldx	#$0000
 	jsr	make_pixmap
 	blit
+	bra	loop
 
-	ldx	#$4000
-	ldy	#$0000
-	jsr	step_cca
-
+reset_cca:
+	jsr	init_cca
 	lda	#$7f
-	ldx	#$4000
+	ldx	#$0000
 	jsr	make_pixmap
 	blit
+	stz	start_pressed
 	bra	loop
 .endproc
 
@@ -232,6 +265,7 @@ loop:	ldx	#$0000
 	pha
 	phx
 	phy
+	inc	frame_count
 	sep	#$30			; Need .i8 here so that TAX
 	.a8				; doesn't pollute our jump address
 	.i8				; with the leftover accumulator high
@@ -263,10 +297,30 @@ doblit:	jsr	load_pixmap
 
 do_cca_idle:
 	jsr	wait_for_joy
-	jsr	read_joy		; TODO: Handle start button
+	jsr	read_joy
+	bra	done
 
 do_global_idle:
-done:	rep	#$30
+	jsr	wait_for_joy
+	;; Fall through to end
+
+done:	lda	curr_ctl
+	sta	last_ctl
+	lda	$4219
+	sta	curr_ctl
+	eor	last_ctl
+	and	curr_ctl
+	sta	new_ctl
+	and	#$10			; Was START pressed?
+	beq	ret
+
+	lda	#$01
+	sta	start_pressed
+	rep	#$30
+	lda	frame_count
+	jsr	mix_rnd
+
+ret:	rep	#$30
 	ply
 	plx
 	pla

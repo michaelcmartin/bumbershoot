@@ -1,7 +1,7 @@
 	.p816
 	.a16
 	.i16
-	.export	seed_rnd, rnd
+	.export	seed_rnd, rnd, mix_rnd
 
 	.zeropage
 rnd_x:	.res	2
@@ -23,6 +23,19 @@ rnd_y:	.res	2
 :	sta	rnd_x
 	stx	rnd_y
 	rts
+.endproc
+
+;;; mix_rnd: Add entropy to the PRNG seed.
+;;; INPUT: 16-bit mix value in .A (MX must both be 16-bit).
+;;; OUTPUT: None.
+;;; TRASHES: .AX.
+.proc	mix_rnd
+	ldx	rnd_y
+	clc
+	adc	rnd_x
+	bcc	:+
+	inx
+:	jmp	seed_rnd
 .endproc
 
 ;;; rnd: Advance RNG
