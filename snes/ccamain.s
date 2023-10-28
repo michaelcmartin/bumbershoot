@@ -166,11 +166,27 @@ showlogo:
 	sta	$2140
 	lda	#$de
 	sta	$2141
-	stz	start_pressed
 	bra	:-
 
+	;; Fade out unless start was/is pressed
+:	ldx	#$38
+fade:	lda	start_pressed
+	beq	:+
+	stz	start_pressed
+	bra	do_title
+:	txa
+	lsr
+	lsr
+	sta	$2100
+	lda	frame_count
+:	cmp	frame_count
+	beq	:-
+	dex
+	bne	fade
+
 	;; Set up title display
-:	lda	#$8f			; Disable display
+do_title:
+	lda	#$8f			; Disable display
 	sta	$2100
 	stz	$4200			; Disable VBLANK interrupts
 
