@@ -100,6 +100,14 @@ lp:	cmp	draw_state
 	lda	#$01
 	sta	$420b
 
+	rep	#$20
+	.a16
+	lda	#$000a			; Initialize PRNG seed
+	ldx	#$0001
+	jsr	seed_rnd
+	sep	#$20
+	.a8
+
 	;; Set up Logo display
 	stz	draw_state		; GLOBAL_IDLE vblank
 	stz	last_ctl		; Clear controller logic
@@ -188,14 +196,6 @@ showlogo:
 	stx	yscr
 	lda	#CCA_IDLE		; and initialize draw state
 	sta	draw_state
-
-	rep	#$20
-	.a16
-	lda	#$000a			; Match sega port for now
-	ldx	#$0001
-	jsr	seed_rnd
-	sep	#$20
-	.a8
 
 	jsr	init_cca
 
