@@ -169,8 +169,41 @@ showlogo:
 	stz	start_pressed
 	bra	:-
 
-	;; Set up CCA display
+	;; Set up title display
 :	lda	#$8f			; Disable display
+	sta	$2100
+	stz	$4200			; Disable VBLANK interrupts
+
+	lda	#$01			; Mode 1, 4BPP/4BPP/2BPP
+	sta	$2105
+	lda	#$60			; BG1 Tilemap at $6000, 32x32
+	sta	$2107
+	lda	#$01			; Enable BG1
+	sta	$212c
+
+	ldx	#$6000			; Clear screen to tile $0000
+	stx	$2116			; (First "blank" 4bpp tile)
+	ldy	#$0000
+	ldx	#$0400
+:	sty	$2118
+	dex
+	bne	:-
+
+	ldx	#title_msg & $ffff
+	jsr	draw_text
+
+	lda	#$0f			; Re-enable display
+	sta	$2100
+	lda	$4210			; Clear VBLANK flag
+	lda	#$81			; Enable joypad auto-read
+	sta	$4200			; and VBLANK NMI
+
+:	lda	start_pressed		; Wait for user to press START
+	beq	:-
+	stz	start_pressed
+
+	;; Set up CCA display
+	lda	#$8f			; Disable display
 	sta	$2100
 	stz	$4200			; Disable VBLANK interrupts
 
@@ -377,6 +410,46 @@ ret:	rep	#$30
 	rts
 .endproc
 
+.proc	draw_text
+	rep	#$20
+	.a16
+	lda	a:$00,x
+	beq	done
+	sta	$2116
+	sep	#$20
+	.a8
+	inx
+line:	inx
+	lda	a:$00,x
+	beq	next
+	sec
+	sbc	#$20
+	sta	$2118
+	lda	#$01
+	sta	$2119
+	bra	line
+next:	inx
+	bra	draw_text
+done:	sep	#$20
+	rts
+.endproc
+
+	.rodata
+
+title_msg:
+	.word	$6066
+	.byte	"BUMBERSHOOT SOFTWARE",0
+	.word	$608e
+	.byte	"2023",0
+	.word	$60cc
+	.byte	"PRESENTS",0
+	.word	$61ab
+	.byte	"THE CYCLIC",0
+	.word	$61c7
+	.byte	"CELLULAR AUTOMATON",0
+	.word	$6306
+	.byte	"PRESS START TO BEGIN",0
+	.word	$0000
 colors:	.incbin "res/bumberpal.bin"
 colors_end:
 
