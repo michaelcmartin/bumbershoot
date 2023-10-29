@@ -39,11 +39,33 @@ new_ctl:
 start_pressed:
 	.res	1
 
+	.segment "RAM0"
+hdma_table:
+hdma_stable_0_len:
+	.res	1
+hdma_stable_0:
+	.res	2
+hdma_stable_1_len:
+	.res	1
+hdma_stable_1:
+	.res	2
+hdma_spill_0_len:
+	.res	1
+hdma_spill_0:
+	.res	254
+hdma_spill_1_len:
+	.res	1
+hdma_spill_1:
+	.res	254
+hdma_term:
+	.res	1
+
         ;; draw_state enum
 GLOBAL_IDLE = 0
-CCA_IDLE    = 1
-CCA_BLIT2   = 2
-CCA_BLIT1   = 3
+TITLE_BLEED = 1
+CCA_IDLE    = 2
+CCA_BLIT2   = 3
+CCA_BLIT1   = 4
 
 .macro	blit
 	.local	lp
@@ -208,8 +230,38 @@ do_title:
 	ldx	#title_msg & $ffff
 	jsr	draw_text
 
-	lda	#$0f			; Re-enable display
-	sta	$2100
+	lda	#$01			; Set up initial HDMA table
+	sta	f:hdma_stable_0_len
+	sta	f:hdma_stable_1_len
+	dec	a
+	sta	f:hdma_term
+	lda	#$ff
+	sta	f:hdma_spill_0_len
+	sta	f:hdma_spill_1_len
+	rep	#$20
+	.a16
+	lda	#$0000
+	sta	f:hdma_stable_0
+	sta	f:hdma_stable_1
+	tax
+:	dec	a
+	sta	f:hdma_spill_0,x
+	inx
+	inx
+	cpx	#$00fe
+	bne	:-
+	ldx	#$0000
+:	dec	a
+	sta	f:hdma_spill_1,x
+	inx
+	inx
+	cpx	#$00fe
+	bne	:-
+	sep	#$20
+	.a8
+	lda	#TITLE_BLEED		; TITLE_BLEED will re-enable the
+	sta	draw_state		; display for us
+
 	lda	$4210			; Clear VBLANK flag
 	lda	#$81			; Enable joypad auto-read
 	sta	$4200			; and VBLANK NMI
@@ -321,13 +373,14 @@ reset_cca:
 	lda	#$80			; byte, even in .a8 mode!
 	pha
 	plb
+	stz	$420c			; Disable HDMA
 	lda	draw_state
 	asl	a
 	tax
 	rep	#$10
 	.i16
 	jmp	(vtable,x)
-vtable:	.addr	do_global_idle, do_cca_idle, do_cca_blit2, do_cca_blit1
+vtable:	.addr	do_global_idle, do_title_bleed, do_cca_idle, do_cca_blit2, do_cca_blit1
 
 do_cca_blit1:
 	ldx	#$6000
@@ -347,6 +400,33 @@ doblit:	jsr	load_pixmap
 do_cca_idle:
 	jsr	wait_for_joy
 	jsr	read_joy
+	bra	done
+
+do_title_bleed:
+	lda	#$0f			; Force-enable display
+	sta	$2100
+	jsr	wait_for_joy
+	lda	f:hdma_stable_0_len
+	cmp	#$7f
+	beq	:+
+	inc	a
+	sta	f:hdma_stable_0_len
+	bra	:++
+:	lda	f:hdma_stable_1_len
+	cmp	#$7f
+	beq	:+
+	inc	a
+	sta	f:hdma_stable_1_len
+:	lda	#^hdma_table
+	ldx	#(hdma_table & $ffff)
+	stx	$4312
+	sta	$4314
+	lda	#$02			; Pattern 2
+	sta	$4310
+	lda	#$0e			; Write BG1 Vertical scroll
+	sta	$4311
+	lda	#$02
+	sta	$420c			; Enable HDMA channel 0
 	bra	done
 
 do_global_idle:
