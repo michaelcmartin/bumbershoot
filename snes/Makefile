@@ -5,7 +5,7 @@ OBJS = snes_init.o \
        ccamain.o cca.o \
        audio.o lz4dec.o pbmp.o xss.o xs16.o
 SPCOBJS = spc_digi.bin spc_mus.bin
-TOOLS = makelogo make_gfx pbmpconv lz4_unframe
+TOOLS = makelogo make_gfx pbmpconv lz4_unframe snes_checksum
 BINARIES = logo.smc pbmp.smc soundtest.smc cca.smc
 
 all: $(BINARIES)
@@ -66,6 +66,9 @@ pbmpconv: support/pbmpconv.c
 
 lz4_unframe: support/lz4_unframe.c
 	gcc -o lz4_unframe support/lz4_unframe.c
+
+snes_checksum: support/snes_checksum.c
+	gcc -o snes_checksum support/snes_checksum.c
 
 logo.o: res/bumberlogo.bin res/bumberpal.bin
 pbmpmain.o: res/ancillary.bin res/bumberpal.bin res/pbmp_0.bin res/pbmp_1.bin
