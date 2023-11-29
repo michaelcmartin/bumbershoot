@@ -28,7 +28,6 @@ mandelbrot:
 
 	;; Row and column iterators. Set up row or point-specific constants.
 	xor	r8d,r8d			; Row iterator
-	xor	rax,rax			; Output array index
 .rows:	neg	r8d
 	cvtsi2sd	xmm1,r8d	; y = (-iy * step) + ymax
 	neg	r8d
@@ -62,8 +61,8 @@ mandelbrot:
 	jb	.do_pt
 
 	;; Write iteration count into output buffer and increment result
-.found:	mov	[rsi+2*rax],dx
-	inc	rax
+.found:	mov	[rsi],dx
+	add	rsi,2
 
 	;; Wrap up the column and row loops.
 	inc	ecx
