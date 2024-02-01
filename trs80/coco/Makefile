@@ -1,6 +1,6 @@
 TOOLS = cococas conv_coco lz4_unframe
-BINARIES = hello.bin charmap.bin bumber.bin res/bumberlz4.bin res/bumberwav.bin
-CASSETTES = hello.cas charmap.cas bumber.cas
+BINARIES = hello.bin charmap.bin bumber.bin bmptxt.bin res/bumberlz4.bin res/bumberwav.bin res/sinestra.bin
+CASSETTES = hello.cas charmap.cas bumber.cas bmptxt.cas
 
 all: $(CASSETTES)
 
@@ -12,6 +12,9 @@ charmap.cas: cococas charmap.bin
 
 bumber.cas: cococas bumber.bin
 	./cococas bumber.bin 3f00
+
+bmptxt.cas: cococas bmptxt.bin
+	./cococas bmptxt.bin 4000
 
 clean:
 	rm -f $(CASSETTES) $(BINARIES) $(TOOLS)
@@ -31,7 +34,11 @@ res/bumberlz4.bin: lz4_unframe res/bumber_gfx.bin
 res/bumberwav.bin: conv_coco ../../sound/bumbershoot.wav
 	./conv_coco ../../sound/bumbershoot.wav res/bumberwav.bin
 
+res/sinestra.bin: ../../asm/fonts/sinestra.s
+	ophis -o $@ $<
+
 %.bin: %.s
 	asm6809 -o $@ $<
 
 bumber.bin: lz4dec.s res/bumberlz4.bin res/bumberwav.bin
+bmptxt.bin: res/sinestra.bin
