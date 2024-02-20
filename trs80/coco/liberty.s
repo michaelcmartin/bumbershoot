@@ -20,12 +20,12 @@ PLOTLP	LDX	GFXIDX
 1	JSR	PLINE			; Y was not 0, continue line
 	BRA	PLOTLP
 
-DOPAINT	LDD	#$6451			; TODO: These are flood fills
-	JSR	PSET
+DOPAINT	LDD	#$6451
+	JSR	PAINT
 	LDD	#$6690
-	JSR	PSET
+	JSR	PAINT
 	LDD	#$8586
-	JSR	PSET
+	JSR	PAINT
 
 	;; Wait for key
 1	JSR	[$A000]
@@ -46,6 +46,8 @@ DOPAINT	LDD	#$6451			; TODO: These are flood fills
 	BRA	1B
 1	RTS
 
+	;; TODO: Combine and precenter graphics so this can just be
+	;;       an LDD ,X++ instruction and some later tests.
 GFXREAD	LDX	GFXIDX
 	LDA	YGFX,X
 	LDB	XGFX,X
@@ -53,6 +55,42 @@ GFXREAD	LDX	GFXIDX
 	STX	GFXIDX
 	ADDB	#7			; Center image
 	TSTA
+	RTS
+
+PAINT	JSR	POINT			; Already filled?
+	BEQ	1F
+	RTS				; If so, abort
+1	JSR	PSET
+	PSHS	B			; Save out (Y, X, X) to
+	PSHS	D			; become our range
+1	DEC	1,S
+	LDD	,S
+	JSR	POINT
+	BNE	1F
+	JSR	PSET
+	BRA	1B
+1	INC	1,S
+1	INC	2,S
+	LDA	,S
+	LDB	2,S
+	JSR	POINT
+	BNE	1F
+	JSR	PSET
+	BRA	1B
+	;; Stack now holds, in order: base Y, min X, max X + 1. Recurse
+	;; up and down from each point in range to complete the
+	;; flood fill.
+1	LDD	,S
+	DECA
+	BSR	PAINT
+	LDD	,S
+	INCA
+	BSR	PAINT
+	INC	1,S
+	LDB	1,S
+	CMPB	2,S
+	BNE	1B
+	LEAS	3,S
 	RTS
 
 	INCLUDE	"bitmap.s"
