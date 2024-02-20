@@ -3,6 +3,8 @@
 	CLRA
 	CLRB
 	STD	GFXIDX
+	JSR	PCOLOR
+	LDA	#$FF
 	JSR	PCLS
 	JSR	PMODE
 
@@ -58,15 +60,14 @@ GFXREAD	LDX	GFXIDX
 	RTS
 
 PAINT	JSR	POINT			; Already filled?
-	BEQ	1F
-	RTS				; If so, abort
+	BEQ	2F			; If so, abort
 1	JSR	PSET
 	PSHS	B			; Save out (Y, X, X) to
 	PSHS	D			; become our range
 1	DEC	1,S
 	LDD	,S
 	JSR	POINT
-	BNE	1F
+	BEQ	1F
 	JSR	PSET
 	BRA	1B
 1	INC	1,S
@@ -74,7 +75,7 @@ PAINT	JSR	POINT			; Already filled?
 	LDA	,S
 	LDB	2,S
 	JSR	POINT
-	BNE	1F
+	BEQ	1F
 	JSR	PSET
 	BRA	1B
 	;; Stack now holds, in order: base Y, min X, max X + 1. Recurse
@@ -91,7 +92,7 @@ PAINT	JSR	POINT			; Already filled?
 	CMPB	2,S
 	BNE	1B
 	LEAS	3,S
-	RTS
+2	RTS
 
 	INCLUDE	"bitmap.s"
 
