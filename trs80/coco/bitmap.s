@@ -10,7 +10,7 @@
 ;;;  PSET: Draws a point in the current color at coordinate (B, A).
 ;;;  PSET0: As PSET, but always in color 0.
 ;;;  PSET1: As PSET, but always in color 1.
-;;;  POINT: Checks pixel at (B, A). A nonzero if that pixel is set.
+;;;  POINT: Checks pixel at (B, A). Zero flag set if that pixel is clear.
 ;;;  PLINE: Draw line from last PSET/POINT/PLINE coordinate to (B, A).
 ;;;
 ;;;  The asm6809 assembler doesn't have great support for local/scoped
@@ -94,14 +94,14 @@ PSET0	PSHS	D,X,Y
 	STA	,X
 	PULS	D,X,Y,PC
 
-POINT	PSHS	B,X,Y
+POINT	PSHS	D,X,Y
 	BSR	1F
 	ANDB	#$07
 	CLRA
 	TFR	D,Y
-	LDA	3F,Y
+	LDA	2F,Y
 	ANDA	,X
-	PULS	B,X,Y,PC
+	PULS	D,X,Y,PC
 
 1	;; Compute address for X=B, Y=A. Result in X. A, B unchanged.
 	PSHS	D
@@ -118,10 +118,10 @@ POINT	PSHS	B,X,Y
 	LEAX	D,X
 	PULS	D,PC
 
-	;; Mask table for PSET1
+	;; Mask table for PSET1 and POINT
 2	FCB	$80,$40,$20,$10,$08,$04,$02,$01
 
-	;; Mask table for PSET0 and POINT
+	;; Mask table for PSET0
 3	FCB	$7F,$BF,$DF,$EF,$F7,$FB,$FD,$FE
 
 PLINE	LEAS	-10,S			; Allocate stack frame
