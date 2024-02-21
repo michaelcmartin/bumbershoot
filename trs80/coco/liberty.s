@@ -46,41 +46,6 @@ DOPAINT	LDD	#$6451
 	BRA	1B
 1	RTS
 
-PAINT	JSR	POINT			; Already filled?
-	BEQ	2F			; If so, abort
-1	JSR	PSET
-	PSHS	B			; Save out (Y, X, X) to
-	PSHS	D			; become our range
-1	DEC	1,S
-	LDD	,S
-	JSR	POINT
-	BEQ	1F
-	JSR	PSET
-	BRA	1B
-1	INC	1,S
-1	INC	2,S
-	LDA	,S
-	LDB	2,S
-	JSR	POINT
-	BEQ	1F
-	JSR	PSET
-	BRA	1B
-	;; Stack now holds, in order: base Y, min X, max X + 1. Recurse
-	;; up and down from each point in range to complete the
-	;; flood fill.
-1	LDD	,S
-	DECA
-	BSR	PAINT
-	LDD	,S
-	INCA
-	BSR	PAINT
-	INC	1,S
-	LDB	1,S
-	CMPB	2,S
-	BNE	1B
-	LEAS	3,S
-2	RTS
-
 	INCLUDE	"bitmap.s"
 
         ;; Graphics data

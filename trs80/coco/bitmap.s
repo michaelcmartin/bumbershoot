@@ -12,6 +12,8 @@
 ;;;  PSET1: As PSET, but always in color 1.
 ;;;  POINT: Zero flag set if pixel at (B, A) matches current color.
 ;;;  PLINE: Draw line from last PSET/POINT/PLINE coordinate to (B, A).
+;;;  PAINT: Flood-fill current color at (B, A). Flood must not reach
+;;;         edge of screen.
 ;;;
 ;;;  The asm6809 assembler doesn't have great support for local/scoped
 ;;;  labels, so the code below makes aggressive use of "temporary" labels
@@ -219,6 +221,44 @@ PLINE	LEAS	-10,S			; Allocate stack frame
 	BRA	2B
 4	LEAS	8,S			; Line drawn. restore stack
 	PULS	D,PC			; and registers and return
+
+PAINT	PSHS	D			; Save args only once, to save
+	BSR	3F			; recursive stack. '3' here is the
+	PULS	D,PC			; real PAINT implementation.
+3	JSR	POINT			; First check: already filled?
+	BEQ	2F			; If so, abort
+1	JSR	PSET
+	PSHS	B			; Save out (Y, X, X) to
+	PSHS	D			; become our range
+1	DEC	1,S
+	LDD	,S
+	JSR	POINT
+	BEQ	1F
+	JSR	PSET
+	BRA	1B
+1	INC	1,S
+1	INC	2,S
+	LDA	,S
+	LDB	2,S
+	JSR	POINT
+	BEQ	1F
+	JSR	PSET
+	BRA	1B
+	;; Stack now holds, in order: base Y, min X, max X + 1. Recurse
+	;; up and down from each point in range to complete the
+	;; flood fill.
+1	LDD	,S
+	DECA
+	BSR	3B
+	LDD	,S
+	INCA
+	BSR	3B
+	INC	1,S
+	LDB	1,S
+	CMPB	2,S
+	BNE	1B
+	LEAS	3,S
+2	RTS
 
 	;; In-program memory store
 98	FCB	0			; Last Y location
