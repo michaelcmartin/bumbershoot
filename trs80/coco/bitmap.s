@@ -12,8 +12,7 @@
 ;;;  PSET1: As PSET, but always in color 1.
 ;;;  POINT: Zero flag set if pixel at (B, A) matches current color.
 ;;;  PLINE: Draw line from last PSET/POINT/PLINE coordinate to (B, A).
-;;;  PAINT: Flood-fill current color at (B, A). Flood must not reach
-;;;         edge of screen.
+;;;  PAINT: Flood-fill current color at (B, A).
 ;;;
 ;;;  The asm6809 assembler doesn't have great support for local/scoped
 ;;;  labels, so the code below makes aggressive use of "temporary" labels
@@ -232,7 +231,9 @@ PAINT	PSHS	D			; Save args only once, to save
 	PSHS	D			; become our range
 1	DEC	1,S
 	LDD	,S
-	JSR	POINT
+	CMPB	#$FF			; Did we go off the left edge?
+	BEQ	1F
+	JSR	POINT			; Are we at a drawn boundary?
 	BEQ	1F
 	JSR	PSET
 	BRA	1B
@@ -240,6 +241,8 @@ PAINT	PSHS	D			; Save args only once, to save
 1	INC	2,S
 	LDA	,S
 	LDB	2,S
+	TSTB				; Did we go off the right edge?
+	BEQ	1F
 	JSR	POINT
 	BEQ	1F
 	JSR	PSET
@@ -249,11 +252,15 @@ PAINT	PSHS	D			; Save args only once, to save
 	;; flood fill.
 1	LDD	,S
 	DECA
+	CMPA	#$C0
+	BHS	4F
 	BSR	3B
-	LDD	,S
+4	LDD	,S
 	INCA
+	CMPA	#$C0
+	BHS	4F
 	BSR	3B
-	INC	1,S
+4	INC	1,S
 	LDB	1,S
 	CMPB	2,S
 	BNE	1B
