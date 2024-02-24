@@ -81,9 +81,8 @@ PSET	JMP	[100F]
 PSET1	PSHS	D,X,Y
 	BSR	1F
 	ANDB	#$07
-	CLRA
-	TFR	D,Y
-	LDA	2F,Y
+	LDY	#2F
+	LDA	B,Y
 	ORA	,X
 	STA	,X
 	PULS	D,X,Y,PC
@@ -91,9 +90,8 @@ PSET1	PSHS	D,X,Y
 PSET0	PSHS	D,X,Y
 	BSR	1F
 	ANDB	#$07
-	CLRA
-	TFR	D,Y
-	LDA	3F,Y
+	LDY	#3F
+	LDA	B,Y
 	ANDA	,X
 	STA	,X
 	PULS	D,X,Y,PC
@@ -101,11 +99,10 @@ PSET0	PSHS	D,X,Y
 POINT	PSHS	D,X,Y
 	BSR	1F
 	ANDB	#$07
-	CLRA
-	TFR	D,Y
 	LDA	,X
 	EORA	101F
-	ANDA	2F,Y
+	LDY	#2F
+	ANDA	B,Y
 	PULS	D,X,Y,PC
 
 1	;; Compute address for X=B, Y=A. Result in X. A, B unchanged.
@@ -117,10 +114,8 @@ POINT	PSHS	D,X,Y
 	RORB
 	LSRA
 	RORB
+	ADDA	$BC
 	TFR	D,X
-	LDA	$BC
-	CLRB
-	LEAX	D,X
 	PULS	D,PC
 
 	;; Mask table for PSET1 and POINT
