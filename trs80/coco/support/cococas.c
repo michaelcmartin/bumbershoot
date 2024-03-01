@@ -3,10 +3,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Utility function; writes out n to dest as 32-bit big-endian */
+static void
+fputlong(long n, FILE *dest)
+{
+    fputc((n >> 24) & 0xff, dest);
+    fputc((n >> 16) & 0xff, dest);
+    fputc((n >>  8) & 0xff, dest);
+    fputc((n      ) & 0xff, dest);
+}
+
 static void
 convert(FILE *dest, FILE *src, const char *progname, int load_addr, int start_addr)
 {
     int i, chk;
+    long name_start, data_start, cue_start;
     unsigned char block[256];
     char realprogname[8];
 
@@ -28,6 +39,7 @@ convert(FILE *dest, FILE *src, const char *progname, int load_addr, int start_ad
 #define WRITE_CHECKED_BYTE(c) fputc(c, dest); chk += c
 
     /* Write first tape leader */
+    name_start = ftell(dest);
     for (i = 0; i < 256; ++i) {
         fputc(0x55, dest);
     }
@@ -52,6 +64,7 @@ convert(FILE *dest, FILE *src, const char *progname, int load_addr, int start_ad
     fputc(0x55, dest);
 
     /* Write the second tape leader. */
+    data_start = ftell(dest);
     for (i = 0; i < 256; ++i) {
         fputc(0x55, dest);
     }
@@ -88,6 +101,26 @@ convert(FILE *dest, FILE *src, const char *progname, int load_addr, int start_ad
     WRITE_CHECKED_BYTE(0x00);
     fputc(chk & 0xff, dest);
     fputc(0x55, dest);
+
+    /* Write the CUE segment. */
+    cue_start = ftell(dest);
+    fputlong(0x5b435545, dest); /* CUE header */
+    fputlong(0x000201f4, dest); /* 500 ms delay */
+    /* Pulse timing info */
+    fputc(0xf0, dest); fputc(4, dest);
+    fputlong(0x04430804, dest);
+    /* Filename data block */
+    fputc(0x0d, dest); fputc(8, dest);
+    fputlong(name_start, dest);
+    fputlong(data_start, dest);
+    fputlong(0x000201f4, dest); /* 500 ms delay */
+    /* File contents data block */
+    fputc(0x0d, dest); fputc(8, dest);
+    fputlong(data_start, dest);
+    fputlong(cue_start, dest);
+    /* CUE footer */
+    fputlong(cue_start, dest);
+    fputlong(0x4355455d, dest);
 }
 
 static void
