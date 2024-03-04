@@ -7,17 +7,14 @@
 	JSR	PMODE
 
 	LDX	#GFX
-	LDD	,X++
+NEWLINE	LDD	,X++
 	JSR	PSET
 
 PLOTLP	CMPX	#GFXEND
 	BEQ	DOPAINT
 	LDD	,X++
-	BNE	1F
-	LDD	,X++			; Start new line sequence
-	JSR	PSET			; with fresh read
-	BRA	PLOTLP
-1	JSR	PLINE			; Y was not 0, continue line
+	BEQ	NEWLINE			; If Y is 0, start a new line
+	JSR	PLINE			; Y was not 0, continue line
 	BRA	PLOTLP
 
 DOPAINT	LDD	#$6451
