@@ -49,4 +49,4 @@ res/sinestra.bin: ../../asm/fonts/sinestra.s
 bumber.bin: lz4dec.s res/bumberlz4.bin res/bumberwav.bin
 bmptxt.bin: res/sinestra.bin
 linetest.bin: bitmap.s
-liberty.bin: bitmap.s
+liberty.bin: banner.s bitmap.s softsoniq.s

@@ -24,9 +24,9 @@ DOPAINT	LDD	#$6451
 	LDD	#$8586
 	JSR	PAINT
 
-	;; Wait for key
-1	JSR	[$A000]
-	BEQ	1B
+	;; Play song until key pressed
+	LDX	#BANNER
+	JSR	PLAYMUS
 
         ;; Get back into normal mode
 	JSR	TMODE			; Text mode
@@ -44,6 +44,7 @@ DOPAINT	LDD	#$6451
 1	RTS
 
 	INCLUDE	"bitmap.s"
+	INCLUDE	"softsoniq.s"
 
         ;; Graphics data
 GFX	FDB	$783D,$904E,$AB59,$B17B,$AE88,$9998,$8B9F,$9296
@@ -76,6 +77,8 @@ GFX	FDB	$783D,$904E,$AB59,$B17B,$AE88,$9998,$8B9F,$9296
 	FDB	$867F,$877E,$897F,$8A8C,$8C88,$8C86,$8B82,$8C7F
 	FDB	$897B,$8677,$8677
 GFXEND
+
+	INCLUDE	"banner.s"
 
 CREDITS	FCB	13,"    = PORTRAIT OF LIBERTY =",13,13
 	FCB	" ORIGINAL BY JOHN JAINSCHIGG",13
