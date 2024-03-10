@@ -1,7 +1,7 @@
 PLAYMUS	STX	SONGIDX			; Store argument
 	;; Save original configuration and disable interrupts
 	PSHS	CC
-	ORCC	#$10
+	ORCC	#$50
 
 	;; Configure muxer settings for 6-bit audio output
 	LDA	$FF01
