@@ -46,6 +46,10 @@ def parse(song):
             while i < len(s) and s[i:i+1] == '.':
                 dots += 1
                 i += 1
+        if dots > 0:
+            dot_mul = 1.0 + (((2 ** dots) - 1) / (2 ** dots))
+        else:
+            dot_mul = 1.0
         if cmd == 'o':
             if arg is not None:
                 octave = arg
@@ -68,11 +72,11 @@ def parse(song):
         elif cmd == 'p':
             if arg is None:
                 arg = length
-            result.append((0, 14400.0 * (1.5 ** dots) / (arg * tempo)))
+            result.append((0, 14400.0 * dot_mul / (arg * tempo)))
         elif cmd in notes:
             if arg is None:
                 arg = length
-            result.append((notes[cmd] + 12*octave, 14400.0 * (1.5 ** dots) / (arg * tempo)))
+            result.append((notes[cmd] + 12*octave, 14400.0 * dot_mul / (arg * tempo)))
         else:
             print("Unknown command: ", cmd)
     return result
