@@ -6,7 +6,7 @@
 #include "stb_image.h"
 
 uint8_t logo[14336];
-uint8_t bps[1792][5];
+uint8_t bps[2048][5];
 uint16_t palette[32];
 
 void convert(unsigned char *img)
@@ -23,15 +23,15 @@ void convert(unsigned char *img)
     for (i = 0; i < 14336; ++i) {
         logo[i] = 0;
     }
-    /* Convertible pixels go in columns 6-105 */
+    /* Convertible pixels go in columns 14-113 */
     for (y = 0; y < 128; ++y) {
         int row = y * 100;
         for (x = 0; x < 100; ++x) {
             int i = (row + x) * 4;
-            int r = img[i] >> 4;
-            int g = img[i+1] >> 4;
-            int b = img[i+2] >> 4;
-            int col = r + (g << 4) + (b << 8);
+            int r = (img[i] >> 4) & 0x0f;
+            int g = (img[i+1] >> 4) & 0x0f;
+            int b = (img[i+2] >> 4) & 0x0f;
+            int col = b + (g << 4) + (r << 8);
             if (col != 0) {
                 /* Black stays black; everything else, we find it in
                  * the palette and add it if it's not there */
@@ -51,7 +51,7 @@ void convert(unsigned char *img)
             } else {
                 i = 2;
             }
-            logo[y * 112 + x + 6] = i;
+            logo[y * 128 + x + 14] = i;
         }
     }
 }
@@ -62,7 +62,7 @@ void encode(FILE *f, uint8_t *buf, int width, int height)
     if (!f) {
         return;
     }
-    for (y = 0; y < 1792; ++y) {
+    for (y = 0; y < 2048; ++y) {
         for (x = 0; x < 5; ++x) {
             bps[y][x] = 0;
         }
@@ -70,7 +70,7 @@ void encode(FILE *f, uint8_t *buf, int width, int height)
     for (y = 0; y < height; ++y) {
         for (x = 0; x < width; x += 8) {
             int i, j;
-            int n = y * 14 + (x >> 3);
+            int n = y * 16 + (x >> 3);
             for (i = 0; i < 8; ++i) {
                 int v = buf[y * width + x + i];
                 for (j = 0; j < 5; ++j) {
@@ -84,7 +84,7 @@ void encode(FILE *f, uint8_t *buf, int width, int height)
         }
     }
     for (y = 0; y < 5; y += 1) {
-        for (x = 0; x < 1792; ++x) {
+        for (x = 0; x < 2048; ++x) {
             fputc(bps[x][y], f);
         }
     }
@@ -111,7 +111,7 @@ int main(int argc, char **argv)
     convert(img);
     FILE *f = fopen("bumberlogo.bin", "wb");
     if (f) {
-        encode(f, logo, 112, 128);
+        encode(f, logo, 128, 128);
         for (n = 0; n < 32; ++n) {
             fputc(palette[n] >> 8, f);
             fputc(palette[n] & 0xff, f);
