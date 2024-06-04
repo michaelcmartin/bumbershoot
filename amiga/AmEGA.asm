@@ -27,19 +27,21 @@ Main:	lea	Copper,a0		; Assign copper list
 .hdlp:	clr.l	(a0)+
 	dbra	d1,.hdlp
 	move.l	#$5555AAAA,d0
-	move.w	#$12bf,d1
+	move.w	#$95f,d1
 .midlp:	move.l	d0,(a0)+
 	dbra	d1,.midlp
 	move.w	#$9f,d1
 .ftlp:	clr.l	(a0)+
 	dbra	d1,.ftlp
+	subq	#1,a0
+	move.b	#$ff,(a0)+
 
 	;; Draw the header and footer text
 	lea	headertext(PC),a0
 	lea	12(a2),a1
 	bsr	drawtext_80
 	lea	footertext(PC),a0
-	lea	19860(a2),a1
+	lea	10260(a2),a1
 	bsr	drawtext_80
 
 	;; Wait for the user to click the mouse
@@ -92,14 +94,14 @@ Copper:
 	dc.w	BPL1PTH,0
 	dc.w	BPL1PTL,0
 	;; Initial palette
-	dc.w	COLOR0,$005A
-	dc.w	COLOR1,$0FFF
+	dc.w	COLOR0,$005a
+	dc.w	COLOR1,$0fff
 	;; Display boundaries
-	dc.w	DIWSTRT,$2C81
-	dc.w	DIWSTOP,$2CC1
+	dc.w	DIWSTRT,$2c81
+	dc.w	DIWSTOP,$2cc1
 	;; DMA boundaries
-	dc.w	DDFSTRT,$3C
-	dc.w	DDFSTOP,$D4
+	dc.w	DDFSTRT,$3c
+	dc.w	DDFSTOP,$d4
 	;; Fixed configuration
 	dc.w	BPL1MOD,0	; No modulo for any bitplane
 	dc.w	BPL2MOD,0
@@ -107,7 +109,28 @@ Copper:
 	dc.w	BPLCON0,$9200	; 1 bitplane, hi-res, color on composite
 	dc.w	BPLCON1,0	; Nothing else special
 	dc.w	BPLCON2,0
-	dc.w	$ffff,$fffe	; Wait indefinitely
+
+	;; Wait for end of header
+	dc.w	$340f,$fffe
+	;; Switch to 40-column mode
+	dc.w	BPLCON0,$1200
+	dc.w	DDFSTRT,$38
+	dc.w	DDFSTOP,$d0
+	dc.w	BPL1MOD,0
+	dc.w	COLOR1,$0ff0
+	dc.w	COLOR0,0
+	;; Wait for end of main body
+	dc.w	$ffe1,$fffe
+	dc.w	$240f,$fffe
+	;; Switch back to 80-column mode
+	dc.w	BPLCON0,$9200
+	dc.w	DDFSTRT,$3c
+	dc.w	DDFSTOP,$d4
+	dc.w	BPL1MOD,0
+	dc.w	COLOR1,$0fff
+	dc.w	COLOR0,$005a
+	;; Wait for end of frame
+	dc.w	$ffff,$fffe
 
 	bss_c
-bmp:	ds.b	80*256
+bmp:	ds.b	80*16+40*240
