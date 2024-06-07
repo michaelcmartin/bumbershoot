@@ -35,24 +35,33 @@ Main:	lea	Copper,a2		; a2 = copper list base addr
 	;; Start DMA for Copper and bitplane graphics
 .start:	move.w	#$8180,DMACON(a5)	; Enable Bitplane and Copper DMA
 
-	;; Fill bitplane
+	;; Clear graphic area
 	move.l	a3,a0
-	move.w	#$13f,d1
-.txtlp:	clr.l	(a0)+
-	dbra	d1,.txtlp
+	move.w	#$26bf,d1
+.clrlp:	clr.l	(a0)+
+	dbra	d1,.clrlp
 
-	move.l	a0,a1			; Cache start of image data
-	moveq	#19,d4			; Fill first row, all BPs
-.imlp1:	move.w	#$5555,(a0)
-	move.w	#$3333,40(a0)
-	move.w	#$0f0f,80(a0)
-	move.w	#$00ff,120(a0)
-	addq	#2,a0
-	dbra	d4,.imlp1
-	add.w	#120,a0			; a0 now start of second line
-	move.w	#$2557,d0
-.imlp2:	move.l	(a1)+,(a0)+		; Replicate row 239 times
-	dbra	d0,.imlp2
+	;; Draw the color boxes. 32x23 drawing unit, border starts
+	;; 2 pixels in on sides, 1 row margin on top and bottom.
+	;; Border is 2 thick on the sides and 1 thick on top and
+	;; bottom. Center color patch is thus 28x18.
+	;; NTSC starts at row 9. PAL wants 32x30 unit.
+	lea	1284(a3),a2	; 32px in from start of low-res
+	moveq	#7,d2
+	moveq	#2,d3
+.boxlp:	move.l	a2,a0
+	move.w	d3,d0
+	bsr	drawbox
+	addq	#4,a2
+	addq	#1,d3
+	dbra	d2,.boxlp
+
+	;; Copy the next seven rows based on the first
+	lea	1280(a3),a0
+	lea	6080(a3),a1
+	move.w	#$20cf,d0
+.bltlp:	move.l	(a0)+,(a1)+
+	dbra	d0,.bltlp
 
 	;; Draw the header and footer text
 	lea	headertext(PC),a0
@@ -92,6 +101,42 @@ drawtext_80:
 	addq	#1,a1			; Advance to next char position
 	bra.s	.loop
 .done:	movem.l	(a7)+,a2-4
+	rts
+
+	;; a0 = first longword to write in image
+	;; d0 = internal color for box
+drawbox:
+	movem.l	d2-5,-(a7)
+	move.l	#$3ffffffc,d1
+	move.l	d1,160(a0)
+	move.l	d1,4480(a0)		; 3360 for NTSC
+	add.w	#320,a0
+	move.l	#$0ffffff0,d5
+	moveq	#0,d1
+	moveq	#0,d2
+	moveq	#0,d3
+	moveq	#0,d4
+	lsr	#1,d0
+	bcc.s	.n1
+	move.l	d5,d1
+.n1:	lsr	#1,d0
+	bcc.s	.n2
+	move.l	d5,d2
+.n2:	lsr	#1,d0
+	bcc.s	.n3
+	move.l	d5,d3
+.n3:	lsr	#1,d0
+	bcc.s	.n4
+	move.l	d5,d4
+.n4:	or.l	#$3000000c,d1		; Add border to bp1
+	move.w	#25,d0			; 18 for NTSC
+.fill:	move.l	d1,(a0)
+	move.l	d2,40(a0)
+	move.l	d3,80(a0)
+	move.l	d4,120(a0)
+	add.w	#160,a0
+	dbra	d0,.fill
+	movem.l	(a7)+,d2-5
 	rts
 
 ;;; ----------------------------------------------------------------------
