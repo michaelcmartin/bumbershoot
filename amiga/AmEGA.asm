@@ -164,19 +164,14 @@ Copper:
 	;; Initial palette
 	dc.w	COLOR0,$005a
 	dc.w	COLOR1,$0fff
-	dc.w	COLOR2,$00a0
-	dc.w	COLOR3,$00aa
-	dc.w	COLOR4,$0a00
-	dc.w	COLOR5,$0a0a
-	dc.w	COLOR6,$0a50
-	dc.w	COLOR7,$0aaa
-	dc.w	COLOR8,$0555
-	dc.w	COLOR9,$055f
-	dc.w	COLOR10,$05f5
-	dc.w	COLOR11,$05ff
-	dc.w	COLOR12,$0f55
-	dc.w	COLOR13,$0f5f
-	dc.w	COLOR14,$0ff5
+	dc.w	COLOR2,$0000
+	dc.w	COLOR3,$000a
+	dc.w	COLOR4,$00a0
+	dc.w	COLOR5,$00aa
+	dc.w	COLOR6,$0a00
+	dc.w	COLOR7,$0a0a
+	dc.w	COLOR8,$0aa0
+	dc.w	COLOR9,$0aaa
 	dc.w	COLOR15,$0fff
 	;; Display boundaries
 	dc.w	DIWSTRT,$2c81
@@ -201,10 +196,81 @@ Copper:
 	dc.w	BPL1MOD,120	; Interleaved 4BPP mode
 imgC:	dc.w	BPL1PTH,0
 	dc.w	BPL1PTL,0
-	dc.w	COLOR1,$000a
-	dc.w	COLOR0,$0000
-	;; Wait for end of main body
+	dc.w	COLOR1,$0ccc
+	;; Deliver the next sets of colors
+	dc.w	$520f,$fffe
+	dc.w	COLOR2,$0005
+	dc.w	COLOR3,$000f
+	dc.w	COLOR4,$00a5
+	dc.w	COLOR5,$00af
+	dc.w	COLOR6,$0a05
+	dc.w	COLOR7,$0a0f
+	dc.w	COLOR8,$0aa5
+	dc.w	COLOR9,$0aaf
+	dc.w	COLOR15,$0dde
+	dc.w	$700f,$fffe
+	dc.w	COLOR2,$0050
+	dc.w	COLOR3,$005a
+	dc.w	COLOR4,$00f0
+	dc.w	COLOR5,$00fa
+	dc.w	COLOR6,$0a50
+	dc.w	COLOR7,$0a5a
+	dc.w	COLOR8,$0af0
+	dc.w	COLOR9,$0afa
+	dc.w	COLOR15,$0bbd
+	dc.w	$8e0f,$fffe
+	dc.w	COLOR2,$0055
+	dc.w	COLOR3,$005f
+	dc.w	COLOR4,$00f5
+	dc.w	COLOR5,$00ff
+	dc.w	COLOR6,$0a55
+	dc.w	COLOR7,$0a5f
+	dc.w	COLOR8,$0af5
+	dc.w	COLOR9,$0aff
+	dc.w	COLOR15,$099c
+	dc.w	$ac0f,$fffe
+	dc.w	COLOR2,$0500
+	dc.w	COLOR3,$050a
+	dc.w	COLOR4,$05a0
+	dc.w	COLOR5,$05aa
+	dc.w	COLOR6,$0f00
+	dc.w	COLOR7,$0f0a
+	dc.w	COLOR8,$0fa0
+	dc.w	COLOR9,$0faa
+	dc.w	COLOR15,$077b
+	dc.w	$ca0f,$fffe
+	dc.w	COLOR2,$0505
+	dc.w	COLOR3,$050f
+	dc.w	COLOR4,$05a5
+	dc.w	COLOR5,$05af
+	dc.w	COLOR6,$0f05
+	dc.w	COLOR7,$0f0f
+	dc.w	COLOR8,$0fa5
+	dc.w	COLOR9,$0faf
+	dc.w	COLOR15,$055a
+	dc.w	$e80f,$fffe
+	dc.w	COLOR2,$0550
+	dc.w	COLOR3,$055a
+	dc.w	COLOR4,$05f0
+	dc.w	COLOR5,$05fa
+	dc.w	COLOR6,$0f50
+	dc.w	COLOR7,$0f5a
+	dc.w	COLOR8,$0ff0
+	dc.w	COLOR9,$0ffa
+	dc.w	COLOR15,$0339
+	;; Wait for 8-bit turnover as part of final box
 	dc.w	$ffe1,$fffe
+	dc.w	$06e1,$fffe
+	dc.w	COLOR2,$0555
+	dc.w	COLOR3,$055f
+	dc.w	COLOR4,$05f5
+	dc.w	COLOR5,$05ff
+	dc.w	COLOR6,$0f55
+	dc.w	COLOR7,$0f5f
+	dc.w	COLOR8,$0ff5
+	dc.w	COLOR9,$0fff
+	dc.w	COLOR15,$011e
+	;; Wait for end of main body
 	dc.w	$240f,$fffe
 	;; Switch back to 80-column mode
 	dc.w	BPLCON0,$9200
