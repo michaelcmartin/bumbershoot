@@ -71,6 +71,32 @@ Main:	lea	Copper,a2		; a2 = copper list base addr
 	lea	660(a3),a1
 	bsr	drawtext_80
 
+	;; Draw the numeric labels
+	clr.w	-(a7)		; Push the ASCIIZ string "00"
+	move.w	#$3030,-(a7)
+	lea	3045(a3),a4	; Write cursor
+	moveq	#63,d2
+.numlp:	move.l	a4,a1		; Draw label at cursor
+	move.l	a7,a0
+	bsr	drawtext_40
+	addq	#4,a4		; Move cursor right
+	move.b	1(a7),d0	; Increment ones digit
+	addq	#1,d0
+	cmp.b	#$38,d0		; Is it 8?
+	bne.s	.not8
+	add	#4768,a4	; If so, move to next line
+.not8:	cmp.b	#$07,d0		; Is it 17?
+	bne.s	.not17
+	add	#4768,a4	; If so move to next line
+	add.b	#1,(a7)		; and advance 16s digit
+	moveq	#$30,d0		; and reset 1s digit
+.not17:	cmp.b	#$3a,d0		; Is it 10?
+	bne.s	.not10
+	moveq	#1,d0		; Fix digit to 'A'.
+.not10:	move.b	d0,1(a7)	; write back ones digit
+	dbra	d2,.numlp
+	addq	#4,a7		; Pop the label string
+
 	;; Wait for the user to click the mouse
 .wait:	btst	#6,CIAAPRA
 	bne.s	.wait
@@ -84,6 +110,7 @@ footertext:
 	dc.b	"80-COLUMN TEXT WITH ALL 64 EGA COLORS!!!",0
 	even
 
+	;; Copy 1bpp text string (a0) to graphics memory (a1).
 drawtext_80:
 	movem.l	a2-4,-(a7)
 	lea	font,a2
@@ -97,6 +124,31 @@ drawtext_80:
 	moveq	#7,d1
 .char:	move.b	(a3)+,(a4)
 	add	#80,a4
+	dbra	d1,.char
+	addq	#1,a1			; Advance to next char position
+	bra.s	.loop
+.done:	movem.l	(a7)+,a2-4
+	rts
+
+	;; Overlay 4bpp text string (a0) to graphics memory (a1). Draws
+	;; in color 15, overlays previous graphics.
+drawtext_40:
+	movem.l	a2-4,-(a7)
+	lea	font,a2
+.loop:	moveq	#0,d0			; Read next character
+	move.b	(a0)+,d0
+	beq.s	.done			; Quit if it's the null terminator
+	and.b	#63,d0			; Convert to screencode
+	lsl.w	#3,d0			; Put address of char in a3
+	lea	(a2,d0),a3
+	move.l	a1,a4			; Draw character
+	moveq	#7,d1
+.char:	move.b	(a3)+,d0
+	or.b	d0,(a4)
+	or.b	d0,40(a4)
+	or.b	d0,80(a4)
+	or.b	d0,120(a4)
+	add	#160,a4
 	dbra	d1,.char
 	addq	#1,a1			; Advance to next char position
 	bra.s	.loop
