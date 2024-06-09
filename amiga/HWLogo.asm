@@ -72,4 +72,4 @@ Copper:
 	;; End of frame
 	dc.w	$ffff,$fffe
 
-Logo:	incbin "bumberlogo.bin"
+Logo:	incbin "res/bumberlogo.bin"

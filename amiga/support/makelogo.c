@@ -5,23 +5,23 @@
 #define STBI_PNG_ONLY
 #include "stb_image.h"
 
-uint8_t logo[14336];
+uint8_t logo[16384];
 uint8_t bps[2048][5];
 uint16_t palette[32];
 
 void convert(unsigned char *img)
 {
-    int x, y, i;
+    int x, y, n;
     /* Preload initial palette */
     palette[0] = 0x05a;
     palette[1] = 0xfff;
     palette[2] = 0x000;
-    for (i = 3; i < 32; ++i) {
-        palette[i] = 0;
+    for (n = 3; n < 32; ++n) {
+        palette[n] = 0;
     }
     /* Clear image */
-    for (i = 0; i < 14336; ++i) {
-        logo[i] = 0;
+    for (n = 0; n < 16384; ++n) {
+        logo[n] = 0;
     }
     /* Convertible pixels go in columns 14-113 */
     for (y = 0; y < 128; ++y) {
@@ -93,7 +93,6 @@ void encode(FILE *f, uint8_t *buf, int width, int height)
 int main(int argc, char **argv)
 {
     int w, h, n;
-    unsigned char *p;
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
         return 1;
