@@ -32,14 +32,15 @@ Main:	lea	Copper,a2		; a2 = copper list base addr
 	move.w	d0,2(a1)
 	bra.s	.bplp
 
-	;; Start DMA for Copper and bitplane graphics
-.start:	move.w	#$8180,DMACON(a5)	; Enable Bitplane and Copper DMA
+.start:	move.w	#$81c0,DMACON(a5)	; Enable Bitplane, Copper, and Blitter DMA
 
 	;; Clear graphic area
-	move.l	a3,a0
-	move.w	#$26bf,d1
-.clrlp:	clr.l	(a0)+
-	dbra	d1,.clrlp
+	bsr	blitter_wait
+	move.l	#$01000000,BLTCON0(a5)
+	move.l	a3,BLTDPT(a5)
+	clr.l	BLTDMOD(a5)
+	move.w	#496*64+40,BLTSIZE(a5)
+	bsr	blitter_wait
 
 	;; Draw the color boxes. 32x23 drawing unit, border starts
 	;; 2 pixels in on sides, 1 row margin on top and bottom.
@@ -59,11 +60,14 @@ Main:	lea	Copper,a2		; a2 = copper list base addr
 	;; Copy the next seven rows based on the first
 	lea	1280(a3),a0
 	lea	6080(a3),a1
-	move.w	#$20cf,d0
-.bltlp:	move.l	(a0)+,(a1)+
-	dbra	d0,.bltlp
+	move.l	a0,BLTAPT(a5)
+	move.l	a1,BLTDPT(a5)
+	clr.l	BLTAMOD(a5)
+	move.l	#$ffffffff,BLTAFWM(a5)
+	move.w	#$09f0,BLTCON0(a5)
+	move.w	#480*64+40,BLTSIZE(a5)
 
-	;; Draw the header and footer text
+	;; Draw the header and footer text while the blitter does its thing
 	lea	headertext(PC),a0
 	lea	12(a3),a1
 	bsr	drawtext_80
@@ -75,6 +79,7 @@ Main:	lea	Copper,a2		; a2 = copper list base addr
 	clr.w	-(a7)		; Push the ASCIIZ string "00"
 	move.w	#$3030,-(a7)
 	lea	3045(a3),a4	; Write cursor
+	bsr	blitter_wait	; Make sure blitter has finished copying
 	moveq	#63,d2
 .numlp:	move.l	a4,a1		; Draw label at cursor
 	move.l	a7,a0
@@ -189,6 +194,12 @@ drawbox:
 	add.w	#160,a0
 	dbra	d0,.fill
 	movem.l	(a7)+,d2-5
+	rts
+
+blitter_wait:
+	btst	#14,DMACONR(a5)	; Amiga 1000 compat dummy read
+.lp:	btst	#14,DMACONR(a5)
+	bne.s	.lp
 	rts
 
 ;;; ----------------------------------------------------------------------
