@@ -38,7 +38,7 @@ Main:	lea	Copper,a2		; a2 = copper list base addr
 	bsr	blitter_wait
 	move.l	#$01000000,BLTCON0(a5)
 	move.l	a3,BLTDPT(a5)
-	clr.l	BLTDMOD(a5)
+	clr.w	BLTDMOD(a5)
 	move.w	#496*64+40,BLTSIZE(a5)
 	bsr	blitter_wait
 
@@ -62,10 +62,10 @@ Main:	lea	Copper,a2		; a2 = copper list base addr
 	lea	6080(a3),a1
 	move.l	a0,BLTAPT(a5)
 	move.l	a1,BLTDPT(a5)
-	clr.l	BLTAMOD(a5)
+	clr.w	BLTAMOD(a5)
 	move.l	#$ffffffff,BLTAFWM(a5)
 	move.w	#$09f0,BLTCON0(a5)
-	move.w	#480*64+40,BLTSIZE(a5)
+	move.w	#420*64+40,BLTSIZE(a5)
 
 	;; Draw the header and footer text while the blitter does its thing
 	lea	headertext(PC),a0
