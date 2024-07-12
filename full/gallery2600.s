@@ -13,15 +13,26 @@
         .alias  VSYNC   $0000
         .alias  VBLANK  $0001
         .alias  WSYNC   $0002
+        .alias  NUSIZ0  $0004
+        .alias  NUSIZ1  $0005
+        .alias  COLUP0  $0006
+        .alias  COLUP1  $0007
         .alias  COLUBK  $0009
         .alias  PF0     $000D
         .alias  PF1     $000E
         .alias  PF2     $000F
+        .alias  RESP0   $0010
+        .alias  RESP1   $0011
         .alias  GRP0    $001B
         .alias  GRP1    $001C
         .alias  ENAM0   $001D
         .alias  ENAM1   $001E
         .alias  ENABL   $001F
+        .alias  HMP0    $0020
+        .alias  HMP1    $0021
+        .alias  HMM0    $0022
+        .alias  HMOVE   $002A
+        .alias  HMCLR   $002B
         .alias  INTIM   $0284
         .alias  TIM64T  $0296
 
@@ -62,7 +73,7 @@ reset:
 
         ;; Initial setup code
 
-        ;; None yet!
+        jsr     init_game
 
 ;;; --------------------------------------------------------------------------
 ;;; * MAIN FRAME LOOP
@@ -96,6 +107,13 @@ frame:
         sta     PF1
         sta     PF2
         sta     COLUBK          ; Black background
+        sta     NUSIZ0          ; Blaster is a single normal-sized player
+        lda     #$06
+        sta     NUSIZ1          ; Targets are 3 copies, medium spacing
+        lda     #$3a            ; Orange Blaster
+        sta     COLUP0
+        lda     #$46            ; Red targets
+        sta     COLUP1
 
         ;; Wait for VBLANK to finish
 *       lda     INTIM
@@ -120,11 +138,45 @@ frame:
         stx     WSYNC                   ; X is already zero, from before
         stx     WSYNC
         stx     COLUBK                  ; Divider done, back to black
-        ;; 140 scanlines of main game display
-        ldx     #$8c
+
+        ;; -- MAIN GAME DISPLAY: 126 scanlines --
+
+        ;; 8 scanlines of space before targets
+        ldy     #$08
+*       sta     WSYNC
+        dey
+        bne     -
+
+        ;; 6 doubled rows of target graphics
+        ldy     #$05
+*       lda     gfx_target,y
+        sta     GRP1
+        sta     WSYNC
+        dey
+        sta     WSYNC
+        bpl     -
+
+        iny                             ; Disable P1 graphics
+        sty     GRP1
+
+        ;; Remaining 106 scanlines are all blank
+        ldx     #$6a
 *       sta     WSYNC
         dex
         bne     -
+
+        ;; 7 doubled rows of blaster, below the "main game display"
+        sta     COLUP0
+        ldy     #$06
+*       lda     gfx_blaster,y
+        sta     GRP0
+        sta     WSYNC
+        dey
+        sta     WSYNC
+        bpl     -
+
+        iny
+        sty     GRP0                    ; Disable P0 graphics
 
         ;; 20 scanlines of ground
         lda     #$d4
@@ -148,7 +200,35 @@ frame:
 ;;; * SUPPORT ROUTINES
 ;;; --------------------------------------------------------------------------
 
-        ;; None yet!
+        ;; init_game: place sprites in initial positions.
+init_game:
+        sta     WSYNC                   ;  0
+        sta     HMCLR                   ;  3
+        ldx     #$06                    ;  5
+*       dex
+        bne     -                       ; 34
+        sta     RESP1                   ; 37
+        lda     #$90                    ; 39
+        ldy     #$40                    ; 41
+        sta     RESP0
+        sta     HMP0
+        sty     HMP1
+        sta     WSYNC
+        sta     HMOVE
+        rts
+
+;;; --------------------------------------------------------------------------
+;;; * Graphics data
+;;; --------------------------------------------------------------------------
+
+        .advance $ff00,$ff              ; Ensure page alignment
+        ;; Blaster: 7 lines, color 3A
+gfx_blaster:
+        .byte   $92,$fe,$fe,$ba,$ba,$38,$10
+
+gfx_target:
+        ;; Target: 6 lines, color 46
+        .byte   $3c,$42,$5a,$5a,$42,$3c
 
 ;;; --------------------------------------------------------------------------
 ;;; * INTERRUPT VECTORS
