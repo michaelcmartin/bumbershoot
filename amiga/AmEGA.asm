@@ -106,14 +106,11 @@ Main:	lea	Copper,a2		; a2 = copper list base addr
 	moveq	#0,d0
 	move.b	d0,pending
 	move.b	d0,ready
-	move.l	S_VBR,a0	; Save out IRQs 2 and 6
+	move.l	S_VBR,a0	; Save out original handler
 	move.l	IRQ2(a0),-(a7)
-	move.l	IRQ6(a0),-(a7)
 	lea	irq2_handler(pc),a1
 	move.l	a1,IRQ2(a0)
-	lea	irq6_handler(pc),a1
-	move.l	a1,IRQ6(a0)
-	move.w	#$a008,INTENA(a5)	; Enable IRQs 2/6
+	move.w	#$8008,INTENA(a5)	; Enable IRQ 2
 
 	;; Wait for the user to click the mouse
 .wait:	tst.b	ready
@@ -122,9 +119,8 @@ Main:	lea	Copper,a2		; a2 = copper list base addr
 	bne.s	.wait
 
 	;; Clean up interrupt handlers
-.end:	move.w	#$2008,INTENA(a5)
+.end:	move.w	#$0008,INTENA(a5)
 	move.l	S_VBR,a0
-	move.l	(a7)+,IRQ6(a0)
 	move.l	(a7)+,IRQ2(a0)
 	;; Return to SafeStart to return control to OS
 	rts
@@ -138,50 +134,31 @@ footertext:
 irq2_handler:
 	movem.l	d0-d3,-(a7)		; Save out registers
 
-	;; Note: checking the interrupt type like this also acknowledges and
-	;;       clears all interrupt bits. We can only get away with caching
-	;;       like this because there's only one CIA IRQ we care about
-	btst	#3,CIAAICR		; Was this the keyboard interrupt?
+	move.b	CIAAICR,d0
+	btst	#3,d0			; Was this the keyboard interrupt?
+	bne.s	.kb			; If so, handle key event
+	btst	#0,d0			; Was this Timer A?
 	beq.s	.end			; If not, skip everything
 
-	move.b	CIAASDR,d0		; Read actual keyboard data
+	bclr.b	#6,CIAACRA		; If so, finish handshake
+	move.b	#$01,CIAAICR		; Disable Timer A interrupt
+	move.b	pending,ready		; And confirm keystroke
+	bra.s	.end
+
+.kb:	move.b	CIAASDR,d0		; Read actual keyboard data
 	btst	#0,d0			; Was it a key-up?
 	beq.s	.handshake		; If so, ignore it
 	move.b	#$ff,pending		; Otherwise, record pending keypress
 
 .handshake:
-	bset.b	#6,CIAACRA		; Serial output
-	clr.b	CIAASDR			; Signal low
-
-	; Wait at least 75 microseconds. Van den Oostercamp's sample code
-	; does this by waiting for 4 ticks of the HBLANK event counter,
-	; which will be more than enough on PAL or NTSC.
-	move.b	CIABTODHI,d0		; Must read TODLO last
-	move.b	CIABTODMID,d1
-	move.b	CIABTODLO,d2
-	moveq	#0,d3			; Preloaded zero for addition
-	addq.b	#4,d2
-	addx.b	d3,d1
-	addx.b	d3,d0
-
-	bset.b	#7,CIABCRB		; Set alarm on clock write
-	move.b	d0,CIABTODHI		; Again, must write TODLO last
-	move.b	d1,CIABTODMID
-	move.b	d2,CIABTODLO
-	move.b	#$84,CIABICR		; Enable TOD alarm interrupt
+	move.b	#$48,CIAACRA		; Serial output, single-shot timer on A
+	clr.b	CIAASDR			; Serial signal low
+	move.b	#75,CIAATALO		; for 75 ticks
+	clr.b	CIAATAHI
+	move.b	#$81,CIAAICR		; Enable Timer A interrupt
 
 .end:	move.w	#$0008,$dff000+INTREQ	; Acknowledge INT2 IRQ
 	movem.l	(a7)+,d0-d3
-	rte
-
-irq6_handler:
-	btst	#2,CIABICR		; Alarm hit?
-	beq.s	.end			; If not, done
-
-	bclr.b	#6,CIAACRA		; Finish handshake
-	move.b	#4,CIABICR		; Disable alarm interrupt
-	move.b	pending,ready
-.end:	move.w	#$2000,$dff000+INTREQ	; Acknowledge INT6 IRQ
 	rte
 
 	;; Copy 1bpp text string (a0) to graphics memory (a1).
