@@ -115,6 +115,13 @@ frame:
         lda     #$46            ; Red targets
         sta     COLUP1
 
+        ;; Move sprites as needed
+        sta     HMCLR
+        lda     #$10
+        sta     HMP1
+        sta     WSYNC
+        sta     HMOVE
+
         ;; Wait for VBLANK to finish
 *       lda     INTIM
         bne     -
