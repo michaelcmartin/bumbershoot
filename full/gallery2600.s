@@ -46,6 +46,7 @@
         .space  score   1
         .space  tens    2
         .space  ones    2
+        .space  timer   1
 
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
@@ -127,6 +128,19 @@ frame:
         sta     HMP1
         sta     WSYNC
         sta     HMOVE
+
+        ;; Test the scoring system by incrementing score on a timer
+        dec     timer
+        bne     +
+        lda     #30
+        sta     timer
+        sed
+        clc
+        lda     score
+        adc     #1
+        sta     score
+        cld
+*
 
         ;; Convert the score variable into a pair of digit pointers
         lda     score
@@ -282,6 +296,9 @@ init_game:
         sty     HMP1
         sta     WSYNC
         sta     HMOVE
+        stx     score                   ; X is zero here
+        lda     #30
+        sta     timer
         rts
 
 ;;; --------------------------------------------------------------------------
