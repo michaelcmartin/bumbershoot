@@ -17,7 +17,9 @@
         .alias  NUSIZ1  $0005
         .alias  COLUP0  $0006
         .alias  COLUP1  $0007
+        .alias  COLUPF  $0008
         .alias  COLUBK  $0009
+        .alias  CTRLPF  $000A
         .alias  PF0     $000D
         .alias  PF1     $000E
         .alias  PF2     $000F
@@ -41,7 +43,10 @@
 ;;; --------------------------------------------------------------------------
         .data
         .org    $0080
-        ;; No variables yet!
+        .space  scratch 1
+        .space  score   1
+        .space  tens    2
+        .space  ones    2
 
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
@@ -110,10 +115,14 @@ frame:
         sta     NUSIZ0          ; Blaster is a single normal-sized player
         lda     #$06
         sta     NUSIZ1          ; Targets are 3 copies, medium spacing
+        lda     #$00            ; Unreflected playfield
+        sta     CTRLPF
         lda     #$3a            ; Orange Blaster
         sta     COLUP0
         lda     #$46            ; Red targets
         sta     COLUP1
+        lda     #$0c            ; Grey score
+        sta     COLUPF
 
         ;; Move sprites as needed
         sta     HMCLR
@@ -121,6 +130,23 @@ frame:
         sta     HMP1
         sta     WSYNC
         sta     HMOVE
+
+        ;; Convert the score variable into a pair of digit pointers
+        lda     score
+        and     #$f0
+        lsr                             ; Clears carry
+        adc     #<gfx_digits
+        sta     tens
+        lda     score
+        and     #$0f
+        asl
+        asl
+        asl
+        adc     #<gfx_digits
+        sta     ones
+        lda     #$ff
+        sta     tens+1
+        sta     ones+1
 
         ;; Wait for VBLANK to finish
 *       lda     INTIM
@@ -134,11 +160,31 @@ frame:
 ;;; * DISPLAY KERNEL
 ;;; --------------------------------------------------------------------------
 
-        ;; 30 scanlines for our eventual score display
-        ldx     #$1e
-*       sta     WSYNC
-        dex
-        bne     -
+        ;; 30 scanlines for the score display: 6 quadrupled rows of
+        ;; playfield blocks, bracketed by three blank lines
+        sta     WSYNC
+        sta     WSYNC
+        ldy     #$06
+score_loop:
+        lda     (tens),y
+        and     #$0f
+        sta     scratch
+        lda     (ones),y
+        and     #$f0
+        ora     scratch
+        sta     WSYNC
+        sta     PF2
+        sta     WSYNC
+        sta     WSYNC
+        sta     WSYNC
+        dey
+        bne     score_loop
+        sta     WSYNC                   ; Complete final line
+        sty     PF2                     ; Disable playfield
+        sta     WSYNC
+        sta     WSYNC
+        sta     WSYNC
+
         ;; 2 scanlines of white divider; prepare on final score line
         lda     #$0e
         sta     COLUBK
@@ -236,6 +282,19 @@ gfx_blaster:
 gfx_target:
         ;; Target: 6 lines, color 46
         .byte   $3c,$42,$5a,$5a,$42,$3c
+
+gfx_digits:
+        .byte   $00,$22,$55,$55,$55,$55,$22,$00 ; 0
+        .byte   $00,$77,$22,$22,$22,$33,$22,$00 ; 1
+        .byte   $00,$77,$11,$22,$44,$55,$22,$00 ; 2
+        .byte   $00,$77,$44,$44,$66,$44,$77,$00 ; 3
+        .byte   $00,$44,$44,$44,$77,$55,$55,$00 ; 4
+        .byte   $00,$77,$55,$55,$77,$11,$77,$00 ; 5
+        .byte   $00,$77,$55,$55,$77,$11,$77,$00 ; 6
+        .byte   $00,$22,$22,$22,$44,$44,$77,$00 ; 7
+        .byte   $00,$77,$55,$55,$77,$55,$77,$00 ; 8
+        .byte   $00,$77,$55,$44,$77,$55,$77,$00 ; 9
+
 
 ;;; --------------------------------------------------------------------------
 ;;; * INTERRUPT VECTORS
