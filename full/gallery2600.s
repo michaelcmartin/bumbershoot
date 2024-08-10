@@ -251,8 +251,13 @@ score_loop:
 
 ;;; --------------------------------------------------------------------------
 ;;; * SUPPORT ROUTINES
+;;;
+;;; All material past this point needs to guarantee that branches or
+;;; indices never cross page boundaries! We accomplish this by forcing
+;;; all of it into the final 256 bytes of the image.
 ;;; --------------------------------------------------------------------------
 
+        .advance $ff00,$ff
         ;; init_game: place sprites in initial positions.
 init_game:
         sta     WSYNC                   ;  0
@@ -274,7 +279,6 @@ init_game:
 ;;; * Graphics data
 ;;; --------------------------------------------------------------------------
 
-        .advance $ff00,$ff              ; Ensure page alignment
         ;; Blaster: 7 lines, color 3A
 gfx_blaster:
         .byte   $92,$fe,$fe,$ba,$ba,$38,$10
