@@ -17,7 +17,6 @@
         .alias  NUSIZ1  $0005
         .alias  COLUP0  $0006
         .alias  COLUP1  $0007
-        .alias  COLUPF  $0008
         .alias  COLUBK  $0009
         .alias  CTRLPF  $000A
         .alias  PF0     $000D
@@ -115,14 +114,12 @@ frame:
         sta     NUSIZ0          ; Blaster is a single normal-sized player
         lda     #$06
         sta     NUSIZ1          ; Targets are 3 copies, medium spacing
-        lda     #$00            ; Unreflected playfield
+        lda     #$02            ; Unreflected playfield in scoring mode
         sta     CTRLPF
-        lda     #$3a            ; Orange Blaster
+        lda     #$00            ; Black (invisible) left side
         sta     COLUP0
-        lda     #$46            ; Red targets
+        lda     #$0c            ; Grey score on right side
         sta     COLUP1
-        lda     #$0c            ; Grey score
-        sta     COLUPF
 
         ;; Move sprites as needed
         sta     HMCLR
@@ -184,6 +181,12 @@ score_loop:
         sta     WSYNC
         sta     WSYNC
         sta     WSYNC
+
+        ;; Prepare players for main display
+        lda     #$3a                    ; Orange Blaster
+        sta     COLUP0
+        lda     #$46                    ; Red targets
+        sta     COLUP1
 
         ;; 2 scanlines of white divider; prepare on final score line
         lda     #$0e
