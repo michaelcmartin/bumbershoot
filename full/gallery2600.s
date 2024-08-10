@@ -132,13 +132,18 @@ frame:
         lda     score
         and     #$f0
         lsr                             ; Clears carry
+        lsr
+        sta     tens
+        lsr
+        adc     tens                    ; Won't set carry
         adc     #<gfx_digits
         sta     tens
         lda     score
         and     #$0f
         asl
+        sta     ones
         asl
-        asl
+        adc     ones                    ; Won't set carry
         adc     #<gfx_digits
         sta     ones
         lda     #$ff
@@ -161,7 +166,7 @@ frame:
         ;; playfield blocks, bracketed by three blank lines
         sta     WSYNC
         sta     WSYNC
-        ldy     #$06
+        ldy     #$05
 score_loop:
         lda     (tens),y
         and     #$0f
@@ -175,8 +180,9 @@ score_loop:
         sta     WSYNC
         sta     WSYNC
         dey
-        bne     score_loop
+        bpl     score_loop
         sta     WSYNC                   ; Complete final line
+        iny
         sty     PF2                     ; Disable playfield
         sta     WSYNC
         sta     WSYNC
@@ -291,17 +297,16 @@ gfx_target:
         .byte   $3c,$42,$5a,$5a,$42,$3c
 
 gfx_digits:
-        .byte   $00,$22,$55,$55,$55,$55,$22,$00 ; 0
-        .byte   $00,$77,$22,$22,$22,$33,$22,$00 ; 1
-        .byte   $00,$77,$11,$22,$44,$55,$22,$00 ; 2
-        .byte   $00,$77,$44,$44,$66,$44,$77,$00 ; 3
-        .byte   $00,$44,$44,$44,$77,$55,$55,$00 ; 4
-        .byte   $00,$77,$55,$55,$77,$11,$77,$00 ; 5
-        .byte   $00,$77,$55,$55,$77,$11,$77,$00 ; 6
-        .byte   $00,$22,$22,$22,$44,$44,$77,$00 ; 7
-        .byte   $00,$77,$55,$55,$77,$55,$77,$00 ; 8
-        .byte   $00,$77,$55,$44,$77,$55,$77,$00 ; 9
-
+        .byte   $22,$55,$55,$55,$55,$22 ; 0
+        .byte   $77,$22,$22,$22,$33,$22 ; 1
+        .byte   $77,$11,$22,$44,$55,$22 ; 2
+        .byte   $77,$44,$44,$66,$44,$77 ; 3
+        .byte   $44,$44,$44,$77,$55,$55 ; 4
+        .byte   $77,$55,$44,$77,$11,$77 ; 5
+        .byte   $77,$55,$55,$77,$11,$77 ; 6
+        .byte   $22,$22,$22,$44,$44,$77 ; 7
+        .byte   $77,$55,$55,$77,$55,$77 ; 8
+        .byte   $77,$55,$44,$77,$55,$77 ; 9
 
 ;;; --------------------------------------------------------------------------
 ;;; * INTERRUPT VECTORS
