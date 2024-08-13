@@ -39,6 +39,7 @@
         ;; Peripheral addresses
         .alias  SWCHA   $0280
         .alias  SWACNT  $0281
+        .alias  SWCHB   $0282
         .alias  INTIM   $0284
         .alias  TIM64T  $0296
 
@@ -161,6 +162,13 @@ frame:
         sta     score
         cld
 *
+
+        ;; Reset everything if reset is pressed
+        lda     SWCHB
+        lsr
+        bcs     no_reset
+        jsr     init_game
+no_reset:
 
         ;; Convert the score variable into a pair of digit pointers
         lda     score
