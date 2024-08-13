@@ -10,6 +10,7 @@
 ;;; * Taken from the Stella Programmer's Guide
 ;;; --------------------------------------------------------------------------
 
+        ;; Write/strobe addresses
         .alias  VSYNC   $0000
         .alias  VBLANK  $0001
         .alias  WSYNC   $0002
@@ -34,6 +35,10 @@
         .alias  HMM0    $0022
         .alias  HMOVE   $002A
         .alias  HMCLR   $002B
+
+        ;; Peripheral addresses
+        .alias  SWCHA   $0280
+        .alias  SWACNT  $0281
         .alias  INTIM   $0284
         .alias  TIM64T  $0296
 
@@ -123,11 +128,26 @@ frame:
         sta     COLUP1
 
         ;; Move sprites as needed
-        sta     HMCLR
-        lda     #$10
+        sta     HMCLR           ; Clear out any previous nudges
+        lda     #$10            ; Targets move 1 left each frame
         sta     HMP1
+        ldx     #$00            ; Set SWCHA to input mode for
+        stx     SWACNT          ; joystick read
+        lda     SWCHA           ; Then read joystick
+        asl                     ; Top bit into carry
+        bcs     +               ; Holding right?
+        dex                     ; If so, nudge 1 right
+*       asl
+        bcs     +               ; Holding left?
+        inx                     ; If so, nudge one left
+*       txa                     ; Shift nudge amount into high nybble
+        asl
+        asl
+        asl
+        asl
+        sta     HMP0            ; Apply to player
         sta     WSYNC
-        sta     HMOVE
+        sta     HMOVE           ; Apply all nudges
 
         ;; Test the scoring system by incrementing score on a timer
         dec     timer
@@ -211,9 +231,9 @@ score_loop:
         ;; 2 scanlines of white divider; prepare on final score line
         lda     #$0e
         sta     COLUBK
-        stx     WSYNC                   ; X is already zero, from before
-        stx     WSYNC
-        stx     COLUBK                  ; Divider done, back to black
+        sta     WSYNC                   ; Y is already zero, from before
+        sta     WSYNC
+        sty     COLUBK                  ; Divider done, back to black
 
         ;; -- MAIN GAME DISPLAY: 126 scanlines --
 
