@@ -33,8 +33,12 @@
         .alias  HMP0    $0020
         .alias  HMP1    $0021
         .alias  HMM0    $0022
+        .alias  RESMP0  $0028
         .alias  HMOVE   $002A
         .alias  HMCLR   $002B
+
+        ;; Read addresses
+        .alias  INPT4   $000C
 
         ;; Peripheral addresses
         .alias  SWCHA   $0280
@@ -53,6 +57,7 @@
         .space  tens    2
         .space  ones    2
         .space  timer   1
+        .space  fire    1
 
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
@@ -128,6 +133,13 @@ frame:
         lda     #$0c            ; Grey score on right side
         sta     COLUP1
 
+        ;; Check fire button
+        ldx     #$00
+        bit     INPT4
+        bmi     +
+        dex
+*       stx     fire
+
         ;; Move sprites as needed
         sta     HMCLR           ; Clear out any previous nudges
         lda     #$10            ; Targets move 1 left each frame
@@ -149,6 +161,17 @@ frame:
         sta     HMP0            ; Apply to player
         sta     WSYNC
         sta     HMOVE           ; Apply all nudges
+
+        ;; Match the missile's location to the player
+        sta     WSYNC           ; Lock in player locations
+        sta     HMCLR
+        lda     #$02
+        sta     RESMP0          ; Match missile to player
+        sta     WSYNC
+        lda     #$10            ; Match missile location to blaster's cannon
+        sta     HMM0
+        sta     HMOVE
+        sta     RESMP0          ; Unlock missile
 
         ;; Test the scoring system by incrementing score on a timer
         dec     timer
@@ -231,7 +254,7 @@ score_loop:
         sta     WSYNC
 
         ;; Prepare players for main display
-        lda     #$3a                    ; Orange Blaster
+        lda     #$1c                    ; Yellow missiles
         sta     COLUP0
         lda     #$46                    ; Red targets
         sta     COLUP1
@@ -242,6 +265,8 @@ score_loop:
         sta     WSYNC                   ; Y is already zero, from before
         sta     WSYNC
         sty     COLUBK                  ; Divider done, back to black
+        lda     fire                    ; Render missile as a "laser"
+        sta     ENAM0
 
         ;; -- MAIN GAME DISPLAY: 126 scanlines --
 
@@ -270,6 +295,8 @@ score_loop:
         bne     -
 
         ;; 7 doubled rows of blaster, below the "main game display"
+        stx     ENAM0                   ; Disable missile
+        lda     #$3a                    ; Orange Blaster
         sta     COLUP0
         ldy     #$06
 *       lda     gfx_blaster,y
