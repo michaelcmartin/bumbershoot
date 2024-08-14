@@ -36,8 +36,10 @@
         .alias  RESMP0  $0028
         .alias  HMOVE   $002A
         .alias  HMCLR   $002B
+        .alias  CXCLR   $002C
 
         ;; Read addresses
+        .alias  CXM0P   $0000
         .alias  INPT4   $000C
 
         ;; Peripheral addresses
@@ -56,8 +58,8 @@
         .space  score   1
         .space  tens    2
         .space  ones    2
-        .space  timer   1
         .space  fire    1
+        .space  hit     1
 
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
@@ -173,11 +175,11 @@ frame:
         sta     HMOVE
         sta     RESMP0          ; Unlock missile
 
-        ;; Test the scoring system by incrementing score on a timer
-        dec     timer
-        bne     +
-        lda     #30
-        sta     timer
+        ;; If we landed a hit last frame, update the score
+        bit     hit
+        bpl     +
+        lda     #$00
+        sta     hit
         sed
         clc
         lda     score
@@ -276,6 +278,10 @@ score_loop:
         dey
         bne     -
 
+        ;; Clear collision registers before drawing the
+        ;; targets
+        sta     CXCLR
+
         ;; 6 doubled rows of target graphics
         ldy     #$05
 *       lda     gfx_target,y
@@ -287,6 +293,10 @@ score_loop:
 
         iny                             ; Disable P1 graphics
         sty     GRP1
+
+        ;; Record any collision
+        lda     CXM0P
+        sta     hit
 
         ;; Remaining 106 scanlines are all blank
         ldx     #$6a
@@ -352,8 +362,7 @@ init_game:
         sta     WSYNC
         sta     HMOVE
         stx     score                   ; X is zero here
-        lda     #30
-        sta     timer
+        stx     hit
         rts
 
 ;;; --------------------------------------------------------------------------
