@@ -58,7 +58,7 @@
         .space  score   1
         .space  tens    2
         .space  ones    2
-        .space  fire    1
+        .space  blast_y 1
         .space  hit     1
 
 ;;; --------------------------------------------------------------------------
@@ -135,13 +135,6 @@ frame:
         lda     #$0c            ; Grey score on right side
         sta     COLUP1
 
-        ;; Check fire button
-        ldx     #$00
-        bit     INPT4
-        bmi     +
-        dex
-*       stx     fire
-
         ;; Move sprites as needed
         sta     HMCLR           ; Clear out any previous nudges
         lda     #$10            ; Targets move 1 left each frame
@@ -164,16 +157,26 @@ frame:
         sta     WSYNC
         sta     HMOVE           ; Apply all nudges
 
-        ;; Match the missile's location to the player
-        sta     WSYNC           ; Lock in player locations
+        ;; Update, create, or move shot
+        ldx     blast_y         ; Consider where the bullet will be
+        inx
+        cpx     #$40            ; Is that on the screen?
+        bcc     shot_done       ; If so, store that
+        ldx     #$80            ; Otherwise, prep a "no shot" value
+        bit     INPT4           ; And see if the fire button is pressed
+        bmi     shot_done       ; If it's not, then no shot
+        sta     WSYNC           ; If it is, match missile to player loc
         sta     HMCLR
         lda     #$02
-        sta     RESMP0          ; Match missile to player
+        sta     RESMP0
         sta     WSYNC
         lda     #$10            ; Match missile location to blaster's cannon
         sta     HMM0
         sta     HMOVE
         sta     RESMP0          ; Unlock missile
+        ldx     #$ff            ; Shot starts just barely visible
+shot_done:
+        stx     blast_y
 
         ;; If we landed a hit last frame, update the score
         bit     hit
@@ -186,6 +189,8 @@ frame:
         adc     #1
         sta     score
         cld
+        lda     #$80            ; Also cancel the shot
+        sta     blast_y
 *
 
         ;; Reset everything if reset is pressed
@@ -283,12 +288,18 @@ main_kernel:
         tay
         lda     gfx_target,y
         tay
-*       sty     WSYNC
+*       txa
+        sec
+        sbc     blast_y
+        cmp     #3
+        rol
+        asl
+        eor     #$02
+        sty     WSYNC
         sty     GRP1
+        sta     ENAM0
         lda     #$00
         sta     COLUBK
-        lda     fire                    ; Render missile as a "laser"
-        sta     ENAM0
         sty     WSYNC
         dex
         bne     main_kernel
@@ -357,6 +368,7 @@ init_game:
         sta     HMOVE
         stx     score                   ; X is zero here
         stx     hit
+        sta     blast_y                 ; Start in no-shot space
         rts
 
 ;;; --------------------------------------------------------------------------
