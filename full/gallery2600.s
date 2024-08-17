@@ -264,45 +264,39 @@ score_loop:
         ;; 2 scanlines of white divider; prepare on final score line
         lda     #$0e
         sta     COLUBK
-        sta     WSYNC                   ; Y is already zero, from before
         sta     WSYNC
-        sty     COLUBK                  ; Divider done, back to black
-        lda     fire                    ; Render missile as a "laser"
-        sta     ENAM0
 
         ;; -- MAIN GAME DISPLAY: 126 scanlines --
 
-        ;; 8 scanlines of space before targets
-        ldy     #$08
-*       sta     WSYNC
-        dey
-        bne     -
-
-        ;; Clear collision registers before drawing the
-        ;; targets
+        ;; Clear collision registers before drawing the main screen
         sta     CXCLR
 
-        ;; 6 doubled rows of target graphics
-        ldy     #$05
-*       lda     gfx_target,y
-        sta     GRP1
-        sta     WSYNC
-        dey
-        sta     WSYNC
-        bpl     -
-
-        iny                             ; Disable P1 graphics
+        ;; 63 doubled rows in the main screen
+        ldx     #$3f
+main_kernel:
+        txa
+        ldy     #$00
+        sec
+        sbc     #54                     ; Target_Y
+        cmp     #6                      ; Target_Height
+        bcs     +
+        tay
+        lda     gfx_target,y
+        tay
+*       sty     WSYNC
         sty     GRP1
-
-        ;; Record any collision
-        lda     CXM0P
-        sta     hit
-
-        ;; Remaining 106 scanlines are all blank
-        ldx     #$6a
-*       sta     WSYNC
+        lda     #$00
+        sta     COLUBK
+        lda     fire                    ; Render missile as a "laser"
+        sta     ENAM0
+        sty     WSYNC
         dex
-        bne     -
+        bne     main_kernel
+
+blaster_kernel:
+        lda     CXM0P                   ; Copy over collision data
+        sta     hit
+        sta     WSYNC                   ; Finish previous line
 
         ;; 7 doubled rows of blaster, below the "main game display"
         stx     ENAM0                   ; Disable missile
