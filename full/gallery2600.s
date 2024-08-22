@@ -262,25 +262,45 @@ score_loop:
         sta     WSYNC
         sta     WSYNC
 
-        ;; Prepare players for main display
+        ;; 2 scanlines of white divider; prepare for first line of main
+        ;; display while we do that
+        lda     #$0e                    ; Divider is a white background
+        sta     COLUBK
         lda     #$1c                    ; Yellow missiles
         sta     COLUP0
         lda     #$46                    ; Red targets
         sta     COLUP1
+        sta     CXCLR                   ; Clear collision registers
 
-        ;; 2 scanlines of white divider; prepare on final score line
-        lda     #$0e
-        sta     COLUBK
+        ;; Set up row counter for the main loop of 63 rows
+        ldx     #$3e
+
+        ;; Compute missile data for line 63
+        txa
+        sec
+        sbc     blast_y
+        cmp     #3
+        rol
+        asl
+        eor     #$02
+
+        ;; Compute sprite data for line 63 (nothing)
+        ldy     #$00
+
+        ;; Count out the two lines of the divider line
         sta     WSYNC
+        sta     WSYNC
+
+        ;; Turn the background color black again
+        sty     COLUBK
 
         ;; -- MAIN GAME DISPLAY: 126 scanlines --
 
-        ;; Clear collision registers before drawing the main screen
-        sta     CXCLR
-
-        ;; 63 doubled rows in the main screen
-        ldx     #$3e
 main_kernel:
+        sta     ENAM0                   ; Store this row's graphics
+        sty     GRP1
+        dex                             ; Compute next row's graphics
+        bmi     main_done               ; ... unless there isn't one.
         txa
         ldy     #$00
         sec
@@ -297,25 +317,23 @@ main_kernel:
         rol
         asl
         eor     #$02
-        sty     WSYNC
-        sty     GRP1
-        sta     ENAM0
-        lda     #$00
-        sta     COLUBK
-        sty     WSYNC
-        dex
-        bpl     main_kernel
+        sta     WSYNC                   ; count out our two rows
+        sta     WSYNC
+        jmp     main_kernel
+main_done:
 
 blaster_kernel:
+        inx                             ; Set X back to zero
+        sta     WSYNC                   ; count out the final two lines
+        sta     WSYNC
         lda     CXM0P                   ; Copy over collision data
         sta     hit
-        sta     WSYNC                   ; Finish previous line
-
-        ;; 7 doubled rows of blaster, below the "main game display"
-        inx
         stx     ENAM0                   ; Disable missile
+        stx     GRP1                    ; Disable target sprite
         lda     #$3a                    ; Orange Blaster
         sta     COLUP0
+
+        ;; 7 doubled rows of blaster, below the "main game display"
         ldy     #$06
 *       lda     gfx_blaster,y
         sta     GRP0
