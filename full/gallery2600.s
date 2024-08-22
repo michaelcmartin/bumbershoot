@@ -161,7 +161,7 @@ frame:
         ldx     blast_y         ; Consider where the bullet will be
         inx
         cpx     #$40            ; Is that on the screen?
-        bcc     shot_done       ; If so, store that
+        bmi     shot_done       ; If so, store that
         ldx     #$80            ; Otherwise, prep a "no shot" value
         bit     INPT4           ; And see if the fire button is pressed
         bmi     shot_done       ; If it's not, then no shot
@@ -174,7 +174,7 @@ frame:
         sta     HMM0
         sta     HMOVE
         sta     RESMP0          ; Unlock missile
-        ldx     #$ff            ; Shot starts just barely visible
+        ldx     #$fe            ; Shot starts just barely visible
 shot_done:
         stx     blast_y
 
@@ -277,12 +277,12 @@ score_loop:
         sta     CXCLR
 
         ;; 63 doubled rows in the main screen
-        ldx     #$3f
+        ldx     #$3e
 main_kernel:
         txa
         ldy     #$00
         sec
-        sbc     #54                     ; Target_Y
+        sbc     #53                     ; Target_Y
         cmp     #6                      ; Target_Height
         bcs     +
         tay
@@ -302,7 +302,7 @@ main_kernel:
         sta     COLUBK
         sty     WSYNC
         dex
-        bne     main_kernel
+        bpl     main_kernel
 
 blaster_kernel:
         lda     CXM0P                   ; Copy over collision data
@@ -310,6 +310,7 @@ blaster_kernel:
         sta     WSYNC                   ; Finish previous line
 
         ;; 7 doubled rows of blaster, below the "main game display"
+	inx
         stx     ENAM0                   ; Disable missile
         lda     #$3a                    ; Orange Blaster
         sta     COLUP0
