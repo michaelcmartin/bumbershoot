@@ -65,7 +65,7 @@
 ;;; * PROGRAM TEXT
 ;;; --------------------------------------------------------------------------
         .text
-        .org    $f800           ; 2KB cartridge image
+        .org    $f800                   ; 2KB cartridge image
         ;; RESET vector.
 reset:
         sei
@@ -91,7 +91,18 @@ reset:
 
         ;; Initial setup code
 
-        jsr     init_game
+        ;; Zero out all graphics, sound registers, and latches
+        ldx     #$04
+        lda     #$00
+*       sta     $00,x
+        inx
+        cpx     #$2d
+        bne     -
+
+        sta     SWACNT                  ; Joystick port is input-only
+
+        jsr     init_game               ; Place sprites in initial positions,
+                                        ; and reset game state in RAM
 
 ;;; --------------------------------------------------------------------------
 ;;; * MAIN FRAME LOOP
@@ -113,74 +124,65 @@ frame:
         lda     #$2b
         sta     TIM64T
 
-        ;; Our actual frame-update logic
+        ;; ========== FRAME UPDATE LOGIC ==========
 
+        ;; Start of frame TIA register state
         lda     #$00
-        sta     GRP0            ; Invisible Players
-        sta     GRP1
-        sta     ENAM0           ; Disable Missiles and Ball
-        sta     ENAM1
-        sta     ENABL
-        sta     PF0             ; Empty Playfield
-        sta     PF1
-        sta     PF2
-        sta     COLUBK          ; Black background
-        sta     NUSIZ0          ; Blaster is a single normal-sized player
+        sta     NUSIZ0                  ; Blaster has no mag/repl
+        sta     COLUP0                  ; Left side of score is invisible
+        sta     COLUBK                  ; Black background
         lda     #$06
-        sta     NUSIZ1          ; Targets are 3 copies, medium spacing
-        lda     #$02            ; Unreflected playfield in scoring mode
-        sta     CTRLPF
-        lda     #$00            ; Black (invisible) left side
-        sta     COLUP0
-        lda     #$0c            ; Grey score on right side
+        sta     NUSIZ1                  ; Targets are 3 copies, medium spacing
+        lda     #$0c                    ; Right side of score is grey
         sta     COLUP1
+        lda     #$02                    ; Unreflected playfield in scoring mode
+        sta     CTRLPF
 
         ;; Move sprites as needed
-        sta     HMCLR           ; Clear out any previous nudges
-        lda     #$10            ; Targets move 1 left each frame
+        sta     HMCLR                   ; Clear out any previous nudges
+        lda     #$10                    ; Targets move 1 left each frame
         sta     HMP1
-        ldx     #$00            ; Set SWCHA to input mode for
-        stx     SWACNT          ; joystick read
-        lda     SWCHA           ; Then read joystick
-        asl                     ; Top bit into carry
-        bcs     +               ; Holding right?
-        dex                     ; If so, nudge 1 right
+        ldx     #$00                    ; Initial delta is zero
+        lda     SWCHA                   ; Read joystick
+        asl                             ; Top bit into carry
+        bcs     +                       ; Holding right?
+        dex                             ; If so, nudge 1 right
 *       asl
-        bcs     +               ; Holding left?
-        inx                     ; If so, nudge one left
-*       txa                     ; Shift nudge amount into high nybble
+        bcs     +                       ; Holding left?
+        inx                             ; If so, nudge one left
+*       txa                             ; Shift nudge amount into high nybble
         asl
         asl
         asl
         asl
-        sta     HMP0            ; Apply to player
+        sta     HMP0                    ; Apply to player
         sta     WSYNC
-        sta     HMOVE           ; Apply all nudges
+        sta     HMOVE                   ; Apply all nudges
 
         ;; Update, create, or move shot
-        ldx     blast_y         ; Consider where the bullet will be
+        ldx     blast_y                 ; Consider where the bullet will be
         inx
-        cpx     #$40            ; Is that on the screen?
-        bmi     shot_done       ; If so, store that
-        ldx     #$80            ; Otherwise, prep a "no shot" value
-        bit     INPT4           ; And see if the fire button is pressed
-        bmi     shot_done       ; If it's not, then no shot
-        sta     WSYNC           ; If it is, match missile to player loc
+        cpx     #$40                    ; Is that on the screen?
+        bmi     shot_done               ; If so, store that
+        ldx     #$60                    ; Otherwise, prep a "no shot" value
+        bit     INPT4                   ; And see if the fire button is pressed
+        bmi     shot_done               ; If it's not, then no shot
+        sta     WSYNC                   ; If it is, match missile to player loc
         sta     HMCLR
         lda     #$02
         sta     RESMP0
         sta     WSYNC
-        lda     #$10            ; Match missile location to blaster's cannon
+        lda     #$10                    ; Match location to blaster's cannon
         sta     HMM0
         sta     HMOVE
-        sta     RESMP0          ; Unlock missile
-        ldx     #$fe            ; Shot starts just barely visible
+        sta     RESMP0                  ; Unlock missile
+        ldx     #$fe                    ; Shot starts just barely visible
 shot_done:
         stx     blast_y
 
         ;; If we landed a hit last frame, update the score
         bit     hit
-        bpl     +
+        bpl     score_done
         lda     #$00
         sta     hit
         sed
@@ -189,9 +191,9 @@ shot_done:
         adc     #1
         sta     score
         cld
-        lda     #$80            ; Also cancel the shot
+        lda     #$60                    ; Also cancel the shot
         sta     blast_y
-*
+score_done:
 
         ;; Reset everything if reset is pressed
         lda     SWCHB
@@ -310,7 +312,7 @@ blaster_kernel:
         sta     WSYNC                   ; Finish previous line
 
         ;; 7 doubled rows of blaster, below the "main game display"
-	inx
+        inx
         stx     ENAM0                   ; Disable missile
         lda     #$3a                    ; Orange Blaster
         sta     COLUP0
@@ -369,7 +371,7 @@ init_game:
         sta     HMOVE
         stx     score                   ; X is zero here
         stx     hit
-        sta     blast_y                 ; Start in no-shot space
+        sty     blast_y                 ; Start in no-shot space
         rts
 
 ;;; --------------------------------------------------------------------------
