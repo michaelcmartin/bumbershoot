@@ -18,6 +18,7 @@
         .alias  NUSIZ1  $0005
         .alias  COLUP0  $0006
         .alias  COLUP1  $0007
+        .alias  COLUPF  $0008
         .alias  COLUBK  $0009
         .alias  CTRLPF  $000A
         .alias  PF0     $000D
@@ -25,6 +26,7 @@
         .alias  PF2     $000F
         .alias  RESP0   $0010
         .alias  RESP1   $0011
+        .alias  RESBL   $0014
         .alias  GRP0    $001B
         .alias  GRP1    $001C
         .alias  ENAM0   $001D
@@ -33,6 +35,7 @@
         .alias  HMP0    $0020
         .alias  HMP1    $0021
         .alias  HMM0    $0022
+        .alias  HMBL    $0024
         .alias  RESMP0  $0028
         .alias  HMOVE   $002A
         .alias  HMCLR   $002B
@@ -58,6 +61,7 @@
         .space  score   1
         .space  tens    2
         .space  ones    2
+        .space  blast_x 1
         .space  blast_y 1
         .space  hit     1
 
@@ -147,19 +151,47 @@ frame:
         asl                             ; Top bit into carry
         bcs     +                       ; Holding right?
         dex                             ; If so, nudge 1 right
+        inc     blast_x
 *       asl
         bcs     +                       ; Holding left?
         inx                             ; If so, nudge one left
+        dec     blast_x
 *       txa                             ; Shift nudge amount into high nybble
         asl
         asl
         asl
         asl
         sta     HMP0                    ; Apply to player
+
+        ;; Update, create, or move shot
+        lda     blast_x                 ; Bounds-check X coordinate
+        cmp     #$ff
+        bne     +
+        lda     #159
+*       cmp     #160
+        bne     +
+        lda     #$00
+*       sta     blast_x
+
+        ;; Place the ball based on blast_x's location
+        clc
+        adc     #$32
+        sec
+        sta     WSYNC
+*       sbc     #$0f
+        bcs     -
+        sta     RESBL
+        eor     #$ff
+        adc     #$f9
+        asl
+        asl
+        asl
+        asl
+        sta     HMBL
+
         sta     WSYNC
         sta     HMOVE                   ; Apply all nudges
 
-        ;; Update, create, or move shot
         ldx     blast_y                 ; Consider where the bullet will be
         inx
         cpx     #$40                    ; Is that on the screen?
@@ -293,6 +325,12 @@ score_loop:
 
         ;; Turn the background color black again
         sty     COLUBK
+        pha                             ; TMP: Enable test line
+        lda     #$ac                    ; without disrupting registers
+        sta     COLUPF
+        lsr
+        sta     ENABL
+        pla
 
         ;; -- MAIN GAME DISPLAY: 126 scanlines --
 
@@ -326,10 +364,8 @@ blaster_kernel:
         inx                             ; Set X back to zero
         sta     WSYNC                   ; count out the final two lines
         sta     WSYNC
-        lda     CXM0P                   ; Copy over collision data
-        sta     hit
         stx     ENAM0                   ; Disable missile
-        stx     GRP1                    ; Disable target sprite
+        stx     ENABL                   ; Disable ball
         lda     #$3a                    ; Orange Blaster
         sta     COLUP0
 
@@ -344,6 +380,9 @@ blaster_kernel:
 
         iny
         sty     GRP0                    ; Disable P0 graphics
+
+        lda     CXM0P                   ; Copy over collision data
+        sta     hit
 
         ;; 20 scanlines of ground
         lda     #$d4
@@ -390,6 +429,8 @@ init_game:
         stx     score                   ; X is zero here
         stx     hit
         sty     blast_y                 ; Start in no-shot space
+        lda     #79                     ; Player was put at pixel 76,
+        sta     blast_x                 ; So blast is 3 pixels to right
         rts
 
 ;;; --------------------------------------------------------------------------
