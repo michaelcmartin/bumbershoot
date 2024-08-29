@@ -64,6 +64,7 @@
         .space  blast_x 1
         .space  blast_y 1
         .space  hit     1
+        .space  blast_fc 1
 
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
@@ -211,6 +212,25 @@ shot_done:
         sta     blast_y
 score_done:
 
+        ;; Compute blast_fc from blast_x
+        lda     blast_x
+        clc
+        adc     #$14
+        sec
+        ldx     #$00
+*       inx
+        sbc     #$0f
+        bcs     -
+        stx     blast_fc
+        eor     #$ff
+        adc     #$f9
+        asl
+        asl
+        asl
+        asl
+        ora     blast_fc
+        sta     blast_fc
+
         ;; Reset everything if reset is pressed
         lda     SWCHB
         lsr
@@ -276,22 +296,15 @@ score_loop:
         sty     PF2                     ; Disable playfield
         sta     WSYNC
         ;; Place the ball based on blast_x's location
-        lda     blast_x
-        sta     HMCLR
-        clc
-        adc     #$32
-        sec
+        lda     blast_fc
         sta     WSYNC
-*       sbc     #$0f
-        bcs     -
-        sta     RESBL
-        eor     #$ff
-        adc     #$f9
-        asl
-        asl
-        asl
-        asl
+        sta     HMCLR
         sta     HMBL
+        and     #$0f
+        tay
+*       dey
+        bne     -
+        sta     RESBL
         sta     WSYNC
         sta     HMOVE
 
