@@ -173,22 +173,6 @@ frame:
         lda     #$00
 *       sta     blast_x
 
-        ;; Place the ball based on blast_x's location
-        clc
-        adc     #$32
-        sec
-        sta     WSYNC
-*       sbc     #$0f
-        bcs     -
-        sta     RESBL
-        eor     #$ff
-        adc     #$f9
-        asl
-        asl
-        asl
-        asl
-        sta     HMBL
-
         sta     WSYNC
         sta     HMOVE                   ; Apply all nudges
 
@@ -291,8 +275,25 @@ score_loop:
         iny
         sty     PF2                     ; Disable playfield
         sta     WSYNC
+        ;; Place the ball based on blast_x's location
+        lda     blast_x
+        sta     HMCLR
+        clc
+        adc     #$32
+        sec
         sta     WSYNC
+*       sbc     #$0f
+        bcs     -
+        sta     RESBL
+        eor     #$ff
+        adc     #$f9
+        asl
+        asl
+        asl
+        asl
+        sta     HMBL
         sta     WSYNC
+        sta     HMOVE
 
         ;; 2 scanlines of white divider; prepare for first line of main
         ;; display while we do that
