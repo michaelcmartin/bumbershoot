@@ -215,7 +215,7 @@ score_done:
         ;; Compute blast_fc from blast_x
         lda     blast_x
         clc
-        adc     #$14
+        adc     #$23
         sec
         ldx     #$00
 *       inx
@@ -300,10 +300,10 @@ score_loop:
         sta     WSYNC
         ;; Place the ball based on blast_x's location
         lda     blast_fc
-        sta     WSYNC
-        sta     HMCLR
         sta     HMBL
         and     #$0f
+        sta     WSYNC
+        sta     HMOVE
         tay
 *       dey
         bne     -
