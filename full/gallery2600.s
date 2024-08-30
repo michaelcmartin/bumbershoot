@@ -260,6 +260,9 @@ no_reset:
         sta     tens+1
         sta     ones+1
 
+        ;; Clear out any stray nudge data
+        sta     HMCLR
+
         ;; Wait for VBLANK to finish
 *       lda     INTIM
         bne     -
@@ -304,6 +307,7 @@ score_loop:
         tay
 *       dey
         bne     -
+        .checkpc [- & $ff00]+$ff        ; Make sure branch is only 3 cycles
         sta     RESBL
         sta     WSYNC
         sta     HMOVE
@@ -334,8 +338,11 @@ score_loop:
         ldy     #$00
 
         ;; Count out the two lines of the divider line
+        sta     HMCLR
         sta     WSYNC
+        sta     HMOVE
         sta     WSYNC
+        sta     HMOVE
 
         ;; Turn the background color black again
         sty     COLUBK
@@ -370,14 +377,18 @@ main_kernel:
         asl
         eor     #$02
         sta     WSYNC                   ; count out our two rows
+        sta     HMOVE
         sta     WSYNC
+        sta     HMOVE
         jmp     main_kernel
 main_done:
 
 blaster_kernel:
         inx                             ; Set X back to zero
         sta     WSYNC                   ; count out the final two lines
+        sta     HMOVE
         sta     WSYNC
+        sta     HMOVE
         stx     ENAM0                   ; Disable missile
         stx     ENABL                   ; Disable ball
         lda     #$3a                    ; Orange Blaster
@@ -388,8 +399,10 @@ blaster_kernel:
 *       lda     gfx_blaster,y
         sta     GRP0
         sta     WSYNC
+        sta     HMOVE
         dey
         sta     WSYNC
+        sta     HMOVE
         bpl     -
 
         iny
@@ -403,6 +416,7 @@ blaster_kernel:
         sta     COLUBK
         ldx     #$14
 *       sta     WSYNC
+        sta     HMOVE
         dex
         bne     -
 
