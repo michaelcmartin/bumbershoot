@@ -148,32 +148,27 @@ frame:
         lda     #$10                    ; Targets move 1 left each frame
         sta     HMP1
         ldx     #$00                    ; Initial delta is zero
+        ldy     blast_x                 ; Bounds-check
         lda     SWCHA                   ; Read joystick
         asl                             ; Top bit into carry
         bcs     +                       ; Holding right?
+        cpy     #156                    ; Not already on right edge?
+        beq     +
         dex                             ; If so, nudge 1 right
-        inc     blast_x
+        iny
 *       asl
         bcs     +                       ; Holding left?
+        cpy     #11                     ; Not already on left edge?
+        beq     +
         inx                             ; If so, nudge one left
-        dec     blast_x
+        dey
 *       txa                             ; Shift nudge amount into high nybble
         asl
         asl
         asl
         asl
         sta     HMP0                    ; Apply to player
-
-        ;; Update, create, or move shot
-        lda     blast_x                 ; Bounds-check X coordinate
-        cmp     #$ff
-        bne     +
-        lda     #159
-*       cmp     #160
-        bne     +
-        lda     #$00
-*       sta     blast_x
-
+        sty     blast_x                 ; Store missile point
         sta     WSYNC
         sta     HMOVE                   ; Apply all nudges
 
