@@ -26,16 +26,13 @@
         .alias  PF2     $000F
         .alias  RESP0   $0010
         .alias  RESP1   $0011
-        .alias  RESBL   $0014
         .alias  GRP0    $001B
         .alias  GRP1    $001C
         .alias  ENAM0   $001D
         .alias  ENAM1   $001E
-        .alias  ENABL   $001F
         .alias  HMP0    $0020
         .alias  HMP1    $0021
         .alias  HMM0    $0022
-        .alias  HMBL    $0024
         .alias  RESMP0  $0028
         .alias  HMOVE   $002A
         .alias  HMCLR   $002B
@@ -293,17 +290,7 @@ score_loop:
         iny
         sty     PF2                     ; Disable playfield
         sta     WSYNC
-        ;; Place the ball based on blast_x's location
-        lda     blast_fc
-        sta     HMBL
-        and     #$0f
         sta     WSYNC
-        sta     HMOVE
-        tay
-*       dey
-        bne     -
-        .checkpc [- & $ff00]+$ff        ; Make sure branch is only 3 cycles
-        sta     RESBL
         sta     WSYNC
         sta     HMOVE
 
@@ -341,12 +328,6 @@ score_loop:
 
         ;; Turn the background color black again
         sty     COLUBK
-        pha                             ; TMP: Enable test line
-        lda     #$ac                    ; without disrupting registers
-        sta     COLUPF
-        lsr
-        sta     ENABL
-        pla
 
         ;; -- MAIN GAME DISPLAY: 126 scanlines --
 
@@ -385,7 +366,6 @@ blaster_kernel:
         sta     WSYNC
         sta     HMOVE
         stx     ENAM0                   ; Disable missile
-        stx     ENABL                   ; Disable ball
         lda     #$3a                    ; Orange Blaster
         sta     COLUP0
 
