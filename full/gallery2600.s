@@ -62,6 +62,8 @@
         .space  blast_y 1
         .space  hit     1
         .space  blast_fc 1
+        .space  p1_cache 1
+        .space  m0_cache 1
 
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
@@ -315,9 +317,11 @@ score_loop:
         rol
         asl
         eor     #$02
+        sta     m0_cache
 
         ;; Compute sprite data for line 63 (nothing)
         ldy     #$00
+        sty     p1_cache
 
         ;; Count out the two lines of the divider line
         sta     HMCLR
@@ -328,42 +332,69 @@ score_loop:
 
         ;; Turn the background color black again
         sty     COLUBK
+        jmp     first_lane              ; Abbreviated first lane
 
         ;; -- MAIN GAME DISPLAY: 126 scanlines --
 
-main_kernel:
+        ;; We're processing lines in groups of eight, so the
+        ;; repeated logic is captured in this macro, to run at
+        ;; the start of even scanlines.
+.macro skipdraw
+        lda     m0_cache
         sta     ENAM0                   ; Store this row's graphics
-        sty     GRP1
+        lda     p1_cache
+        sta     GRP1
         dex                             ; Compute next row's graphics
-        bmi     main_done               ; ... unless there isn't one.
         txa
         ldy     #$00
         sec
         sbc     #53                     ; Target_Y
         cmp     #6                      ; Target_Height
-        bcs     +
+        bcs     _1
         tay
         lda     gfx_target,y
         tay
-*       txa
+_1:     sty     p1_cache
+        txa
         sec
         sbc     blast_y
         cmp     #3
         rol
         asl
         eor     #$02
+        sta     m0_cache
+.macend
+
+full_lane:
+        `skipdraw
         sta     WSYNC                   ; count out our two rows
         sta     HMOVE
         sta     WSYNC
         sta     HMOVE
-        jmp     main_kernel
+first_lane:
+        `skipdraw
+        sta     WSYNC                   ; count out our two rows
+        sta     HMOVE
+        sta     WSYNC
+        sta     HMOVE
+        `skipdraw
+        sta     WSYNC                   ; count out our two rows
+        sta     HMOVE
+        sta     WSYNC
+        sta     HMOVE
+        `skipdraw
+        sta     WSYNC                   ; count out our two rows
+        sta     HMOVE
+        txa
+        bmi     main_done
+        sta     WSYNC
+        sta     HMOVE
+        jmp     full_lane
 main_done:
 
 blaster_kernel:
         inx                             ; Set X back to zero
-        sta     WSYNC                   ; count out the final two lines
-        sta     HMOVE
-        sta     WSYNC
+        sta     WSYNC                   ; count out the final line
         sta     HMOVE
         stx     ENAM0                   ; Disable missile
         lda     #$3a                    ; Orange Blaster
