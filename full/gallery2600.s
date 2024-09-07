@@ -26,6 +26,7 @@
         .alias  PF2     $000F
         .alias  RESP0   $0010
         .alias  RESP1   $0011
+        .alias  RESM0   $0012
         .alias  GRP0    $001B
         .alias  GRP1    $001C
         .alias  ENAM0   $001D
@@ -64,7 +65,7 @@
         .space  blast_fc 1
         .space  p1_cache 1
         .space  m0_cache 1
-
+        .space  lane    1
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
 ;;; --------------------------------------------------------------------------
@@ -306,6 +307,14 @@ score_loop:
         sta     COLUP1
         sta     CXCLR                   ; Clear collision registers
 
+        ;; Configure the lane counter
+        ldx     #$0f
+        stx     lane
+        lda     lanes_y,x
+        sta     blast_y
+        lda     lanes_x,x
+        sta     blast_fc
+
         ;; Set up row counter for the main loop of 63 rows
         ldx     #$3e
 
@@ -378,26 +387,48 @@ first_lane:
         sta     WSYNC
         sta     HMOVE
         `skipdraw
-        sta     WSYNC                   ; count out our two rows
+        lda     blast_fc
+        beq     no_blast_reset
+        sta     HMM0
+        and     #$0f
+        sta     WSYNC
         sta     HMOVE
+        tay
+*       dey
+        bne     -
+        .checkpc [- & $ff00]+$ff        ; Make sure branch is only 3 cycles
+        sta     RESM0
+blast_reset_done:
         sta     WSYNC
         sta     HMOVE
         `skipdraw
+        sta     HMCLR
         sta     WSYNC                   ; count out our two rows
         sta     HMOVE
-        txa
+        dec     lane
         bmi     main_done
+        stx     scratch
+        ldx     lane
+        lda     lanes_y,x
+        sta     blast_y
+        lda     lanes_x,x
+        sta     blast_fc
+        ldx     scratch
         sta     WSYNC
         sta     HMOVE
         jmp     full_lane
+no_blast_reset:
+        sta     WSYNC
+        sta     HMOVE
+        beq     blast_reset_done
 main_done:
 
 blaster_kernel:
-        inx                             ; Set X back to zero
+        ldx     #$00
+        lda     #$3a                    ; Orange Blaster
         sta     WSYNC                   ; count out the final line
         sta     HMOVE
         stx     ENAM0                   ; Disable missile
-        lda     #$3a                    ; Orange Blaster
         sta     COLUP0
 
         ;; 7 doubled rows of blaster, below the "main game display"
@@ -436,6 +467,12 @@ blaster_kernel:
         ;; Now back to the frame loop
         jmp frame
 
+        ;; Temporary data for multi-lane test
+
+lanes_y:
+        .byte   $00,$80,$08,$80,$10,$80,$18,$80,$20,$80,$28,$80,$30,$80,$38,$80
+lanes_x:
+        .byte   $00,$ab,$00,$c4,$00,$03,$00,$c6,$00,$a8,$00,$18,$00,$d8,$00,$0c
 ;;; --------------------------------------------------------------------------
 ;;; * SUPPORT ROUTINES
 ;;;
