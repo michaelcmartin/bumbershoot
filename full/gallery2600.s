@@ -59,6 +59,7 @@
         .space  score   1
         .space  tens    2
         .space  ones    2
+        .space  target_y 1
         .space  blast_x 1
         .space  blast_y 1
         .space  hit     1
@@ -162,13 +163,25 @@ frame:
         beq     +
         inx                             ; If so, nudge one left
         dey
-*       txa                             ; Shift nudge amount into high nybble
+*       sty     blast_x                 ; Store missile point
+        ldy     target_y                ; Now check target height
+        asl                             ; Holding down?
+        bcs     +
+        cpy     #4                      ; Not already at bottom of range?
+        beq     +
+        dey
+*       asl                             ; Holding up?
+        bcs     +
+        cpy     #55                     ; Not already at top of range?
+        beq     +
+        iny
+*       sty     target_y                ; Store target height
+        txa                             ; Shift nudge amount into high nybble
         asl
         asl
         asl
         asl
         sta     HMP0                    ; Apply to player
-        sty     blast_x                 ; Store missile point
         sta     WSYNC
         sta     HMOVE                   ; Apply all nudges
 
@@ -357,7 +370,7 @@ score_loop:
         txa
         ldy     #$00
         sec
-        sbc     #53                     ; Target_Y
+        sbc     target_y
         cmp     #6                      ; Target_Height
         bcs     _1
         tay
@@ -502,6 +515,8 @@ init_game:
         sty     blast_y                 ; Start in no-shot space
         lda     #79                     ; Player was put at pixel 76,
         sta     blast_x                 ; So blast is 3 pixels to right
+        lda     #53
+        sta     target_y
         rts
 
 ;;; --------------------------------------------------------------------------
