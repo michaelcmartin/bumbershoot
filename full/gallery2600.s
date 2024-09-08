@@ -55,18 +55,22 @@
 ;;; --------------------------------------------------------------------------
         .data
         .org    $0080
-        .space  scratch 1
-        .space  score   1
-        .space  tens    2
-        .space  ones    2
-        .space  target_y 1
-        .space  blast_x 1
-        .space  blast_y 1
-        .space  hit     1
-        .space  blast_fc 1
-        .space  p1_cache 1
-        .space  m0_cache 1
-        .space  lane    1
+        .space  scratch   1
+        .space  score     1
+        .space  tens      2
+        .space  ones      2
+        .space  target_y  1
+        .space  blast_x   1
+        .space  blast_y   1
+        .space  new_fc    1
+        .space  hit       2
+        .space  blast_fc  1
+        .space  p1_cache  1
+        .space  m0_cache  1
+        .space  lane      1
+        .space  lanes_y  16
+        .space  lanes_fc 16
+        .space  top_fc    1             ; Also lanes_fc[16] sometimes
 ;;; --------------------------------------------------------------------------
 ;;; * PROGRAM TEXT
 ;;; --------------------------------------------------------------------------
@@ -206,21 +210,40 @@ shot_done:
         stx     blast_y
 
         ;; If we landed a hit last frame, update the score
-        bit     hit
-        bpl     score_done
-        lda     #$00
-        sta     hit
+        lda     hit
+        ora     hit+1
+        beq     score_done
         sed
         clc
         lda     score
         adc     #1
         sta     score
         cld
-        lda     #$60                    ; Also cancel the shot
-        sta     blast_y
+        ldx     #$00                    ; Find the lane that collided
+*       lsr     hit+1
+        ror     hit
+        bcs     +
+        inx
+        bne     -
+*       dex                             ; Find the first lane with that
+        bmi     +                       ; missile in it
+        lda     lanes_y,x
+        cmp     #$40
+        bmi     -
+        inx                             ; Delete the missile from Y lanes
+*       lda     #$80
+        sta     lanes_y,x
+        inx
+        cpx     #16                     ; Ran off the top?
+        beq     +
+        lda     lanes_y,x               ; Gap lane?
+        cmp     #$40
+        bmi     -
+*       lda     #$00                    ; Delete the missile from FC lanes
+        sta     lanes_fc,x
 score_done:
 
-        ;; Compute blast_fc from blast_x
+        ;; Compute new_fc from blast_x
         lda     blast_x
         clc
         adc     #$23
@@ -229,15 +252,15 @@ score_done:
 *       inx
         sbc     #$0f
         bcs     -
-        stx     blast_fc
+        stx     new_fc
         eor     #$ff
         adc     #$f9
         asl
         asl
         asl
         asl
-        ora     blast_fc
-        sta     blast_fc
+        ora     new_fc
+        sta     new_fc
 
         ;; Reset everything if reset is pressed
         lda     SWCHB
@@ -264,12 +287,26 @@ no_reset:
         adc     ones                    ; Won't set carry
         adc     #<gfx_digits
         sta     ones
-        lda     #$ff
+        lda     #>gfx_digits
         sta     tens+1
         sta     ones+1
 
-        ;; Clear out any stray nudge data
+        ;; Place the missile in the top lane, if any
         sta     HMCLR
+        lda     top_fc
+        beq     top_empty
+        sta     HMM0
+        and     #$0f
+        sta     WSYNC
+        sta     HMOVE
+        tay
+*       dey
+        bne     -
+        .checkpc [- & $ff00]+$ff        ; Make sure branch is only 3 cycles
+        sta     RESM0
+top_empty:
+        sta     WSYNC
+        sta     HMOVE
 
         ;; Wait for VBLANK to finish
 *       lda     INTIM
@@ -278,6 +315,9 @@ no_reset:
         ;; then turn it off. (.A is already zero from the branch.)
         sta     WSYNC
         sta     VBLANK
+
+        ;; Clear out any stray nudge data
+        sta     HMCLR
 
 ;;; --------------------------------------------------------------------------
 ;;; * DISPLAY KERNEL
@@ -325,7 +365,7 @@ score_loop:
         stx     lane
         lda     lanes_y,x
         sta     blast_y
-        lda     lanes_x,x
+        lda     lanes_fc,x
         sta     blast_fc
 
         ;; Set up row counter for the main loop of 63 rows
@@ -389,6 +429,7 @@ _1:     sty     p1_cache
 
 full_lane:
         `skipdraw
+        sta     CXCLR                   ; clear collisions from prev lane
         sta     WSYNC                   ; count out our two rows
         sta     HMOVE
         sta     WSYNC
@@ -418,13 +459,17 @@ blast_reset_done:
         sta     HMCLR
         sta     WSYNC                   ; count out our two rows
         sta     HMOVE
+        lda     CXM0P
+        asl
+        rol     hit
+        rol     hit+1
         dec     lane
         bmi     main_done
         stx     scratch
         ldx     lane
         lda     lanes_y,x
         sta     blast_y
-        lda     lanes_x,x
+        lda     lanes_fc,x
         sta     blast_fc
         ldx     scratch
         sta     WSYNC
@@ -458,9 +503,6 @@ blaster_kernel:
         iny
         sty     GRP0                    ; Disable P0 graphics
 
-        lda     CXM0P                   ; Copy over collision data
-        sta     hit
-
         ;; 20 scanlines of ground
         lda     #$d4
         sta     COLUBK
@@ -482,10 +524,10 @@ blaster_kernel:
 
         ;; Temporary data for multi-lane test
 
-lanes_y:
-        .byte   $00,$80,$08,$80,$10,$80,$18,$80,$20,$80,$28,$80,$30,$80,$38,$80
-lanes_x:
-        .byte   $00,$ab,$00,$c4,$00,$03,$00,$c6,$00,$a8,$00,$18,$00,$d8,$00,$0c
+lanes_y_init:
+        .byte   $fe,$80,$08,$80,$80,$17,$17,$80,$20,$80,$28,$80,$30,$80,$3b,$3b
+lanes_fc_init:
+        .byte   $00,$ab,$00,$c4,$00,$00,$00,$c6,$00,$a8,$00,$18,$00,$d8,$00,$00,$0c
 ;;; --------------------------------------------------------------------------
 ;;; * SUPPORT ROUTINES
 ;;;
@@ -512,11 +554,21 @@ init_game:
         sta     HMOVE
         stx     score                   ; X is zero here
         stx     hit
+        stx     hit+1
         sty     blast_y                 ; Start in no-shot space
         lda     #79                     ; Player was put at pixel 76,
         sta     blast_x                 ; So blast is 3 pixels to right
         lda     #53
         sta     target_y
+        ldx     #$0f                    ; TMP: copy test missile data
+*       lda     lanes_y_init,x          ; into place. This will be replaced
+        sta     lanes_y,x               ; with a simple zeroing loop later.
+        lda     lanes_fc_init,x
+        sta     lanes_fc,x
+        dex
+        bpl     -
+        lda     lanes_fc_init+16
+        sta     lanes_fc+16
         rts
 
 ;;; --------------------------------------------------------------------------
