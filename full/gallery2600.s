@@ -76,6 +76,8 @@
 ;;; --------------------------------------------------------------------------
         .text
         .org    $f800                   ; 2KB cartridge image
+        .advance $fc00,$ff              ; 1KB actual cartridge data
+
         ;; RESET vector.
 reset:
         sei
@@ -562,11 +564,12 @@ blaster_kernel:
 ;;; * SUPPORT ROUTINES
 ;;;
 ;;; All material past this point needs to guarantee that branches or
-;;; indices never cross page boundaries! We accomplish this by forcing
-;;; all of it into the final 256 bytes of the image.
+;;; indices never cross page boundaries! We accomplish this by recording a
+;;; start address and checking the final address once it's done to ensure we
+;;; are still on the same page (or have entirely filled it).
 ;;; --------------------------------------------------------------------------
 
-        .advance $ff00,$ff
+critical_page_start:
         ;; init_game: place sprites in initial positions.
 init_game:
         sta     WSYNC                   ;  0
@@ -623,6 +626,8 @@ gfx_digits:
         .byte   $22,$22,$22,$44,$44,$77 ; 7
         .byte   $77,$55,$55,$77,$55,$77 ; 8
         .byte   $77,$55,$44,$77,$55,$77 ; 9
+
+.checkpc [critical_page_start & $ff00] + $100
 
 ;;; --------------------------------------------------------------------------
 ;;; * INTERRUPT VECTORS
