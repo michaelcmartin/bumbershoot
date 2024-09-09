@@ -197,7 +197,7 @@ frame:
         bit     INPT4                   ; And see if the fire button is pressed
         bmi     shot_done               ; If it's not, then no shot
         sta     WSYNC                   ; If it is, match missile to player loc
-        sta     HMCLR
+        sta     HMCLR                   ; TODO: multimissile logic
         lda     #$02
         sta     RESMP0
         sta     WSYNC
@@ -261,6 +261,51 @@ score_done:
         asl
         ora     new_fc
         sta     new_fc
+
+        ;; Advance missiles in flight
+        ldy     lanes_y+15              ; Check top lane specially
+        cpy     #64
+        bpl     +
+        iny
+        sty     lanes_y+15
+        cpy     #63                     ; Did we just scroll off the top?
+        bmi     +
+        ldy     #$80                    ; If so, clear shot
+        sty     lanes_y+15
+        ldy     #$00
+        sty     lanes_fc+16
+*       ldx     #14                     ; Count down through lanes
+        lda     #60                     ; Checking against lane threshold
+        sta     scratch
+fly_lp: ldy     lanes_y,x
+        cpy     #$40
+        bpl     flynxt
+        iny
+        sty     lanes_y,x
+        cpy     scratch                 ; Left the lane?
+        bne     +
+        lda     #$80
+        sta     lanes_y,x
+        bne     flynxt
+*       tya                             ; Cache value
+        iny                             ; Entering next lane?
+        iny                             ; (adding 3 because next lane handles
+        iny                             ;  our top scanline)
+        cpy     scratch
+        bne     flynxt
+        sta     lanes_y+1,x             ; If so, forward Y...
+        lda     lanes_fc+1,x            ; ... and push ahead the X code.
+        sta     lanes_fc+2,x
+        lda     #$00
+        sta     lanes_fc+1,x
+flynxt: sec                             ; Move threshold down a lane
+        lda     scratch
+        sbc     #4
+        sta     scratch
+        dex                             ; and move one lane down
+        bpl     fly_lp
+
+        ;; TODO: Create new missile if available and fire button pressed
 
         ;; Reset everything if reset is pressed
         lda     SWCHB
@@ -525,9 +570,9 @@ blaster_kernel:
         ;; Temporary data for multi-lane test
 
 lanes_y_init:
-        .byte   $fe,$80,$08,$80,$80,$17,$17,$80,$20,$80,$28,$80,$30,$80,$3b,$3b
+        .byte   $00,$80,$80,$0c,$80,$80,$18,$80,$80,$24,$80,$80,$30,$80,$80,$3c
 lanes_fc_init:
-        .byte   $00,$ab,$00,$c4,$00,$00,$00,$c6,$00,$a8,$00,$18,$00,$d8,$00,$00,$0c
+        .byte   $00,$ab,$00,$00,$c4,$00,$00,$c6,$00,$00,$a8,$00,$00,$18,$00,$00,$0c
 ;;; --------------------------------------------------------------------------
 ;;; * SUPPORT ROUTINES
 ;;;
