@@ -189,26 +189,6 @@ frame:
         sta     WSYNC
         sta     HMOVE                   ; Apply all nudges
 
-        ldx     blast_y                 ; Consider where the bullet will be
-        inx
-        cpx     #$40                    ; Is that on the screen?
-        bmi     shot_done               ; If so, store that
-        ldx     #$60                    ; Otherwise, prep a "no shot" value
-        bit     INPT4                   ; And see if the fire button is pressed
-        bmi     shot_done               ; If it's not, then no shot
-        sta     WSYNC                   ; If it is, match missile to player loc
-        sta     HMCLR                   ; TODO: multimissile logic
-        lda     #$02
-        sta     RESMP0
-        sta     WSYNC
-        lda     #$10                    ; Match location to blaster's cannon
-        sta     HMM0
-        sta     HMOVE
-        sta     RESMP0                  ; Unlock missile
-        ldx     #$fe                    ; Shot starts just barely visible
-shot_done:
-        stx     blast_y
-
         ;; If we landed a hit last frame, update the score
         lda     hit
         ora     hit+1
@@ -305,7 +285,18 @@ flynxt: sec                             ; Move threshold down a lane
         dex                             ; and move one lane down
         bpl     fly_lp
 
-        ;; TODO: Create new missile if available and fire button pressed
+        ;; Create new missile if available and fire button pressed
+        lda     lanes_fc+1              ; Have we recently fired a shot?
+        ora     lanes_fc+2              ; If so, do nothing
+        ora     lanes_fc+3
+        bne     shot_done
+        bit     INPT4                   ; Is the fire button pressed?
+        bmi     shot_done               ; If not, do nothing
+        lda     #$fe
+        sta     lanes_y
+        lda     new_fc
+        sta     lanes_fc+1
+shot_done:
 
         ;; Reset everything if reset is pressed
         lda     SWCHB
@@ -567,12 +558,6 @@ blaster_kernel:
         ;; Now back to the frame loop
         jmp frame
 
-        ;; Temporary data for multi-lane test
-
-lanes_y_init:
-        .byte   $00,$80,$80,$0c,$80,$80,$18,$80,$80,$24,$80,$80,$30,$80,$80,$3c
-lanes_fc_init:
-        .byte   $00,$ab,$00,$00,$c4,$00,$00,$c6,$00,$00,$a8,$00,$00,$18,$00,$00,$0c
 ;;; --------------------------------------------------------------------------
 ;;; * SUPPORT ROUTINES
 ;;;
@@ -605,15 +590,14 @@ init_game:
         sta     blast_x                 ; So blast is 3 pixels to right
         lda     #53
         sta     target_y
-        ldx     #$0f                    ; TMP: copy test missile data
-*       lda     lanes_y_init,x          ; into place. This will be replaced
-        sta     lanes_y,x               ; with a simple zeroing loop later.
-        lda     lanes_fc_init,x
-        sta     lanes_fc,x
+        ldx     #$0f                    ; Clear missile data
+        lda     #$80
+        ldy     #$00
+*       sta     lanes_y,x
+        sty     lanes_fc,x
         dex
         bpl     -
-        lda     lanes_fc_init+16
-        sta     lanes_fc+16
+        sty     lanes_fc+16
         rts
 
 ;;; --------------------------------------------------------------------------
