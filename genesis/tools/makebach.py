@@ -33,8 +33,8 @@ def set_instrument(score, instrument, voice, time):
         score.append([])
     for (register, val) in zip(list(range(0x30+voice, 0xa0, 4)), instrument):
         score[time].append((register, val))
-    score[time].append((0xb0, instrument[-2]))
-    score[time].append((0xb4, instrument[-1]))
+    score[time].append((0xb0+voice, instrument[-2]))
+    score[time].append((0xb4+voice, instrument[-1]))
 
 def set_note(score, voice, note, length, time):
     ontime = int(time)
