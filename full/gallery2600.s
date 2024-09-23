@@ -212,7 +212,7 @@ frame:
         lda     lanes_y,x
         cmp     #$40
         bmi     -
-        inx                             ; Delete the missile from Y lanes
+*       inx                             ; Delete the missile from Y lanes
 *       lda     #$80
         sta     lanes_y,x
         inx
@@ -450,11 +450,11 @@ score_loop:
         sec
         sbc     target_y
         cmp     #6                      ; Target_Height
-        bcs     _1
+        bcs     _skip
         tay
         lda     gfx_target,y
         tay
-_1:     sty     p1_cache
+_skip:  sty     p1_cache
         txa
         sec
         sbc     blast_y
