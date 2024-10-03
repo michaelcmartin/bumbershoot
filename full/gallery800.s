@@ -2,6 +2,12 @@
         .word   $ffff,start,end-1
         .org    $0700
 
+        .data
+        .org    $0b00
+        .space  target_x 3
+
+        .text
+
 start:  lda     #$00
         tax
 clrpm:  sta     $c00,x
@@ -49,18 +55,13 @@ clrpm:  sta     $c00,x
         lda     #124                    ; X coordinates
         sta     $d000
         sta     $d002
+        sta     target_x+1
         lda     #92
         sta     $d001
+        sta     target_x
         lda     #156
         sta     $d003
-        lda     #48
-        sta     $d004
-        lda     #206
-        sta     $d005
-        lda     #76
-        sta     $d006
-        lda     #140
-        sta     $d007
+        sta     target_x+2
         lda     #$03                    ; Enable players and missiles
         sta     $d01d
         lda     #$3a                    ; Orange blaster
@@ -69,6 +70,8 @@ clrpm:  sta     $c00,x
         sta     $2c1
         sta     $2c2
         sta     $2c3
+        lda     #$0c                    ; White text/divider
+        sta     $2c4
         lda     #$d4                    ; Green mode 0 BG
         sta     $2c6
         lda     #$1c                    ; Yellow missiles
@@ -91,6 +94,13 @@ loop:   lda     $14                     ; Jiffy clock
 *       cmp     $14                     ; Wait for next jiffy
         beq     -
         jsr     award_score
+        ldx     #$02
+*       lda     target_x,x
+        jsr     move_target
+        sta     target_x,x
+        sta     $d001,x
+        dex
+        bpl     -
         jmp     loop
 
 reset_score:
@@ -116,6 +126,14 @@ award_score:
 *       sta     $0c0f,x
         rts
 
+move_target:
+        sec
+        sbc     #$01
+        cmp     #39
+        bne     +
+        lda     #207
+*       rts
+
 score_msg:
         .byte   $33,$23,$2f,$32,$25,$1a,$00
 
@@ -136,6 +154,11 @@ dlist:  .byte   $70,$70,$70             ; 24 blank lines
 
         .alias  dlist_len ^-dlist
         .alias  dlist_loc $0c00-dlist_len
+        .checkpc $0b00
+
+        .data
         .checkpc dlist_loc
+
+        .text
 
 end:    .word   $02e0,$02e1,start
