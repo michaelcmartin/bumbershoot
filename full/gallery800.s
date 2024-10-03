@@ -24,13 +24,20 @@ clrpm:  sta     $c00,x
         dex
         bne     -
 
+        ldx     #$00
+*       lda     dlist,x
+        sta     dlist_loc,x
+        inx
+        cpx     #dlist_len
+        bne     -
+
 *       lda     #$0c
         sta     $d407                   ; PMBASE
         lda     #$00
         sta     $022f                   ; SDMCTL
-        lda     #<dlist
+        lda     #<dlist_loc
         sta     $0230                   ; SDLSTL
-        lda     #>dlist
+        lda     #>dlist_loc
         sta     $0231                   ; SDLSTH
         lda     #$2e
         sta     $022f                   ; SDMCTL
@@ -110,7 +117,6 @@ gfx_blaster:
 gfx_target:
         .byte   $00,$3c,$42,$5a,$5a,$42,$3c,$00
 
-        .advance [^+$ff] & $ff00        ; Align page boundary
 dlist:  .byte   $70,$70,$70             ; 24 blank lines
         .byte   $47,$00,$0c             ; One line GR 2 at $0c00
         .byte   $10,$0d                 ; 2 blank and 1 big pixel for divider
@@ -118,6 +124,11 @@ dlist:  .byte   $70,$70,$70             ; 24 blank lines
         .byte   $70,$70,$70,$70,$70,$70,$70,$70 ; Main playfield
         .byte   $60,$60                 ; Space for blaster
         .byte   $02,$02,$02             ; Ground
-        .byte   $41,<dlist,>dlist       ; End of list
+        .byte   $41                     ; End of list
+        .word   dlist_loc               ; Display list backpointer
+
+        .alias  dlist_len ^-dlist
+        .alias  dlist_loc $0c00-dlist_len
+        .checkpc dlist_loc
 
 end:    .word   $02e0,$02e1,start
