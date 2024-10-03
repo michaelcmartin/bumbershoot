@@ -2,20 +2,7 @@
         .word   $ffff,start,end-1
         .org    $0700
 
-start:  lda     #$0b
-        sta     $0342
-        lda     #<msg
-        sta     $0344
-        lda     #>msg
-        sta     $0345
-        lda     #<msglen
-        sta     $0348
-        lda     #>msglen
-        sta     $0349
-        ldx     #$00
-        jsr     $e456
-
-        lda     #$00
+start:  lda     #$00
         tax
 clrpm:  sta     $c00,x
         sta     $d00,x
@@ -24,10 +11,30 @@ clrpm:  sta     $c00,x
         inx
         bne     clrpm
 
-        lda     #$0c
+        ldx     #$00
+*       lda     score_msg,x
+        beq     +
+        sta     $0c08,x
+        inx
+        bne     -
+
+*       ldx     #40
+        lda     #$55
+*       sta     $0c13,x
+        dex
+        bne     -
+
+*       lda     #$0c
         sta     $d407                   ; PMBASE
+        lda     #$00
+        sta     $022f                   ; SDMCTL
+        lda     #<dlist
+        sta     $0230                   ; SDLSTL
+        lda     #>dlist
+        sta     $0231                   ; SDLSTH
         lda     #$2e
-        sta     $22f                    ; SDMACTL
+        sta     $022f                   ; SDMCTL
+
         lda     #$11                    ; 5 players over playfield
         sta     $26f                    ; GPRIOR
         lda     #124                    ; X coordinates
@@ -95,20 +102,22 @@ clrpm:  sta     $c00,x
 
 loop:   jmp     loop
 
-msg:    .byte   $9b,$9b,$9b
-        .byte   "    PLAYER/MISSILE GRAPHICS TEST",$9b
-        .byte   $9b,$9b,$9b,$9b,$9b
-        .byte   " This display will eventually be a",$9b
-        .byte   "custom playfield showing the score",$9b
-        .byte   "and some terrain but for now it is",$9b
-        .byte   "just this greeting message.",$9b
-        .byte   $9b,$9b
-
-        .alias  msglen  ^-msg
+score_msg:
+        .byte   $33,$23,$2f,$32,$25,$1a,$00
 
 gfx_blaster:
         .byte   $10,$38,$ba,$ba,$fe,$fe,$92
 gfx_target:
         .byte   $00,$3c,$42,$5a,$5a,$42,$3c,$00
+
+        .advance [^+$ff] & $ff00        ; Align page boundary
+dlist:  .byte   $70,$70,$70             ; 24 blank lines
+        .byte   $47,$00,$0c             ; One line GR 2 at $0c00
+        .byte   $10,$0d                 ; 2 blank and 1 big pixel for divider
+        .byte   $50,$70,$70,$70,$70,$70,$70,$70,$70
+        .byte   $70,$70,$70,$70,$70,$70,$70,$70 ; Main playfield
+        .byte   $60,$60                 ; Space for blaster
+        .byte   $02,$02,$02             ; Ground
+        .byte   $41,<dlist,>dlist       ; End of list
 
 end:    .word   $02e0,$02e1,start
