@@ -87,28 +87,6 @@ clrpm:  sta     $c00,x
         dex
         bpl     -
 
-        lda     #$09                    ; M0 and M1 mark left and right
-        sta     $d80+40
-        sta     $d80+42
-        lda     #$06
-        sta     $d80+41
-
-        lda     #$10                    ; M2 and M3 just hang out
-        sta     $d80+85
-        sta     $d80+45                 ; With M2 in two Y locations
-        sta     $d80+86
-        sta     $d80+46
-        sta     $d80+87
-        sta     $d80+47
-        lda     #$40
-        sta     $d80+76
-        sta     $d80+77
-        sta     $d80+78
-
-        lda     #$ff                    ; P0 also marks top/bottom boundaries
-        sta     $e00+16                 ; Top line at Y=16
-        sta     $e00+111                ; Bottom line at Y=111
-
 loop:   lda     $14                     ; Jiffy clock
 *       cmp     $14                     ; Wait for next jiffy
         beq     -
