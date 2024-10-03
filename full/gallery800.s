@@ -18,7 +18,9 @@ clrpm:  sta     $c00,x
         inx
         bne     -
 
-*       ldx     #40
+*       jsr     reset_score
+
+        ldx     #40
         lda     #$55
 *       sta     $0c13,x
         dex
@@ -107,7 +109,34 @@ clrpm:  sta     $c00,x
         sta     $e00+16                 ; Top line at Y=16
         sta     $e00+111                ; Bottom line at Y=111
 
-loop:   jmp     loop
+loop:   lda     $14                     ; Jiffy clock
+*       cmp     $14                     ; Wait for next jiffy
+        beq     -
+        jsr     award_score
+        jmp     loop
+
+reset_score:
+        lda     #$10
+        ldx     #$03
+*       sta     $0c0f,x
+        dex
+        bpl     -
+        rts
+
+award_score:
+        ldx     #$03
+*       lda     $0c0f,x                 ; Load digit
+        clc                             ; and increment it
+        adc     #$01
+        cmp     #$1a                    ; Need to carry?
+        bne     +                       ; If not, store value and done
+        lda     #$10                    ; Otherwise, write a zero...
+        sta     $0c0f,x
+        dex                             ; move one digit back...
+        bpl     -                       ; ... and increment that if it's there
+        rts                             ; just quit if we wrapped 9999 though
+*       sta     $0c0f,x
+        rts
 
 score_msg:
         .byte   $33,$23,$2f,$32,$25,$1a,$00
