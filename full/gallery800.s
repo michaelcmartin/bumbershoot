@@ -4,7 +4,9 @@
 
         .data
         .org    $0b00
+        .space  player_x 1
         .space  target_x 3
+        .space  target_y 1
 
         .text
 
@@ -54,6 +56,7 @@ clrpm:  sta     $c00,x
         sta     $26f                    ; GPRIOR
         lda     #124                    ; X coordinates
         sta     $d000
+        sta     player_x
         sta     $d002
         sta     target_x+1
         lda     #92
@@ -82,25 +85,60 @@ clrpm:  sta     $c00,x
         sta     $e00+93,x
         dex
         bpl     -
-        ldx     #$07                    ; Draw targets
-*       lda     gfx_target,x
-        sta     $e80+38,x
-        sta     $f00+38,x
-        sta     $f80+38,x
-        dex
-        bpl     -
+        lda     #38
+        sta     target_y
 
 loop:   lda     $14                     ; Jiffy clock
 *       cmp     $14                     ; Wait for next jiffy
         beq     -
         jsr     award_score
-        ldx     #$02
+        lda     $0278                   ; STICK0
+        ldx     player_x                ; Update player and target coordinates
+        ldy     target_y                ; based on joystick directions
+        lsr
+        bcs     +
+        dey
+*       lsr
+        bcs     +
+        iny
+*       lsr
+        bcs     +
+        dex
+*       lsr
+        bcs     +
+        inx
+*       cpx     #47                     ; Bounds-check new coordinates
+        bne     +
+        ldx     #48
+*       cpx     #202
+        bne     +
+        ldx     #201
+*       cpy     #25
+        bne     +
+        ldy     #26
+*       cpy     #86
+        bne     +
+        ldy     #85
+*       stx     player_x                ; Save new coordinates
+        sty     target_y
+        stx     $d000                   ; Place player
+        ldx     #$02                    ; Move targets 1 pixel left
 *       lda     target_x,x
         jsr     move_target
         sta     target_x,x
         sta     $d001,x
         dex
         bpl     -
+        ldx     #$00                    ; Redraw targets
+        ldy     target_y
+*       lda     gfx_target,x
+        sta     $e80,y
+        sta     $f00,y
+        sta     $f80,y
+        iny
+        inx
+        cpx     #$08
+        bne     -
         jmp     loop
 
 reset_score:
