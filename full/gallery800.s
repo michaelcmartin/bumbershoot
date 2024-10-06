@@ -2,6 +2,33 @@
         .word   $ffff,start,end-1
         .org    $0700
 
+        ;; OS memory locations and shadow registers
+        .alias  RTCLOK  $12
+        .alias  SDMCTL  $022f
+        .alias  SDLST   $0230
+        .alias  GPRIOR  $026f
+        .alias  STICK0  $0278
+        .alias  STRIG0  $0284
+        .alias  PCOLR0  $02c0
+        .alias  PCOLR1  $02c1
+        .alias  PCOLR2  $02c2
+        .alias  PCOLR3  $02c3
+        .alias  COLOR0  $02c4
+        .alias  COLOR2  $02c6
+        .alias  COLOR3  $02c7
+
+        ;; Direct CTIA/GTIA registers
+        .alias  HPOSP0  $d000
+        .alias  HPOSP1  $d001
+        .alias  HPOSP2  $d002
+        .alias  HPOSP3  $d003
+        .alias  HPOSM0  $d004
+        .alias  M0PL    $d008
+        .alias  GRACTL  $d01d
+
+        ;; Direct ANTIC registers
+        .alias  PMBASE  $d407
+
         .data
         .org    $0b00
         .space  player_x 1
@@ -10,16 +37,16 @@
 
         .text
 
-start:  lda     #$00
-        tax
-clrpm:  sta     $c00,x
-        sta     $d00,x
-        sta     $e00,x
-        sta     $f00,x
+start:  lda     #$00                    ; Clear graphics memory. Our custom
+        tax                             ; playfield will lie in the unused
+clrpm:  sta     $0c00,x                 ; portion in $0c00-$0d7f
+        sta     $0d00,x
+        sta     $0e00,x
+        sta     $0f00,x
         inx
         bne     clrpm
 
-        ldx     #$00
+        ldx     #$00                    ; Load score header text into playfield
 *       lda     score_msg,x
         beq     +
         sta     $0c08,x
@@ -28,71 +55,71 @@ clrpm:  sta     $c00,x
 
 *       jsr     reset_score
 
-        ldx     #40
+        ldx     #40                     ; Draw divider line
         lda     #$55
 *       sta     $0c13,x
         dex
         bne     -
 
-        ldx     #$00
-*       lda     dlist,x
-        sta     dlist_loc,x
+        ldx     #$00                    ; Copy display list to somewhere where
+*       lda     dlist,x                 ; we won't have to worry about it
+        sta     dlist_loc,x             ; crossing a page boundary and breaking
         inx
         cpx     #dlist_len
         bne     -
 
 *       lda     #$0c
-        sta     $d407                   ; PMBASE
+        sta     PMBASE
         lda     #$00
-        sta     $022f                   ; SDMCTL
+        sta     SDMCTL
         lda     #<dlist_loc
-        sta     $0230                   ; SDLSTL
+        sta     SDLST
         lda     #>dlist_loc
-        sta     $0231                   ; SDLSTH
+        sta     SDLST+1
         lda     #$2e
-        sta     $022f                   ; SDMCTL
+        sta     SDMCTL
 
         lda     #$11                    ; 5 players over playfield
-        sta     $26f                    ; GPRIOR
+        sta     GPRIOR
         lda     #124                    ; X coordinates
-        sta     $d000
+        sta     HPOSP0
         sta     player_x
-        sta     $d002
+        sta     HPOSP2
         sta     target_x+1
         lda     #92
-        sta     $d001
+        sta     HPOSP1
         sta     target_x
         lda     #156
-        sta     $d003
+        sta     HPOSP3
         sta     target_x+2
         lda     #$03                    ; Enable players and missiles
-        sta     $d01d
+        sta     GRACTL
         lda     #$3a                    ; Orange blaster
-        sta     $2c0
+        sta     PCOLR0
         lda     #$46                    ; Red targets
-        sta     $2c1
-        sta     $2c2
-        sta     $2c3
+        sta     PCOLR1
+        sta     PCOLR2
+        sta     PCOLR3
         lda     #$0c                    ; White text/divider
-        sta     $2c4
+        sta     COLOR0
         lda     #$d4                    ; Green mode 0 BG
-        sta     $2c6
+        sta     COLOR2
         lda     #$1c                    ; Yellow missiles
-        sta     $2c7
+        sta     COLOR3
 
         ldx     #$06                    ; Draw blaster
 *       lda     gfx_blaster,x
-        sta     $e00+93,x
+        sta     $0e00+93,x
         dex
         bpl     -
         lda     #38
         sta     target_y
 
-loop:   lda     $14                     ; Jiffy clock
-*       cmp     $14                     ; Wait for next jiffy
+loop:   lda     RTCLOK+2                ; Jiffy clock
+*       cmp     RTCLOK+2                ; Wait for next jiffy
         beq     -
         jsr     award_score
-        lda     $0278                   ; STICK0
+        lda     STICK0
         ldx     player_x                ; Update player and target coordinates
         ldy     target_y                ; based on joystick directions
         lsr
@@ -121,20 +148,20 @@ loop:   lda     $14                     ; Jiffy clock
         ldy     #85
 *       stx     player_x                ; Save new coordinates
         sty     target_y
-        stx     $d000                   ; Place player
+        stx     HPOSP0
         ldx     #$02                    ; Move targets 1 pixel left
 *       lda     target_x,x
         jsr     move_target
         sta     target_x,x
-        sta     $d001,x
+        sta     HPOSP1,x
         dex
         bpl     -
         ldx     #$00                    ; Redraw targets
         ldy     target_y
 *       lda     gfx_target,x
-        sta     $e80,y
-        sta     $f00,y
-        sta     $f80,y
+        sta     $0e80,y
+        sta     $0f00,y
+        sta     $0f80,y
         iny
         inx
         cpx     #$08
@@ -152,12 +179,12 @@ loop:   lda     $14                     ; Jiffy clock
         bne     --
         txa                             ; Did we copy anything?
         bne     shot_done               ; If so, don't check input
-        lda     $0284                   ; STRIG0
+        lda     STRIG0
         bne     shot_done               ; If no button pressed, we're done
         lda     player_x                ; place missile at blaster port
         clc
         adc     #$03
-        sta     $d004
+        sta     HPOSM0
         lda     #$02                    ; And draw missile in place
         sta     $0d80+92
         sta     $0d80+93
@@ -215,10 +242,19 @@ dlist:  .byte   $70,$70,$70             ; 24 blank lines
         .byte   $41                     ; End of list
         .word   dlist_loc               ; Display list backpointer
 
+        ;; Place the display list just before the playfield graphics at
+        ;; $0C00. This will put it at a point where it ends at $0BFF, giving
+        ;; us as much space for our data segment as we can while not increasing
+        ;; total contiguous memory footprint or imposing alignment requirements
+        ;; on the in-program display list.
         .alias  dlist_len ^-dlist
         .alias  dlist_loc $0c00-dlist_len
+
+        ;; Make sure our program text doesn't overrun our data segment
         .checkpc $0b00
 
+        ;; Make sure our data segment doesn't overrun where we put the
+        ;; display list
         .data
         .checkpc dlist_loc
 
