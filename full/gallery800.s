@@ -25,6 +25,7 @@
         .alias  HPOSM0  $d004
         .alias  M0PL    $d008
         .alias  GRACTL  $d01d
+        .alias  HITCLR  $d01e
 
         ;; Direct ANTIC registers
         .alias  PMBASE  $d407
@@ -118,7 +119,19 @@ clrpm:  sta     $0c00,x                 ; portion in $0c00-$0d7f
 loop:   lda     RTCLOK+2                ; Jiffy clock
 *       cmp     RTCLOK+2                ; Wait for next jiffy
         beq     -
-        jsr     award_score
+
+        lda     M0PL                    ; Check for collisions last frame
+        and     #$0e
+        beq     no_hit
+        jsr     award_score             ; If hit, award point...
+        lda     #$00                    ; ... and erase the missile
+        ldx     #95                     ; wherever it is
+*       sta     $0d80,x
+        dex
+        cpx     #25
+        bne     -
+no_hit: sta     HITCLR                  ; and clear collisions for next frame
+
         lda     STICK0
         ldx     player_x                ; Update player and target coordinates
         ldy     target_y                ; based on joystick directions
@@ -199,6 +212,7 @@ reset_score:
 *       sta     $0c0f,x
         dex
         bpl     -
+        sta     HITCLR
         rts
 
 award_score:
