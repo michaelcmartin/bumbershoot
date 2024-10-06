@@ -139,6 +139,31 @@ loop:   lda     $14                     ; Jiffy clock
         inx
         cpx     #$08
         bne     -
+
+        ;; Update missiles
+        ldx     #$00                    ; Start with no shot detected
+        ldy     #26
+*       lda     $0d81,y
+        beq     +
+        tax                             ; record shots we see
+*       sta     $0d80,y
+        iny
+        cpy     #95                     ; Copy a bit into blaster zone
+        bne     --
+        txa                             ; Did we copy anything?
+        bne     shot_done               ; If so, don't check input
+        lda     $0284                   ; STRIG0
+        bne     shot_done               ; If no button pressed, we're done
+        lda     player_x                ; place missile at blaster port
+        clc
+        adc     #$03
+        sta     $d004
+        lda     #$02                    ; And draw missile in place
+        sta     $0d80+92
+        sta     $0d80+93
+        sta     $0d80+94
+shot_done:
+
         jmp     loop
 
 reset_score:
