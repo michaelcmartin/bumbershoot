@@ -4,6 +4,7 @@
 
         ;; OS memory locations and shadow registers
         .alias  RTCLOK  $12
+        .alias  VDSLST  $0200
         .alias  SDMCTL  $022f
         .alias  SDLST   $0230
         .alias  GPRIOR  $026f
@@ -29,19 +30,23 @@
 
         ;; Direct ANTIC registers
         .alias  PMBASE  $d407
+        .alias  NMIEN   $d40e
 
         .data
         .org    $0b00
         .space  player_x 1
         .space  target_x 3
         .space  target_y 1
+        .space  lane     1
+        .space  lane_x  19
 
         .text
 
 start:  lda     #$00                    ; Clear graphics memory. Our custom
         tax                             ; playfield will lie in the unused
-clrpm:  sta     $0c00,x                 ; portion in $0c00-$0d7f
-        sta     $0d00,x
+clrpm:  sta     $0b00,x                 ; portion in $0c00-$0d7f. Our ordinary
+        sta     $0c00,x                 ; data will be in $0b00-$0bff, so also
+        sta     $0d00,x                 ; clear that while we're here
         sta     $0e00,x
         sta     $0f00,x
         inx
@@ -69,15 +74,23 @@ clrpm:  sta     $0c00,x                 ; portion in $0c00-$0d7f
         cpx     #dlist_len
         bne     -
 
-*       lda     #$0c
+*       lda     #$0c                    ; Initialize P/M graphics pointer
         sta     PMBASE
-        lda     #$00
-        sta     SDMCTL
+        lda     #$00                    ; Disable playfield updates
+        sta     SDMCTL                  ; Reassign display list
         lda     #<dlist_loc
         sta     SDLST
         lda     #>dlist_loc
         sta     SDLST+1
-        lda     #$2e
+        lda     #15                     ; Initialize state for display list IRQ
+        sta     lane
+        lda     #$c0                    ; Enable display list IRQs
+        sta     NMIEN
+        lda     #<irq                   ; Initialize display list IRQ pointer
+        sta     VDSLST
+        lda     #>irq
+        sta     VDSLST+1
+        lda     #$2e                    ; Re-enable playfield and P/M graphics
         sta     SDMCTL
 
         lda     #$11                    ; 5 players over playfield
@@ -120,6 +133,10 @@ loop:   lda     RTCLOK+2                ; Jiffy clock
 *       cmp     RTCLOK+2                ; Wait for next jiffy
         beq     -
 
+        lda     lane_x+18               ; Place missile in topmost X position
+        sta     HPOSM0
+
+        jmp     no_hit                  ; TMP; eliminate collision detection
         lda     M0PL                    ; Check for collisions last frame
         and     #$0e
         beq     no_hit
@@ -181,29 +198,22 @@ no_hit: sta     HITCLR                  ; and clear collisions for next frame
         bne     -
 
         ;; Update missiles
-        ldx     #$00                    ; Start with no shot detected
-        ldy     #26
-*       lda     $0d81,y
-        beq     +
-        tax                             ; record shots we see
-*       sta     $0d80,y
-        iny
-        cpy     #95                     ; Copy a bit into blaster zone
-        bne     --
-        txa                             ; Did we copy anything?
+        jsr     step_missiles
+        lda     lane_x+3                ; Any shots in bottom few lanes?
+        ora     lane_x+4
+        ora     lane_x+5
         bne     shot_done               ; If so, don't check input
         lda     STRIG0
         bne     shot_done               ; If no button pressed, we're done
         lda     player_x                ; place missile at blaster port
         clc
         adc     #$03
-        sta     HPOSM0
+        sta     lane_x+3                ; Record its location in the lane array
         lda     #$02                    ; And draw missile in place
         sta     $0d80+92
         sta     $0d80+93
         sta     $0d80+94
 shot_done:
-
         jmp     loop
 
 reset_score:
@@ -238,6 +248,61 @@ move_target:
         lda     #207
 *       rts
 
+.scope
+step_missiles:
+        ldy     #26
+        ldx     #$12
+        bne     _first_lane
+_full_lane:
+        lda     $0d81,y
+        sta     $0d80,y
+        iny
+_first_lane:
+        lda     $0d81,y
+        sta     $0d80,y
+        iny
+        lda     $0d81,y
+        sta     $0d80,y
+        iny
+        ;; Last line: advance X coordinate if a new missile arrives
+        lda     $0d80,y
+        bne     _simple_lane
+        lda     $0d81,y
+        beq     _simple_lane
+        lda     lane_x,x
+        sta     lane_x+1,x
+        lda     #$00
+        sta     lane_x,x
+_simple_lane:
+        lda     $0d81,y
+        sta     $0d80,y
+_finish_lane:
+        iny
+        dex
+        bpl     _full_lane
+        rts
+.scend
+
+.scope
+irq:    pha
+        txa
+        pha
+        dec     lane
+        bmi     _lanes_end
+        ldx     lane
+        lda     lane_x+3,x
+        beq     _end
+        sta     HPOSM0
+_end:   pla
+        tax
+        pla
+        rti
+_lanes_end:
+        lda     #15
+        sta     lane
+        bne     _end
+.scend
+
 score_msg:
         .byte   $33,$23,$2f,$32,$25,$1a,$00
 
@@ -249,8 +314,8 @@ gfx_target:
 dlist:  .byte   $70,$70,$70             ; 24 blank lines
         .byte   $47,$00,$0c             ; One line GR 2 at $0c00
         .byte   $10,$0d                 ; 2 blank and 1 big pixel for divider
-        .byte   $50,$70,$70,$70,$70,$70,$70,$70,$70
-        .byte   $70,$70,$70,$70,$70,$70,$70,$70 ; Main playfield
+        .byte   $d0,$f0,$f0,$f0,$f0,$f0,$f0,$f0,$f0
+        .byte   $f0,$f0,$f0,$f0,$f0,$f0,$f0,$70 ; Main playfield
         .byte   $60,$60                 ; Space for blaster
         .byte   $02,$02,$02             ; Ground
         .byte   $41                     ; End of list
