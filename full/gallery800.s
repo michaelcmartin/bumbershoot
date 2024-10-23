@@ -39,6 +39,7 @@
         .space  target_y 1
         .space  lane     1
         .space  lane_x  20
+        .space  lane_hit 1
 
         .text
 
@@ -133,21 +134,16 @@ loop:   lda     RTCLOK+2                ; Jiffy clock
 *       cmp     RTCLOK+2                ; Wait for next jiffy
         beq     -
 
-        lda     lane_x+18               ; Place missile in topmost X position
-        sta     HPOSM0
+        lda     #$2e                    ; Mark processing time visually
+        sta     $d01a
 
-        jmp     no_hit                  ; TMP; eliminate collision detection
-        lda     M0PL                    ; Check for collisions last frame
-        and     #$0e
+        lda     lane_hit
         beq     no_hit
         jsr     award_score             ; If hit, award point...
-        lda     #$00                    ; ... and erase the missile
-        ldx     #95                     ; wherever it is
-*       sta     $0d80,x
-        dex
-        cpx     #25
-        bne     -
-no_hit: sta     HITCLR                  ; and clear collisions for next frame
+        ;; TODO: erase only the missile that hit it
+
+no_hit: lda     #$00                    ; and clear collisions for next frame
+        sta     lane_hit
 
         lda     STICK0
         ldx     player_x                ; Update player and target coordinates
@@ -214,6 +210,8 @@ no_hit: sta     HITCLR                  ; and clear collisions for next frame
         sta     $0d80+93
         sta     $0d80+94
 shot_done:
+        lda     #$00                    ; Mark processing time visually
+        sta     $d01a
         jmp     loop
 
 reset_score:
@@ -287,19 +285,27 @@ _finish_lane:
 irq:    pha
         txa
         pha
-        dec     lane
-        bmi     _lanes_end
         ldx     lane
+        lda     M0PL                    ; Check missile/player collisions
+        and     #$0e                    ; Mask to only target hits
+        beq     +
+        txa
+        clc
+        adc     #$03
+        sta     lane_hit
+*       dex
+        bmi     _lanes_end
         lda     lane_x+3,x
         beq     _end
         sta     HPOSM0
-_end:   pla
+_end:   sta     HITCLR
+        stx     lane
+        pla
         tax
         pla
         rti
 _lanes_end:
-        lda     #17
-        sta     lane
+        ldx     #17
         bne     _end
 .scend
 
