@@ -38,7 +38,7 @@
         .space  target_x 3
         .space  target_y 1
         .space  lane     1
-        .space  lane_x  19
+        .space  lane_x  20
 
         .text
 
@@ -82,7 +82,7 @@ clrpm:  sta     $0b00,x                 ; portion in $0c00-$0d7f. Our ordinary
         sta     SDLST
         lda     #>dlist_loc
         sta     SDLST+1
-        lda     #15                     ; Initialize state for display list IRQ
+        lda     #17                     ; Initialize state for display list IRQ
         sta     lane
         lda     #$c0                    ; Enable display list IRQs
         sta     NMIEN
@@ -251,7 +251,7 @@ move_target:
 .scope
 step_missiles:
         ldy     #26
-        ldx     #$12
+        ldx     #18
         bne     _first_lane
 _full_lane:
         lda     $0d81,y
@@ -298,7 +298,7 @@ _end:   pla
         pla
         rti
 _lanes_end:
-        lda     #15
+        lda     #17
         sta     lane
         bne     _end
 .scend
@@ -313,9 +313,9 @@ gfx_target:
 
 dlist:  .byte   $70,$70,$70             ; 24 blank lines
         .byte   $47,$00,$0c             ; One line GR 2 at $0c00
-        .byte   $10,$0d                 ; 2 blank and 1 big pixel for divider
+        .byte   $90,$0d                 ; 2 blank and 1 big pixel for divider
         .byte   $d0,$f0,$f0,$f0,$f0,$f0,$f0,$f0,$f0
-        .byte   $f0,$f0,$f0,$f0,$f0,$f0,$f0,$70 ; Main playfield
+        .byte   $f0,$f0,$f0,$f0,$f0,$f0,$f0,$f0 ; Main playfield
         .byte   $60,$60                 ; Space for blaster
         .byte   $02,$02,$02             ; Ground
         .byte   $41                     ; End of list
