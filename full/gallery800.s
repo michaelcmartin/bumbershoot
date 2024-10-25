@@ -134,15 +134,32 @@ loop:   lda     RTCLOK+2                ; Jiffy clock
 *       cmp     RTCLOK+2                ; Wait for next jiffy
         beq     -
 
-        lda     #$2e                    ; Mark processing time visually
-        sta     $d01a
-
         lda     lane_hit
         beq     no_hit
         jsr     award_score             ; If hit, award point...
-        ;; TODO: erase only the missile that hit it
-
-no_hit: lda     #$00                    ; and clear collisions for next frame
+        lda     lane_hit                ; ...then find and erase the missile itself
+        asl                             ; Start search at $d8e4-(lane_hit*4)
+        asl
+        eor     #$ff
+        sec
+        adc     #$e4
+        tax
+*       lda     $0d00,x                 ; Find first empty space before collision lane
+        beq     +
+        dex
+        bne     -
+*       lda     $0d00,x                 ; Find first nonzero missile pixel
+        bne     +
+        inx
+        bne     -
+*       lda     $0d00,x                 ; Zero out missile pixels until they're
+        beq     +                       ; already zero
+        lda     #$00
+        sta     $0d00,x
+        inx
+        bne     -
+*
+no_hit: lda     #$00                    ; Clear collisions for next frame
         sta     lane_hit
 
         lda     STICK0
@@ -210,9 +227,18 @@ no_hit: lda     #$00                    ; and clear collisions for next frame
         sta     $0d80+93
         sta     $0d80+94
 shot_done:
-        lda     #$00                    ; Mark processing time visually
-        sta     $d01a
-        jmp     loop
+        ;; If no missile is present in rows 80-96, clear out any stray X coordinates in lanes 3-5.
+        ldx     #16
+        lda     #$00
+*       ora     $0d80+80,x
+        dex
+        bpl     -
+        cmp     #$00
+        bne     +
+        sta     lane_x+3
+        sta     lane_x+4
+        sta     lane_x+5
+*       jmp     loop
 
 reset_score:
         lda     #$10
