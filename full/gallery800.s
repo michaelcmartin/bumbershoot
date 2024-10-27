@@ -4,6 +4,7 @@
 
         ;; OS memory locations and shadow registers
         .alias  RTCLOK  $12
+        .alias  ATRACT  $4d
         .alias  VDSLST  $0200
         .alias  SDMCTL  $022f
         .alias  SDLST   $0230
@@ -40,6 +41,7 @@
         .space  lane     1
         .space  lane_x  20
         .space  lane_hit 1
+        .space  input    1
 
         .text
 
@@ -161,6 +163,7 @@ loop:   lda     RTCLOK+2                ; Jiffy clock
 *
 no_hit: lda     #$00                    ; Clear collisions for next frame
         sta     lane_hit
+        sta     input                   ; No input detected
 
         lda     STICK0
         ldx     player_x                ; Update player and target coordinates
@@ -168,15 +171,19 @@ no_hit: lda     #$00                    ; Clear collisions for next frame
         lsr
         bcs     +
         dey
+        inc     input
 *       lsr
         bcs     +
         iny
+        inc     input
 *       lsr
         bcs     +
         dex
+        inc     input
 *       lsr
         bcs     +
         inx
+        inc     input
 *       cpx     #47                     ; Bounds-check new coordinates
         bne     +
         ldx     #48
@@ -212,12 +219,13 @@ no_hit: lda     #$00                    ; Clear collisions for next frame
 
         ;; Update missiles
         jsr     step_missiles
+        lda     STRIG0                  ; If no button pressed, we're done
+        bne     shot_done
+        inc     input                   ; Mark input even if we can't shoot righ tnow
         lda     lane_x+3                ; Any shots in bottom few lanes?
         ora     lane_x+4
         ora     lane_x+5
         bne     shot_done               ; If so, don't check input
-        lda     STRIG0
-        bne     shot_done               ; If no button pressed, we're done
         lda     player_x                ; place missile at blaster port
         clc
         adc     #$03
@@ -227,8 +235,12 @@ no_hit: lda     #$00                    ; Clear collisions for next frame
         sta     $0d80+93
         sta     $0d80+94
 shot_done:
+        lda     input                   ; Any input this frame?
+        beq     +
+        lda     #$00                    ; If so, reset screensaver counter
+        sta     ATRACT
         ;; If no missile is present in rows 80-96, clear out any stray X coordinates in lanes 3-5.
-        ldx     #16
+*       ldx     #16
         lda     #$00
 *       ora     $0d80+80,x
         dex
