@@ -85,8 +85,8 @@ irq2_handler:
 	bra.s	.end
 
 .kb:	move.b	CIAASDR,d0		; Read actual keyboard data
-	btst	#0,d0			; Was it a key-up?
-	beq.s	.handshake		; If so, ignore it
+	cmp.b	#$75,d0			; Was it pressing ESCAPE?
+	bne.s	.handshake		; If not, ignore it
 	move.b	#$ff,pending		; Otherwise, record pending keypress
 
 .handshake:
