@@ -47,15 +47,18 @@ Main:	lea	Copper,a2		; a2 = copper list base addr
 	lea	9938(a3),a1
 	bsr	drawtext
 
-	;; Set up keyboard IRQs
+	;; Set up keyboard and VBLANK IRQs
 	moveq	#0,d0
 	move.b	d0,pending
 	move.b	d0,ready
 	move.l	S_VBR,a0	; Save out original handler
 	move.l	IRQ2(a0),-(a7)
+	move.l	IRQ3(a0),-(a7)
 	lea	irq2_handler(pc),a1
 	move.l	a1,IRQ2(a0)
-	move.w	#$8008,INTENA(a5)	; Enable IRQ 2
+	lea	irq3_handler(pc),a1
+	move.l	a1,IRQ3(a0)
+	move.w	#$8028,INTENA(a5)	; Enable PORTS and VERTB interrupts
 
 	;; Wait for the user to click the mouse
 .wait:	tst.b	ready
@@ -64,8 +67,9 @@ Main:	lea	Copper,a2		; a2 = copper list base addr
 	bne.s	.wait
 
 	;; Clean up interrupt handlers
-.end:	move.w	#$0008,INTENA(a5)
+.end:	move.w	#$0028,INTENA(a5)
 	move.l	S_VBR,a0
+	move.l	(a7)+,IRQ3(a0)
 	move.l	(a7)+,IRQ2(a0)
 	;; Return to SafeStart to return control to OS
 	rts
@@ -96,8 +100,13 @@ irq2_handler:
 	clr.b	CIAATAHI
 	move.b	#$81,CIAAICR		; Enable Timer A interrupt
 
-.end:	move.w	#$0008,$dff000+INTREQ	; Acknowledge INT2 IRQ
+.end:	move.w	#$0008,$dff000+INTREQ	; Acknowledge PORTS IRQ
 	movem.l	(a7)+,d0-d3
+	rte
+
+irq3_handler:
+	sub.b	#1,gfx_target+1		; Move target left
+	move.w	#$0020,$dff000+INTREQ	; Acknowledge VERTB IRQ
 	rte
 
 	;; Copy 1bpp text string (a0) to graphics memory (a1).
