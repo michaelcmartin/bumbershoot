@@ -48,6 +48,9 @@ Main:	bsr	init_sprites
 	lea	25(a3),a1
 	bsr	drawtext
 
+	;; Initialize collision control
+	move.w	#$2041,CLXCON(a5)	; Match bitplane 1 hits, sprite 3 can collide
+
 	;; Set up keyboard and VBLANK IRQs
 	moveq	#0,d0
 	move.b	d0,key_pending
@@ -67,6 +70,19 @@ Main:	bsr	init_sprites
 	;; Wait for VBLANK to process the data we have already
 	move.b	gfx_ready,d0
 	bne.s	.gameloop
+
+	;; Check to see if the shot collided
+	move.w	CLXDAT(a5),d0
+	tst.b	hit_timer
+	bne.s	.hit_wait
+	and.w	#$6000,d0
+	beq.s	.hit_done
+	clr.l	spr_missiles		; A hit! Clear the missile
+	bsr	award_point
+	move.b	#2,hit_timer		; And ignore collisions next frame
+.hit_wait:
+	sub.b	#1,hit_timer
+.hit_done:
 
 	;; Read directional input
 	move.w	JOY1DAT(a5),d0
@@ -242,6 +258,20 @@ drawtext:
 .done:	movem.l	(a7)+,a2-4
 	rts
 
+	;; Score a point and update the score display.
+award_point:
+	moveq	#3,d0
+	lea	score,a0
+	lea	32+bmp,a1
+.lp:	move.b	(a0,d0),d1
+	addq	#1,d1
+	move.b	d1,(a0,d0)
+	cmp.b	#$3a,d1
+	bne.s	.done
+	move.b	#$30,(a0,d0)
+	dbra	d0,.lp
+.done:	bra.s	drawtext
+
 blitter_wait:
 	btst	#14,DMACONR(a5)		; Amiga 1000 compat dummy read
 .lp:	btst	#14,DMACONR(a5)
@@ -289,7 +319,8 @@ init_sprites:
 
 	data
 font:	incbin	"res/sinestra.bin"
-msg:	dc.b	"SCORE: 0000",0
+msg:	dc.b	"SCORE: "
+score:	dc.b	"0000",0
 
 	;; Game flow state machine
 gfx_ready:	dc.b	1
@@ -299,6 +330,7 @@ key_ready:	dc.b	0
 	;; Abstract game state
 player_x:	dc.b	$90
 target_y:	dc.b	$50
+hit_timer:	dc.b	$00
 	even
 
 spr_player:	dc.l	$ef8dfc01
