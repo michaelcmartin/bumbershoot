@@ -31,16 +31,6 @@ Main:	bsr	init_sprites
 	add	#8,a1
 	dbra	d1,.sprlp
 
-	;; TMP: load basic data into render vars
-	move.l	#$efd2fc01,spr_player
-	move.l	#$506c6000,spr_targets
-	move.l	#$508c6000,spr_targets+4
-	move.l	#$50ac6000,spr_targets+8
-	move.l	#$98d59e00,spr_missiles
-	move.l	#$a052a601,spr_missiles+4
-	move.l	#0,spr_missiles+8
-	move.b	#1,gfx_ready
-
 	move.l	a2,COP1LC(a5)		; Set primary copper list
 
 .start:	move.w	#$81e0,DMACON(a5)	; Enable Bitplane, Copper, Sprite, and Blitter DMA
@@ -71,15 +61,78 @@ Main:	bsr	init_sprites
 	move.l	a1,IRQ3(a0)
 	move.w	#$8028,INTENA(a5)	; Enable PORTS and VERTB interrupts
 
+;;; ----------------------------------------------------------------------
+
 .gameloop:
-	move.b	gfx_ready,d0		; Wait for VBLANK to process the data we have already
+	;; Wait for VBLANK to process the data we have already
+	move.b	gfx_ready,d0
 	bne.s	.gameloop
-	sub.b	#1,spr_targets+1	; Move the targets left
-	sub.b	#1,spr_targets+5
-	sub.b	#1,spr_targets+9
+
+	;; Read directional input
+	move.w	JOY1DAT(a5),d0
+	move.w	d0,d1			; XOR bits 1 and 9 into bits 0 and 8
+	lsr.w	#1,d1			; to correct vertical bits
+	and.w	#$101,d1
+	eor.w	d1,d0			; d0 bits 0189 are down/right/up/left
+
+	;; Adjust player location and sprite
+	move.b	player_x,d1
+	lea	spr_player,a0
+	btst	#9,d0			; Pressing left?
+	beq.s	.not_left
+	cmp.b	#$48,d1			; At left boundary?
+	beq.s	.not_left
+	subq	#1,d1			; If it's OK, move left...
+	move.b	d1,d2			; and compute and update sprite location and facing
+	subq	#5,d2
+	move.b	d2,1(a0)
+	clr.b	3(a0)
+.not_left:
+	btst	#1,d0			; Pressing right?
+	beq.s	.not_right
+	cmp.b	#$d8,d1			; At right boundary?
+	beq.s	.not_right
+	addq	#1,d1			; If it's OK, move right...
+	move.b	d1,d2			; and compute and update sprite location and facing
+	subq	#3,d2
+	move.b	d2,1(a0)
+	move.b	#1,3(a0)
+.not_right:
+	move.b	d1,player_x		; Record updated blaster position
+
+	;; Adjust target locations and sprites
+	move.b	target_y,d1
+	lea	spr_targets,a0
+	btst	#0,d0			; Pressing down?
+	beq.s	.not_down
+	cmp.b	#$dc,d1			; At bottom boundary?
+	beq.s	.not_down
+	addq	#2,d1			; If OK, move down
+.not_down:
+	btst	#8,d0			; Pressing up?
+	beq.s	.not_up
+	cmp.b	#$3c,d1			; At top boundary?
+	beq.s	.not_up
+	subq	#2,d1			; If OK, move up
+.not_up:
+	move.b	d1,target_y		; Record updated target position
+	move.b	d1,(a0)			; Store new y-start positions for all targets
+	move.b	d1,4(a0)
+	move.b	d1,8(a0)
+	add.b	#$10,d1			; Store new y-end positions for all targets
+	move.b	d1,2(a0)
+	move.b	d1,6(a0)
+	move.b	d1,10(a0)
+	sub.b	#1,1(a0)		; Move the targets left
+	sub.b	#1,5(a0)
+	sub.b	#1,9(a0)
+
+	;; End frame
 	move.b	#1,gfx_ready		; Signal VBLANK handler to draw now
 	tst.b	key_ready		; Loop back if ESC not pressed
-	beq.s	.gameloop
+	beq	.gameloop
+
+;;; ----------------------------------------------------------------------
 
 	;; Clean up interrupt handlers
 .end:	move.w	#$0028,INTENA(a5)
@@ -219,7 +272,20 @@ init_sprites:
 	data
 font:	incbin	"res/sinestra.bin"
 msg:	dc.b	"SCORE: 0000",0
+
+	;; Game flow state machine
+gfx_ready:	dc.b	1
+key_pending:	dc.b	0
+key_ready:	dc.b	0
+
+	;; Abstract game state
+player_x:	dc.b	$90
+target_y:	dc.b	$50
 	even
+
+spr_player:	dc.l	$ef8dfc01
+spr_targets:	dc.l	$506c6000, $508c6000, $50ac6000
+spr_missiles:	dcb.l	17
 
 gfx_blaster_l:
 	dc.w	%0000000000100000, %0000000000100000
@@ -357,11 +423,3 @@ spritebuf_end:
 	bss
 ;; Graphics state vars
 sprite_ptrs:	ds.l	8
-spr_player:	ds.l	1
-spr_targets:	ds.l	3
-spr_missiles:	ds.l	17
-
-;; Game flow state machine
-gfx_ready:	ds.b	1
-key_pending:	ds.b	1
-key_ready:	ds.b	1
