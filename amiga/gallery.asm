@@ -127,6 +127,24 @@ Main:	bsr	init_sprites
 	sub.b	#1,5(a0)
 	sub.b	#1,9(a0)
 
+	;; Update shot
+	lea	spr_missiles,a0
+	move.b	(a0),d0
+	beq.s	.no_shot
+	subq	#2,d0
+	move.b	d0,(a0)
+	sub.b	#2,2(a0)
+	cmp.b	#$3a,d0
+	bne.s	.shot_done
+	clr.l	(a0)
+.no_shot:
+	btst	#7,CIAAPRA		; Fire button pressed?
+	bne.s	.shot_done
+	move.l	#$f000f600,(a0)
+	move.b	player_x,1(a0)
+	clr.l	4(a0)
+.shot_done:
+
 	;; End frame
 	move.b	#1,gfx_ready		; Signal VBLANK handler to draw now
 	tst.b	key_ready		; Loop back if ESC not pressed
