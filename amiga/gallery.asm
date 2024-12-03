@@ -71,15 +71,25 @@ Main:	bsr	init_sprites
 	move.b	gfx_ready,d0
 	bne.s	.gameloop
 
-	;; Check to see if the shot collided
-	move.w	CLXDAT(a5),d0
-	tst.b	hit_timer
-	bne.s	.hit_wait
-	and.w	#$6000,d0
-	beq.s	.hit_done
-	clr.l	spr_missiles		; A hit! Clear the missile
-	bsr	award_point
-	move.b	#2,hit_timer		; And ignore collisions next frame
+	move.w	CLXDAT(a5),d0		; Load and clear collision data
+	tst.b	hit_timer		; Was there a collision too recently?
+	bne.s	.hit_wait		; If so, just count down timer
+	and.w	#$6000,d0		; Was there a hit this frame?
+	beq.s	.hit_done		; If not, we're done
+	lea	spr_missiles-4,a0	; If so, start scanning missiles
+	move.b	target_y,d0		; Set up target bounds in d0 and d1
+	move.b	d0,d1			; d0 = top (inclusive)
+	add.b	#16,d1			; d1 = bottom (exclusive)
+.hitlp:	add	#4,a0			; Advance missile pointer
+	tst.l	(a0)			; At end of missile list?
+	beq.s	.hit_done		; No collision
+	cmp.b	(a0),d1			; Does missile start after target?
+	bls.s	.hitlp			; If so, it's not this missile
+	cmp.b	2(a0),d0		; Does missile end before target?
+	bcc.s	.hitlp			; If so, it's not this missile.
+	bsr	delete_missile		; If not, it *is* this missile...
+	bsr	award_point		; ...so delete it, award a point...
+	move.b	#2,hit_timer		; ...and ignore collisions next frame
 .hit_wait:
 	sub.b	#1,hit_timer
 .hit_done:
@@ -145,15 +155,24 @@ Main:	bsr	init_sprites
 
 	;; Update shot
 	lea	spr_missiles,a0
-	move.b	(a0),d0
-	beq.s	.no_shot
-	subq	#2,d0
-	move.b	d0,(a0)
+	move.b	(a0),d0			; Are there any shots?
+	beq.s	.shot_available		; If not, nothing to do, and shooting is OK
+	cmp.b	#$3a,d0			; Is the top shot at the boundary?
+	bne.s	.shot_in_range
+	bsr	delete_missile		; If so, destroy it
+.shot_in_range:
+	moveq	#0,d0			; Initialize "final missile" to "no missile"
+.shot_lp:
+	tst.w	(a0)			; End of missile list?
+	beq.s	.shots_moved
+	sub.b	#2,(a0)			; Advance missile
 	sub.b	#2,2(a0)
-	cmp.b	#$3a,d0
-	bne.s	.shot_done
-	clr.l	(a0)
-.no_shot:
+	move.l	(a0)+,d0		; Save advanced missile, update list ptr
+	bra.s	.shot_lp
+.shots_moved:
+	cmp.w	#$e000,d0		; Is there space for a new missile?
+	bcc.s	.shot_done		; If not, don't check fire button
+.shot_available:
 	btst	#7,CIAAPRA		; Fire button pressed?
 	bne.s	.shot_done
 	move.l	#$f000f600,(a0)
@@ -162,6 +181,10 @@ Main:	bsr	init_sprites
 .shot_done:
 
 	;; End frame
+;	move.w	VHPOSR(a5),d0		; Record final scanline
+;	lea	bmp,a0
+;	move.l	#$00ff10ff,(a0)		; Draw guide bars
+;	move.w	d0,42(a0)
 	move.b	#1,gfx_ready		; Signal VBLANK handler to draw now
 	tst.b	key_ready		; Loop back if ESC not pressed
 	beq	.gameloop
@@ -312,6 +335,20 @@ init_sprites:
 	bne.s	.lslp
 	rts
 
+;;; ----------------------------------------------------------------------
+;;;  Missile management routines
+;;; ----------------------------------------------------------------------
+
+	;; Delete the missile at a0. Leaves all registers intact.
+delete_missile:
+	movem.l	a0-1,-(a7)
+	tst.l	(a0)			; Do nothing at end of list!
+	beq.s	.done
+	lea	4(a0),a1
+.lp:	move.l	(a1)+,(a0)+
+	bne.s	.lp
+.done:	movem.l	(a7)+,a0-1
+	rts
 
 ;;; ----------------------------------------------------------------------
 ;;;  Public memory data
