@@ -72,8 +72,6 @@ Main:	bsr	init_sprites
 	bne.s	.gameloop
 
 	move.w	CLXDAT(a5),d0		; Load and clear collision data
-	tst.b	hit_timer		; Was there a collision too recently?
-	bne.s	.hit_wait		; If so, just count down timer
 	and.w	#$6000,d0		; Was there a hit this frame?
 	beq.s	.hit_done		; If not, we're done
 	lea	spr_missiles-4,a0	; If so, start scanning missiles
@@ -88,10 +86,7 @@ Main:	bsr	init_sprites
 	cmp.b	2(a0),d0		; Does missile end before target?
 	bcc.s	.hitlp			; If so, it's not this missile.
 	bsr	delete_missile		; If not, it *is* this missile...
-	bsr	award_point		; ...so delete it, award a point...
-	move.b	#2,hit_timer		; ...and ignore collisions next frame
-.hit_wait:
-	sub.b	#1,hit_timer
+	bsr	award_point		; ...so delete it and award a point
 .hit_done:
 
 	;; Read directional input
@@ -180,12 +175,41 @@ Main:	bsr	init_sprites
 	clr.l	4(a0)
 .shot_done:
 
-	;; End frame
+	;; Update actual graphics state
+	lea	sprite_ptrs+4,a0	; Start at first player control block
+	lea	spr_player,a1
+	move.l	(a0)+,a2		; Update player control on left-facing case
+	move.l	(a1),d0
+	move.l	d0,(a2)
+	move.l	a2,d1			; Remember left-facing control block
+	btst	#0,d0			; Are we on an odd pixel?
+	beq.s	.update_copper		; If not, d1 is fine...
+	move.l	(a0),d1			; But if so, use the right-facing graphic
+.update_copper:
+	lea	Copper+14,a2		; Update Sprite 0 pointer in the copper list
+	move.w	d1,4(a2)
+	swap	d1
+	move.w	d1,(a2)
+	moveq	#3,d0			; Update other facing, and all three targets
+.ezlp:	move.l	(a0)+,a2		; (the easy cases)
+	move.l	(a1)+,(a2)
+	dbra	d0,.ezlp
+	move.l	(a0),a2			; Load initial missile block (skip sprite 5)
+.shlp:	move.l	(a1)+,(a2)		; Load missile block
+	beq.s	.done			; If that was terminator, we're done!
+	add	#MISSILE_SIZE,a2	; Otherwise skip graphics to next control block
+	bra.s	.shlp
+.done:
+
+	;; Uncomment the block below to produce scanline-measuring chatter
+	;; in the upper left corner of the playfield
 ;	move.w	VHPOSR(a5),d0		; Record final scanline
 ;	lea	bmp,a0
 ;	move.l	#$00ff10ff,(a0)		; Draw guide bars
 ;	move.w	d0,42(a0)
-	move.b	#1,gfx_ready		; Signal VBLANK handler to draw now
+
+	;; End frame
+	move.b	#1,gfx_ready		; Alert VBLANK handler to signal us
 	tst.b	key_ready		; Loop back if ESC not pressed
 	beq	.gameloop
 
@@ -233,30 +257,7 @@ irq3_handler:
 	movem.l	d0-1/a0-2,-(a7)
 	move.b	gfx_ready,d0		; Is the graphics info ready yet?
 	beq.s	.end
-	lea	sprite_ptrs+4,a0	; Start at first player control block
-	lea	spr_player,a1
-	move.l	(a0)+,a2		; Update player control on left-facing case
-	move.l	(a1),d0
-	move.l	d0,(a2)
-	move.l	a2,d1			; Remember left-facing control block
-	btst	#0,d0			; Are we on an odd pixel?
-	beq.s	.update_copper		; If not, d1 is fine...
-	move.l	(a0),d1			; But if so, use the right-facing graphic
-.update_copper:
-	lea	Copper+14,a2		; Update Sprite 0 pointer in the copper list
-	move.w	d1,4(a2)
-	swap	d1
-	move.w	d1,(a2)
-	moveq	#3,d0			; Update other facing, and all three targets
-.ezlp:	move.l	(a0)+,a2		; (the easy cases)
-	move.l	(a1)+,(a2)
-	dbra	d0,.ezlp
-	move.l	(a0),a2			; Load initial missile block (skip sprite 5)
-.shlp:	move.l	(a1)+,(a2)		; Load missile block
-	beq.s	.done			; If that was terminator, we're done!
-	add	#MISSILE_SIZE,a2	; Otherwise skip graphics to next control block
-	bra.s	.shlp
-.done:	clr.b	gfx_ready		; Tell the main loop it's time to update again
+	clr.b	gfx_ready		; Tell the main loop it's time to update again
 .end:	move.w	#$0020,$dff000+INTREQ	; Acknowledge VERTB IRQ
 	movem.l	(a7)+,d0-1/a0-2
 	rte
@@ -367,7 +368,6 @@ key_ready:	dc.b	0
 	;; Abstract game state
 player_x:	dc.b	$90
 target_y:	dc.b	$50
-hit_timer:	dc.b	$00
 	even
 
 spr_player:	dc.l	$ef8dfc01
