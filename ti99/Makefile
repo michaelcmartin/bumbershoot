@@ -16,6 +16,10 @@ all-bin: $(BINARIES)
 clean:
 	rm -f $(BINARIES) $(ROMRPKS) $(GROMRPKS) $(ROMCTGS) $(GROMCTGS)
 
+gallery.asm: vdplib.asm
+cbanner.asm: vdplib.asm
+xorshift99.asm: vdplib.asm
+
 %c.bin: %.asm
 	xas99.py -Rb -o $@ $<
 
