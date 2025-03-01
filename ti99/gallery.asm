@@ -30,20 +30,18 @@ START	LWPI	>8300
 * Main Game Loop begins here
 LOOP	BL	@FRWAIT
 
-	CLR	R14
+	CLR	R14			* Clear collision bit
 	MOVB	@>837B,R0		* Check VDP status
 	SLA	R0,3			* Check collision bit
 	JNC	!			* And store it in R14 for
 	INC	R14			* easier checks later
 	BL	@SCORE			* also score the hit here
 !
-	LI	R0,>0100		* Read Joystick 1
-	MOVB	R0,@>8374
+	MOVB	@C01,@>8374
 	BL	@KSCAN
-	CLR	R0			* Reset screenblank counter
-	C	R0,@>8376		* If joystick moved
+	MOV	@>8376,R0		* If joystick moved...
 	JEQ	!
-	CLR	@>83D6
+	CLR	@>83D6			* ... reset screenblank counter
 !
 	.VLOAD	>8320,>0300,16		* Load player and targets
 	MOVB	@>8324,R13		* Save original target Y
@@ -51,16 +49,16 @@ LOOP	BL	@FRWAIT
 	MOVB	@>8377,R0		* Compute DX for player
 	SRA	R0,1
 	LI	R1,>8321		* Player X position address
-	LI	R2,>0600		* Player X OOB Left
-	LI	R3,>EA00		* Player X OOB Right
-	AB	R0,*R1
-	CB	R2,*R1
+	AB	R0,*R1			* Apply DX...
+	CB	@C06,*R1		* Check against left OOB...
 	JEQ	!
-	CB	R3,*R1
+	CB	@CEA,*R1		* Check against right OOB...
 	JNE	!!
-!	SB	R0,*R1
-!	AI	R1,3			* Point R1 to first target
-* Update targets
+!	SB	R0,*R1			* ... and undo DX if OOB.
+!	MOVB	@>8321,R12		* Save final player X position
+	AI	R1,3			* Point R1 to first target
+* Update targets. Constants are kept in workspace registers because we've
+* got the room for it.
 	LI	R0,>0200		* Target speed
 	LI	R2,>FE00		* Target boundary value
 	LI	R3,>8600		* Target early clock code
@@ -70,25 +68,24 @@ LOOP	BL	@FRWAIT
 	SRA	R6,1
 	LI	R7,>0A00		* Target Y OOB top
 	LI	R8,>8A00		* Target Y OOB bottom
-!TARGET	SB	R0,@1(R1)
-	SB	R6,*R1
-	CB	R7,*R1
+!TARGET	SB	R0,@1(R1)		* Apply target DX
+	SB	R6,*R1			* Apply target DY
+	CB	R7,*R1			* Check against top OOB...
 	JEQ	!
-	CB	R8,*R1
+	CB	R8,*R1			* Check against bottom OOB...
 	JNE	!!
-!	AB	R6,*R1
-!	CB	@1(R1),R2
-	JNE	!NEXT
-	CB	@3(R1),R3
+!	AB	R6,*R1			* ... and undo DY if OOB.
+!	CB	@1(R1),R2		* Check for X coord wrap-around
+	JNE	!NEXT			* next target if not
+	CB	@3(R1),R3		* Is early clock set already?
 	JEQ	!
-	MOVB	R3,@3(R1)
-	MOVB	R5,@1(R1)
+	MOVB	R3,@3(R1)		* If not, set early clock...
+	MOVB	R5,@1(R1)		* And reset X coord from -2 to 30
 	JMP	!NEXT
-!	MOVB	R4,@3(R1)
-!NEXT	AI	R1,4
-	CI	R1,>8330
+!	MOVB	R4,@3(R1)		* If so, leave X but clear early clock
+!NEXT	AI	R1,4			* Advance R1 to point to next target
+	CI	R1,>8330		* Loop until all targets done
 	JNE	-!TARGET
-	MOVB	@>8321,R5		* Save player X position
 	.VBLIT	>0300,>8320,16		* Sync data back to VRAM
 
 * Move shots
@@ -102,10 +99,10 @@ LOOP	BL	@FRWAIT
 	JEQ	!NEXT
 	CI	R14,0			* Checking collisions?
 	JEQ	!DOSHOT			* If not, don't
-	LI	R6,>0300		* Graphic bias for Y-range check
-	AB	R13,R6			* R6 = Target Y + 3
-	SB	*R1,R6			* R6 = Target Y - Shot Y + 3
-	CI	R6,>1000		* 0 <= R6 <= 16?
+	LI	R5,>0300		* Graphic bias for Y-range check
+	AB	R13,R5			* R6 = Target Y + 3
+	SB	*R1,R5			* R6 = Target Y - Shot Y + 3
+	CI	R5,>1000		* 0 <= R6 <= 16?
 	JH	!DOSHOT			* If not, missile still in flight
 	CLR	R14			* If so, acknowledge hit...
 	MOVB	R3,*R1			* ...delete shot...
@@ -121,73 +118,65 @@ LOOP	BL	@FRWAIT
 	CI	R1,>8340
 	JNE	-!SHOT
 
-	CI	R0,>7500		* Room for new shot?
+	CB	R0,@C75			* Room for new shot?
 	JH	!NOSHOT			* If not, no new shots
-	LI	R0,>1200		* Fire button pressed?
-	CB	R0,@>8375
-	JNE	!NOSHOT
+	CB	@C12,@>8375		* Fire button pressed?
+	JNE	!NOSHOT			* If not, no new shots
 	CLR	@>83D6			* Reset screen blank timer
 	LI	R1,>8320		* Search for unused shot
-!	CB	R3,*R1
-	JEQ	!
-	AI	R1,4
-	CI	R1,>8340
+!	CB	R3,*R1			* Is this shot offscreen?
+	JEQ	!			* If so, found
+	AI	R1,4			* otherwise, next shot
+	CI	R1,>8340		* Out of shots somehow?
 	JNE	-!
-	JMP	!NOSHOT
-!	LI	R0,>8900
-	MOVB	R0,*R1+
-	MOVB	R5,*R1
+	JMP	!NOSHOT			* If so, no new shots
+!	MOVB	@C89,*R1+		* Set new-shot Y coordinate
+	MOVB	R12,*R1			* Copy X coordinate from blaster
 !NOSHOT	.VBLIT	>0310,>8320,32		* Sync data back to VRAM
 	B	@LOOP
 
 * Support Routines
 
-*   SCORE: Award one point and update score in VRAM.
-*      In: Score is in R15 as 4-digit BCD.
-*     Out: Updated score is in R15 as 4-digit BCD.
-* Trashes: R0,R1,R2,R11
-SCORE	INC	R15			* Award point
-	MOV	R15,R0			* Decimal correct
-	ANDI	R0,>000F		* There is probably a better and
-	CI	R0,>000A		* less tedious way to do this but
-	JL	!			* it gets the job done adequately
-	AI	R15,6
-	MOV	R15,R0
-	ANDI	R0,>00F0
-	CI	R0,>00A0
-	JL	!
-	AI	R15,>60
-	MOV	R15,R0
-	ANDI	R0,>0F00
-	CI	R0,>0A00
-	JL	!
-	AI	R15,>600
-	MOV	R15,R0
-	ANDI	R0,>F000
-	CI	R0,>A000
-	JL	!
-	AI	R15,>6000		* End of decimal correct logic
-!	LI	R0,>1B40		* Set VRAM pointer to score location
+*   SCORE: Award one point and update score display. Two locals.
+SCORE	LI	R0,>1B40		* Set VRAM pointer
 	MOVB	R0,@>8C02
 	SWPB	R0
 	MOVB	R0,@>8C02
-	MOV	R11,R1			* Stash return value
-	MOV	R15,R0			* Print R15 a byte at a time
-	BL	@!			* With internal routine
-	MOV	R1,R11
-	MOV	R15,R0
-	SWPB	R0
-!	MOV	R0,R2			* Print top byte of R0 as BCD
-	SRL	R0,4
-	AI	R0,>3000
-	MOVB	R0,@>8C00
-	MOV	R2,R0
-	ANDI	R0,>0F00
-	AI	R0,>3000
-	MOVB	R0,@>8C00
+	INC	R15			* Award point
+	CI	R15,10000		* Wrap around?
+	JNE	!
+	CLR	R15			* If so, back to zero
+!	MOV	R15,R1			* Divide out each of the four digits
+	CLR	R0			* R15 becomes 32-bit val in R0-1
+	DIV	@C03E8,R0		* Divide thousands
+	AI	R0,>0030		* Turn quotient to ASCII
+	MOVB	@>8301,@>8C00		* And write to VRAM
+	CLR	R0			* Remainder in R1 is new dividend
+	DIV	@C0064,R0		* Continue for hundreds...
+	AI	R0,>0030
+	MOVB	@>8301,@>8C00
+	CLR	R0			* ... and tens...
+	DIV	@C000A,R0
+	AI	R0,>0030
+	MOVB	@>8301,@>8C00
+	AI	R1,>0030		* ... and write ones out of R1.
+	MOVB	@>8303,@>8C00
 	B	*R11
 
-* Game Data
+* Constant word data
+
+C000A	DATA	10
+C0064	DATA	100
+C03E8	DATA	1000
+
+* Constant byte data
+
+C01	BYTE	>01
+C06	BYTE	>06
+C12	BYTE	>12
+C75	BYTE	>75
+C89	BYTE	>89
+CEA	BYTE	>EA
 
 GFX_PATTERNS
 	BYTE	>10,>38,>BA,>BA,>FE,>FE,>92,>00	* >60: BLASTER
