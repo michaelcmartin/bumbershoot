@@ -1,4 +1,4 @@
-ROMS = cbanner gallery xorshift99
+ROMS = cbanner gallery nyancat xorshift99
 GROMS = gbanner
 
 BINARIES = $(patsubst %,%c.bin,$(ROMS)) $(patsubst %,%g.bin,$(GROMS))
@@ -16,8 +16,9 @@ all-bin: $(BINARIES)
 clean:
 	rm -f $(BINARIES) $(ROMRPKS) $(GROMRPKS) $(ROMCTGS) $(GROMCTGS)
 
-gallery.asm: vdplib.asm
 cbanner.asm: vdplib.asm
+gallery.asm: vdplib.asm
+nyancat.asm: vdplib.asm
 xorshift99.asm: vdplib.asm
 
 %c.bin: %.asm

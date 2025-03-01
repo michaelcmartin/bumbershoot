@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# A Chiptune rendition of the Nyancat song, itself adapted from
+# Vincent Johnson's arrangement, as seen improvised upon by Tom
+# Brier here: https://www.youtube.com/watch?v=dIivJwz5jL8
+
 nyan = ["""r-0-32
 
 g-5-2 a-5-2 e-5-1 e-5-2 c-5-1 d#5-1 d-5-1 c-5-2 c-5-2 d-5-2
@@ -79,6 +83,28 @@ f-3-2 f-4-2 r-0-2 f-4-2 e-3-2 e-4-2 g-3-2 c-4-2
 a-3-2 f-4-2 r-0-2 f-4-2 r-0-2 e-4-2 r-0-2 e-4-2
 f-3-2 f-4-2 r-0-2 f-4-2 e-3-2 f-3-2 f#3-2 g-3-2"""]
 
+
+def textdump_z88dk(result, loop_point):
+    i = 0
+    val = ""
+    for byt in result:
+        if i % 16 == 0 or i == loop_point:
+            if i == 0:
+                val += 'song:   '
+            elif i == loop_point:
+                val += '\nsegno:  '
+                i = 0
+                loop_point = -1
+            else:
+                val += '\n        '
+            val += 'defb    '
+        else:
+            val += ','
+        val += '$%02x' % byt
+        i += 1
+    return val
+
+
 notes = { 'c-':  1,
           'c#':  2,
           'd-':  3,
@@ -142,24 +168,9 @@ while i < len(song):
     for j in range(len(frame)):
         result.extend(psg_pokes(frame[j], j))
 result.append(0) # end of song
-    
-i = 0
-val = ""
-for byt in result:
-    if i % 16 == 0 or i == loop_point:
-        if i == 0:
-            val += 'song:   '
-        elif i == loop_point:
-            val += '\nsegno:  '
-            i = 0
-            loop_point = -1
-        else:
-            val += '\n        '
-        val += 'defb    '
-    else:
-        val += ','
-    val += '$%02x' % byt
-    i += 1
-print(val)
 
-    
+# print(textdump_z88dk(result, loop_point))
+out = open("nyansong.bin", "wb")
+out.write(bytes(result))
+out.close()
+print(f"segno = song + {loop_point}")
