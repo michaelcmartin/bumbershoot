@@ -95,7 +95,7 @@ LOOP	BL	@FRWAIT
 	LI	R4,>FF00		* Shot Y OOB top
 !SHOT	CB	R3,*R1
 	JEQ	!NEXT
-	CI	R14,0			* Checking collisions?
+	MOV	R14,R14			* Checking collisions?
 	JEQ	!DOSHOT			* If not, don't
 	LI	R5,>0300		* Graphic bias for Y-range check
 	AB	R13,R5			* R6 = Target Y + 3
