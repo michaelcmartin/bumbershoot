@@ -13,17 +13,15 @@ START	LWPI	>8300
 	.VFILL	32,>63,32
 	.VFILL	>2A0,>68,>60
 	.VFILL	>380,>F0,32
-	LI	R0,>E100		* Tell BIOS our VDP1 value
-	MOVB	R0,@>83D4
-	CLR	R0
-	MOVB	R0,@>837A		* Disable BIOS sprite motion
-	.VREG	1,>E1
-	.VREG	6,>01
-	.VREG	7,>F1
 	.VWRITE	>38D,>22
 	.VBLIT	>0B00,GFX_PATTERNS,32
 	.VBLIT	>0014,STR_SCORE,11
 	.VBLIT	>0300,SPR_INITIAL,49
+	MOVB	@C00,@>837A		* Disable BIOS sprite motion
+	MOVB	@CE1,@>83D4		* Tell BIOS our VDP1 value
+	.VREG	1,>E1
+	.VREG	6,>01
+	.VREG	7,>F1
 	CLR	R15			* Clear score
 	BL	@FRWAIT			* Wait a frame to stabilize sprites
 
@@ -165,6 +163,7 @@ SCORE	LI	R0,>1B40		* Set VRAM pointer
 
 * Constant word data
 
+C00
 C000A	DATA	10
 C0064	DATA	100
 C03E8	DATA	1000
@@ -176,6 +175,7 @@ C06	BYTE	>06
 C12	BYTE	>12
 C75	BYTE	>75
 C89	BYTE	>89
+CE1	BYTE	>E1
 CEA	BYTE	>EA
 
 GFX_PATTERNS
