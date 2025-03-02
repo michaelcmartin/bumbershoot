@@ -106,12 +106,13 @@ LOOP	BL	@FRWAIT
 	MOVB	R3,*R1			* ...delete shot...
 	JMP	!NEXT			* ...and skip update
 !DOSHOT	AB	R2,*R1
-	CB	*R1,R0
-	JL	!
-	MOVB	*R1,R0
-!	CB	R4,*R1
-	JNE	!NEXT
+	CB	R4,*R1
+	JNE	!
 	MOVB	R3,*R1
+	JMP	!NEXT
+!	CB	*R1,R0
+	JL	!NEXT
+	MOVB	*R1,R0
 !NEXT	AI	R1,4
 	CI	R1,>8340
 	JNE	-!SHOT
