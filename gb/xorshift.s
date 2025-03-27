@@ -4,8 +4,8 @@
         EXPORT  rnd_init
 
         SECTION "rnd_vars", HRAM
-rnd_x   DS      2
-rnd_y   DS      2
+rnd_x:  DS      2
+rnd_y:  DS      2
 
         SECTION "rnd", ROM0
 rnd_init:

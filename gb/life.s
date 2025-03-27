@@ -15,10 +15,10 @@
         EXPORT  life_blit_scroll
 
         SECTION "LIFERAM",WRAM0
-LS_W    EQU     20
-LS_H    EQU     16
-LN_W    EQU     (LS_W+2)
-LN_H    EQU     (LS_H+2)
+        DEF     LS_W    EQU     20
+        DEF     LS_H    EQU     16
+        DEF     LN_W    EQU     (LS_W+2)
+        DEF     LN_H    EQU     (LS_H+2)
 
 state:
         DS      (LS_W * LS_H)

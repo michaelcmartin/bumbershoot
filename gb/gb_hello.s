@@ -13,7 +13,7 @@ fontbase:
         db      $00,$7e,$18,$18,$18,$18,$18,$00
         db      $00,$46,$46,$46,$46,$4e,$3c,$00
         db      $00,$46,$46,$56,$7e,$6e,$46,$00
-fontsize EQU (@-fontbase)
+        def fontsize EQU (@-fontbase)
 
         SECTION "MAIN",ROM0
 program_start:

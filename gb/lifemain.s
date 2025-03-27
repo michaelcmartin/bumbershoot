@@ -30,7 +30,7 @@ fontbase:
         db      $00,$62,$62,$62,$62,$34,$18,$00 ; V
         db      $00,$62,$62,$62,$6A,$76,$62,$00 ; W
         db      $00,$62,$62,$3C,$18,$18,$18,$00 ; Y
-fontsize EQU (@-fontbase)
+	def	fontsize EQU (@-fontbase)
 
         ;; Scrolltext message
 scrolltext:
