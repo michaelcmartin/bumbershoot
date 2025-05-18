@@ -11,21 +11,21 @@
         ;; Notes that are played have their volume decay one tick every
         ;; other frame until they are silent.
         org     0
-        defc    psg=$7f11
+psg     equ     0x7f11
 
 rst_0:  di
         im      1
-        ld      sp, $2000
+        ld      sp, 0x2000
         ei
 rst_lp: jr      rst_lp
 
-        defs    $20-ASMPC
+        defs    0x20-$,0
 
 ptr:    defw    song
-vol:    defb    $1f, $1f, $1f
-wait:   defb    $01
+vol:    defb    0x1f, 0x1f, 0x1f
+wait:   defb    0x01
 
-        defs    $38-ASMPC
+        defs    0x38-$,0
 
 rst_38: push    af
         push    de
@@ -77,28 +77,28 @@ v3:     ld      a, (hl)
         ld      (vol+2), a
 vdone:  ld      (ptr), hl
 decay:  ld      a, (vol)
-        cp      a, $1f
+        cp      0x1f
         jr      z, nodec1
         inc     a
         ld      (vol), a
 nodec1: srl     a
-        or      $90
+        or      0x90
         ld      (de), a
         ld      a, (vol+1)
-        cp      a, $1f
+        cp      0x1f
         jr      z, nodec2
         inc     a
         ld      (vol+1), a
 nodec2: srl     a
-        or      $b0
+        or      0xb0
         ld      (de), a
         ld      a, (vol+2)
-        cp      a, $1f
+        cp      0x1f
         jr      z, nodec3
         inc     a
         ld      (vol+2), a
 nodec3: srl     a
-        or      $d0
+        or      0xd0
         ld      (de), a
 
         pop     hl
@@ -107,5 +107,5 @@ nodec3: srl     a
         ei
         reti
 
-song:	binary "res/nyansong.bin"
-	defc	segno=song+130
+song:   incbin  "res/nyansong.bin"
+segno   equ     song+130
