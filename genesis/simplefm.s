@@ -27,7 +27,7 @@ SetupFM:
         rts
 
 .PlayerProg:
-        include "fm_mus.s80"
+        incbin  "fm_mus.bin"
 .PlayerProgEnd:
 
         align   2

@@ -27,7 +27,7 @@ SetupDAC:
         rts
 
 .PlayerProg:
-        include "8k_dac.s80"
+        incbin  "8k_dac.bin"
 .PlayerProgEnd:
 
         align   2

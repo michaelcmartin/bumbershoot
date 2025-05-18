@@ -27,7 +27,7 @@ SetupPSG:
         rts
 
 .PlayerProg:
-        include "psg80.s80"
+        incbin  "psg80.bin"
 .PlayerProgEnd:
 
         align   2

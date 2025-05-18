@@ -75,12 +75,12 @@ BumbershootLogo:
         dc.w    $0AAA,$0CCA,$0ECC,$0EEE,$0EEC,$0000,$0000,$0000
 
 .logo:
-        include "logogfx.hex"
+        incbin  "res/logogfx.bin"
 .logoend:
 
         ;; Put our sound sample on a 32KB boundary so the Z80 can see
         ;; it all at once
         org     (*+$7fff)&$ff8000
 .logosong:
-        include "bumbersong.hex"
+        incbin  "res/bumbersong.bin"
 .logosong_end:
