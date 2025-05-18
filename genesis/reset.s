@@ -103,8 +103,18 @@ RESET:  tst.l   $a10008
         ;; VRAM fill target
         dc.w    $4000, $0080
 
-        ;; Z80 Initialization Code (Sets DI and IM 1 then loops)
-        hex     f3 ed 56 21 06 00 e9 00
+        ;; Z80 Initialization Code
+        rorg    0
+        cpu     z80
+
+        di
+        im      1
+        ld      hl, .z80lp
+.z80lp: jp      (hl)
+        defb    0                       ; Alignment byte
+
+        cpu     68000
+        rend
 
         ;; CRAM and VSRAM fill controls commands
         dc.w    $8104, $8f02, $c000, $0000, $4000, $0010
