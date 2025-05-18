@@ -1,10 +1,10 @@
 all: hello.smd bumberlogo.smd sprcont.smd cca.smd
 
 clean:
-	rm -f *.s37 *.smd *.bin *.obj *.sym *.lst *.map *.s80 *.hex
+	rm -f *.s37 *.smd *.bin *.obj *.o *.sym *.lst *.map *.s80 *.hex
 
 tidy:
-	rm -f *.s37 *.bin *.obj *.sym *.map *.s80 *.hex
+	rm -f *.s37 *.bin *.obj *.o *.sym *.map *.s80 *.hex
 
 hello.s37: reset.s sinestra.s
 bumberlogo.s37: reset.s logo.s 8k_dac.s 8k_dac.s80
@@ -12,9 +12,11 @@ bumberlogo.s37: logogfx.hex bumbersong.hex
 cca.s37: reset.s fakecga.s logo.s joystick.s xorshift.s 8k_dac.s 8k_dac.s80
 cca.s37: ccamain.s logogfx.hex bumbersong.hex simplefm.s fm_mus.s80
 sprcont.s37: reset.s sinestra.s text.s joystick.s psg.s psg80.s80
+fm_mus.bin: res/bachsong.bin
+psg80.bin: res/nyansong.bin
 
 %.bin: %.asm
-	z80asm -b $<
+	asmx -C z80 -w -e -b -o $@ $<
 
 %.s80: %.bin
 	od -An -t x1 -v < $< | sed 's/^/        HEX     /' > $@
