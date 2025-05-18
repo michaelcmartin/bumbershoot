@@ -12,14 +12,14 @@ CCAReset:
         movem.l d2-d3/a2, -(sp)
         movea.l CurBuf, a2
         move.w  #4095, d2
-@lp:    bsr     rnd
+.lp:    bsr     rnd
         moveq   #3, d3
-@cell:  move.w  d0, d1
+.cell:  move.w  d0, d1
         and.b   #$0f, d1
         move.b  d1, (a2)+
         lsr.w   #4, d0
-        dbra    d3, @cell
-        dbra    d2, @lp
+        dbra    d3, .cell
+        dbra    d2, .lp
         ;; A reset has happened. Don't allow new reset requests until
         ;; START has been released for at least one frame.
         move.b  #2, reset_requested
@@ -33,8 +33,8 @@ CCARender:
         movea.l CurBuf, a0
         lea     CCA_vram_mirror, a1
         moveq   #63, d0         ; Pairs of rows
-@rows:  moveq   #63, d1         ; Pairs of columns
-@cols:  ;; Bottom row first
+.rows:  moveq   #63, d1         ; Pairs of columns
+.cols:  ;; Bottom row first
         move.w  #$0100, d2      ; after the shift, v-flip on
         move.b  128(a0), d2
         asl.w   #4, d2
@@ -46,10 +46,10 @@ CCARender:
         asl.w   #4, d2
         or.b    (a0)+, d2
         move.w  d2, (a1)+
-        dbra    d1, @cols
+        dbra    d1, .cols
         ;; Skip the row we just dealt with
         add.w   #128, a0
-        dbra    d0, @rows
+        dbra    d0, .rows
         ;; Clean up, we're done
         move.b  #2, mirror_ready
         move.l  (sp)+, d2
@@ -75,72 +75,72 @@ CCAStep:
         add.w   #129, a2        ; upper left corner
         movea.l a1, a3          ; And do the same with a3 and target
         add.w   #129, a3        ; matrix
-@lp:    move.b  (a2), d4        ; d4 = this cell's color
+.lp:    move.b  (a2), d4        ; d4 = this cell's color
         move.b  d4, d5
         addq    #1, d5
         and.b   #$0f, d5        ; d5 = (d4 + 1) & 0x0f = target color
         cmp.b   -128(a2), d5    ; Check N neighbor
-        beq.s   @eat
+        beq.s   .eat
         cmp.b   -1(a2), d5      ; Check W neighbor
-        beq.s   @eat
+        beq.s   .eat
         cmp.b   1(a2), d5       ; Check E neighbor
-        beq.s   @eat
+        beq.s   .eat
         cmp.b   128(a2), d5     ; Check S neighbor
-        bne.s   @next
-@eat:   move.b  d5, d4          ; Final color is one step up
-@next:  move.b  d4, (a3)        ; Store final (possibly initial) color in target
+        bne.s   .next
+.eat:   move.b  d5, d4          ; Final color is one step up
+.next:  move.b  d4, (a3)        ; Store final (possibly initial) color in target
         addq    #1, a2
         addq    #1, a3
-@lpend: dbra    d2, @lp
+.lpend: dbra    d2, .lp
 
         ;; Now check the corners
         move.w  #127, d6
-@lp3:   move.w  d6, d2
+.lp3:   move.w  d6, d2
         moveq   #0, d3
-        bsr.s   @dopt
+        bsr.s   .dopt
         exg     d2, d3
-        bsr.s   @dopt
+        bsr.s   .dopt
         move.w  #127, d2
-        bsr.s   @dopt
+        bsr.s   .dopt
         exg     d2, d3
-        bsr.s   @dopt
-        dbra    d6, @lp3
+        bsr.s   .dopt
+        dbra    d6, .lp3
 
         movem.l (sp)+, d2-d6/a0-a3
         rts
 
-@index: move.w  d2, d0          ; d0 = (y & 0x7f) * 128
+.index: move.w  d2, d0          ; d0 = (y & 0x7f) * 128
         lsl.w   #7, d0
         move.w  d3, d1          ; d1 = (x & 0x7f)
         or.w    d1, d0          ; d0 = ((y & 0x7f) * 128) + (x & 0x7f)
         rts
-@check: bsr     @index
+.check: bsr     .index
         cmp.b   (a0, d0), d5
-        bne.s   @done
+        bne.s   .done
         move.b  d5, d4
-@done:  rts
+.done:  rts
 
-@dopt:  bsr     @index
+.dopt:  bsr     .index
         move.b  (a0, d0), d4    ; d4 = this cell's color
         move.b  d4, d5
         addq    #1, d5
         and.b   #$0f, d5        ; d5 = (d4 + 1) & 0x0f = target color
         subq    #1, d2
         and.w   #$7f, d2
-        bsr.s   @check
+        bsr.s   .check
         addq    #2, d2
         and.w   #$7f, d2
-        bsr.s   @check
+        bsr.s   .check
         subq    #1, d2
         and.w   #$7f, d2
         subq    #1, d3
         and.w   #$7f, d3
-        bsr.s   @check
+        bsr.s   .check
         addq    #2, d3
         and.w   #$7f, d3
-        bsr.s   @check
+        bsr.s   .check
         subq    #1, d3
         and.w   #$7f, d3
-        bsr.s   @index
+        bsr.s   .index
         move.b  d4, (a1, d0)
         rts

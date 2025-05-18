@@ -6,15 +6,15 @@ SetupDAC:
         movea.l #$00a11100, a0
         move.w  d1,(a0)
         move.w  d1,$100(a0)
-@ZWait: btst    d0,(a0)
-	bne.s   @ZWait
+.ZWait: btst    d0,(a0)
+	bne.s   .ZWait
 
         ;; Load Z80 player program
         move.l  #$00a00000, a0
-        lea     @PlayerProg(pc), a1
-        move.w  #(@PlayerProgEnd - @PlayerProg - 1),d0
-@ZFill: move.b  (a1)+,(a0)+
-        dbra    d0,@ZFill
+        lea     .PlayerProg(pc), a1
+        move.w  #(.PlayerProgEnd - .PlayerProg - 1),d0
+.ZFill: move.b  (a1)+,(a0)+
+        dbra    d0,.ZFill
 
         ;; Give control back to Z80
         movea.l #$00a11100, a0
@@ -26,9 +26,9 @@ SetupDAC:
         move.l  (sp)+, a2
         rts
 
-@PlayerProg:
+.PlayerProg:
         include "8k_dac.s80"
-@PlayerProgEnd:
+.PlayerProgEnd:
 
         align   2
 
@@ -39,8 +39,8 @@ PlaySample:
         move.l  4(sp), d0
         moveq   #0, d1
         move.w  8(sp), d1
-@z1:    btst    #0, (a1)
-        bne.s   @z1
+.z1:    btst    #0, (a1)
+        bne.s   .z1
         move.b  d1, (a0)+
         lsr.l   #8, d1
         move.b  d1, (a0)+

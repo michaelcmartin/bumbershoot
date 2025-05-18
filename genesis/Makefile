@@ -6,12 +6,12 @@ clean:
 tidy:
 	rm -f *.s37 *.bin *.obj *.o *.sym *.map *.s80 *.hex
 
-hello.s37: reset.s sinestra.s
+hello.s37: reset.s res/sinestra.bin
 bumberlogo.s37: reset.s logo.s 8k_dac.s 8k_dac.s80
 bumberlogo.s37: logogfx.hex bumbersong.hex
 cca.s37: reset.s fakecga.s logo.s joystick.s xorshift.s 8k_dac.s 8k_dac.s80
 cca.s37: ccamain.s logogfx.hex bumbersong.hex simplefm.s fm_mus.s80
-sprcont.s37: reset.s sinestra.s text.s joystick.s psg.s psg80.s80
+sprcont.s37: reset.s text.s joystick.s psg.s psg80.s80 res/sinestra.bin
 fm_mus.bin: res/bachsong.bin
 psg80.bin: res/nyansong.bin
 
@@ -25,10 +25,10 @@ psg80.bin: res/nyansong.bin
 	od -An -t x1 -v < $< | sed 's/^/        HEX     /' > $@
 
 %.s37: %.s
-	asm68k -w -e -s37 -o $@ $<
+	asmx -C 68000 -w -e -s37 -o $@ $<
 
 %.lst: %.s
-	asm68k -w -e -l $@ $<
+	asmx -C 68000 -w -e -l $@ $<
 
 %.smd: %.s37
 	tools/srec2smd.py $< $@

@@ -55,15 +55,15 @@ LoadFont:
         movea.l 4(sp), a1
         movem.l d2-d3, -(sp)
         move.w  #$1ff,d0
-@lp:    move.b  (a1)+, d1
+.lp:    move.b  (a1)+, d1
         moveq   #7, d2
-@lp2:   asl.l   #4, d3
+.lp2:   asl.l   #4, d3
         asl.b   #1, d1
-        bcc.s   @nobit
+        bcc.s   .nobit
         ori.b   #1, d3
-@nobit: dbra    d2, @lp2
+.nobit: dbra    d2, .lp2
         move.l  d3, (a0)
-        dbra    d0, @lp
+        dbra    d0, .lp
         movem.l (a7)+, d2-d3
         rts
 
@@ -81,13 +81,13 @@ WriteStr:
         lsl.w   #5, d0
         movea.l VRAM_DATA(pc), a0
         move.l  8(sp), a1
-@lp:    move.b  (a1)+, d0
-        beq.s   @done
+.lp:    move.b  (a1)+, d0
+        beq.s   .done
         add.w   #$4e0, d0
         move.w  d0, (a0)
         andi.w  #$6000, d0
-        bra.s   @lp
-@done:  move.l  a1, d0
+        bra.s   .lp
+.done:  move.l  a1, d0
         addq.l  #1, d0
         andi.b  #$fe, d0
         rts

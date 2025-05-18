@@ -112,12 +112,12 @@ VBL:    movem.l d0-d2/a0-a1, -(sp)
         move.l  #$40000010, 4(a0)
         move.w  (a1), d1
         btst    #0, d0
-        beq.s   @noup
+        beq.s   .noup
         subq    #1, d1
-@noup:  btst    #1, d0
-        beq.s   @nodn
+.noup:  btst    #1, d0
+        beq.s   .nodn
         addq    #1, d1
-@nodn:  move.w  d1, (a0)
+.nodn:  move.w  d1, (a0)
         move.w  d1, (a0)
         move.w  d1, (a1)
         ;; VRAM WRITE to $AC00 (Horizontal scroll table)
@@ -125,39 +125,39 @@ VBL:    movem.l d0-d2/a0-a1, -(sp)
         addq    #2, a1
         move.w  (a1), d1
         btst    #2, d0
-        beq.s   @nolt
+        beq.s   .nolt
         addq    #1, d1
-@nolt:  btst    #3, d0
-        beq.s   @nort
+.nolt:  btst    #3, d0
+        beq.s   .nort
         subq    #1, d1
-@nort:  move.w  d1, (a0)
+.nort:  move.w  d1, (a0)
         move.w  d1, (a0)
         move.w  d1, (a1)
         ;; Process the START button and reset_requested
         move.b  reset_requested, d1
         btst    #7, d0
-        bne.s   @start_pressed
+        bne.s   .start_pressed
         ;; START released. we can start respecting STARTs again.
         bclr    #1, d1
-        bra.s   @start_processed
-@start_pressed:
+        bra.s   .start_processed
+.start_pressed:
         btst    #1, d1          ; Is this the last reset's press?
-        bne.s   @start_processed
+        bne.s   .start_processed
         bset    #0, d1
-@start_processed:
+.start_processed:
         move.b  d1, reset_requested
         ;; Check if we need to blit a layer
         move.b  mirror_ready, d0
-        bne.s   @dma
-@done:  movem.l (sp)+, d0-d2/a0-a1
+        bne.s   .dma
+.done:  movem.l (sp)+, d0-d2/a0-a1
         rte
-@dma:   move.l  #$40000083, d1  ; Target DMA for first blit
+.dma:   move.l  #$40000083, d1  ; Target DMA for first blit
         move.l  #$9640977f, d2  ; Source RAM for first blit
         subq    #1, d0          ; Is this the first blit?
-        bne.s   @first
+        bne.s   .first
         move.l  #$60000083, d1  ; If not, adjust target and source
         move.l  #$9650977f, d2  ; addresses as needed
-@first: move.b  d0, mirror_ready ; Either way, save new blits-remaining.
+.first: move.b  d0, mirror_ready ; Either way, save new blits-remaining.
         ;; Now enable DMA, load in length and source addresses.
         ;; This assumes 512-byte alignment for each blit source, which we
         ;; do in fact have.
@@ -165,7 +165,7 @@ VBL:    movem.l d0-d2/a0-a1, -(sp)
         move.l  #$94109500, 4(a0)
         move.l  d2, 4(a0)
         move.l  d1, 4(a0)
-        bra     @done
+        bra     .done
 
         include "ccamain.s"
         include "joystick.s"

@@ -59,15 +59,15 @@
         move.l  #$44000000, 4(a0)
         movea.l #font, a1
         move.w  #(fontend-font)-1,d0
-@lp:    move.b  (a1)+, d1
+.lp:    move.b  (a1)+, d1
         moveq   #7, d2
-@lp2:   asl.l   #4, d3
+.lp2:   asl.l   #4, d3
         asl.b   #1, d1
-        bcc.s   @nobit
+        bcc.s   .nobit
         ori.b   #1, d3
-@nobit: dbra    d2, @lp2
+.nobit: dbra    d2, .lp2
         move.l  d3, (a0)
-        dbra    d0, @lp
+        dbra    d0, .lp
 
         ;; Load some colors into VRAM
         move.l  #$c0000000, 4(a0)
@@ -93,15 +93,15 @@ strout: ori     #$4000, d0
         move.w  d0, 4(a0)
         move.w  #$0003, 4(a0)
         clr.l   d0
-@lp:    move.b  (a1)+, d0
-        beq.s   @done
+.lp:    move.b  (a1)+, d0
+        beq.s   .done
         move.w  d0, (a0)
-        bra.s   @lp
-@done:  rts
+        bra.s   .lp
+.done:  rts
 
         align   2
 font:
-        include "sinestra.s"
+        incbin  "res/sinestra.bin"
 fontend:
 
 msg1:   dc.b    "HELLO FROM",0

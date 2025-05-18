@@ -101,20 +101,20 @@ main:   subq    #8, sp          ; Reserve space for fn args
         moveq   #$0, d7
         lea     upstr(pc), a3
 mainlp: move.l  VRAM_CONTROL(pc), a0
-@v1:    move.w  (a0), d0
+.v1:    move.w  (a0), d0
         btst    #3, d0          ; Wait for no VBLANK
-        bne.s   @v1
-@v2:    move.w  (a0), d0
+        bne.s   .v1
+.v2:    move.w  (a0), d0
         btst    #3, d0          ; Wait for VBLANK
-        beq.s   @v2
+        beq.s   .v2
         ;; Clear the control display
         move.l  #(VRAM_WRITE << 16) | ($C000+128*11), (sp)
         bsr     SetVRAMPtr
         moveq   #$0,d0
         subq.l  #4,a0           ; VRAM_DATA
         move.w  #64*5-1,d1
-@clr:   move.w  d0,(a0)
-        dbra    d1, @clr
+.clr:   move.w  d0,(a0)
+        dbra    d1, .clr
 
         ;; Now display the controls that are active
         lea     button_table(pc), a2
@@ -122,16 +122,16 @@ mainlp: move.l  VRAM_CONTROL(pc), a0
         move.w  d0, d2
         move.w  d0, d7
         moveq   #$7, d3
-@dlp:   moveq   #0, d4
+.dlp:   moveq   #0, d4
         move.w  (a2)+, d4
         lsr     #1, d2
-        bcc.s   @dnxt
+        bcc.s   .dnxt
         move.w  (a3, d4.w), (sp)
         move.w  #0, 2(sp)
         lea     2(a3, d4.w), a0
         move.l  a0, 4(sp)
         bsr     WriteStr
-@dnxt:  dbra    d3, @dlp
+.dnxt:  dbra    d3, .dlp
 
         ;; Now update the sprite position
         move.w  d7, (sp)
@@ -152,14 +152,14 @@ DrawStrings:
         move.l  4(sp), a0
         subq    #8, sp
         move.w  #0, 2(sp)
-@lp:    move.w  (a0)+, d0
-        beq.s   @done
+.lp:    move.w  (a0)+, d0
+        beq.s   .done
         move.w  d0, (sp)
         move.l  a0, 4(sp)
         bsr     WriteStr
         move.l  d0, a0
-        bra.s   @lp
-@done:  addq    #8, sp
+        bra.s   .lp
+.done:  addq    #8, sp
         rts
 
 init_sprites:
@@ -171,23 +171,23 @@ init_sprites:
         bsr     SetVRAMPtr
         lea     sprite_img(pc), a0
         moveq   #$0f, d0
-@lp:    move.l  (a0)+, (a2)
-        dbra    d0, @lp
+.lp:    move.l  (a0)+, (a2)
+        dbra    d0, .lp
         ;; Step 2: Load up our sprite colors
         move.l  #(CRAM_WRITE << 16) | $0020, (sp)
         bsr     SetVRAMPtr
         moveq   #$07, d0
         moveq   #$00, d1
-@lp2:   move.w  d1, (a2)
+.lp2:   move.w  d1, (a2)
         add     #$0022, d1
-        dbra    d0, @lp2
+        dbra    d0, .lp2
         ;; Step 3: Load up our sprite attributes
         move.l  #(VRAM_WRITE << 16) | $A800, (sp)
         bsr     SetVRAMPtr
         lea     sprite_attrs(pc), a0
         moveq   #$09, d0
-@lp3:   move.l  (a0)+, (a2)
-        dbra    d0, @lp3
+.lp3:   move.l  (a0)+, (a2)
+        dbra    d0, .lp3
         ;; Step 4: Load the initial cursor position into place
         lea     ptr_y, a0
         move.w  #128+112, (a0)+
@@ -201,37 +201,37 @@ move_cursor:
         move.w  4(sp), d0
         lea     ptr_y, a0
         move.w  (a0), d1
-@up:    lsr     #1, d0
-        bcc.s   @down
+.up:    lsr     #1, d0
+        bcc.s   .down
         subq.w  #1, d1
-@down:  lsr     #1, d0
-        bcc.s   @ychk
+.down:  lsr     #1, d0
+        bcc.s   .ychk
         addq    #1, d1
-@ychk:  cmp.w   #128, d1
-        bge.s   @ychk2
+.ychk:  cmp.w   #128, d1
+        bge.s   .ychk2
         move.w  #128,d1
-@ychk2: cmp.w   #128+224, d1
-        blt.s   @left
+.ychk2: cmp.w   #128+224, d1
+        blt.s   .left
         move.w  #128+223, d1
-@left:  move.w  d1, (a0)+
+.left:  move.w  d1, (a0)+
         move.w  (a0), d1
         lsr     #1, d0
-        bcc.s   @right
+        bcc.s   .right
         subq.w  #1, d1
-@right: lsr     #1, d0
-        bcc.s   @xchk
+.right: lsr     #1, d0
+        bcc.s   .xchk
         addq.w  #1, d1
-@xchk:  cmp.w   #128, d1
-        bge.s   @xchk2
+.xchk:  cmp.w   #128, d1
+        bge.s   .xchk2
         move.w  #128, d1
-@xchk2: cmp.w   #128+320, d1
-        blt.s   @done
+.xchk2: cmp.w   #128+320, d1
+        blt.s   .done
         move.w  #128+319, d1
-@done:  move.w  d1, (a0)
+.done:  move.w  d1, (a0)
         rts
 
 sinestra:
-        include "sinestra.s"
+        incbin  "res/sinestra.bin"
 
 headers:
         align   2
