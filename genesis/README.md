@@ -1,3 +1,3 @@
 # Sega Genesis programs
 
-These programs are written to be assembled by [Bruce Tomlin's asmx assembler](http://xi6.com/projects/asmx/). Note that version 2.0b5 has a bug that makes S28 output not work; the build scripts here rely on S37 to work around this.
+These programs are written to be assembled by the [asmx assembler](https://github.com/db-electronics/asmx) for both the Motorola 68000 and Zilog Z80 components. Support programs may rely on Python or a C compiler to prepare.
