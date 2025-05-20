@@ -1,22 +1,23 @@
         org     $7000
-        defc    attrs=$5800
-        defc    attr_p=$5c8d
-        defc    attr_t=$5c8f
-        defc    bordcr=$5c48
-        defc    df_sz=$5c6b
-        defc    frames=$5c78
-        defc    last_k=$5c08
-        defc    tvflag=$5c3c
-        defc    udg=$5c7b
+attrs   equ     $5800
+attr_p  equ     $5c8d
+attr_t  equ     $5c8f
+bordcr  equ     $5c48
+df_sz   equ     $5c6b
+frames  equ     $5c78
+last_k  equ     $5c08
+tvflag  equ     $5c3c
+udg     equ     $5c7b
 
-        defc    board_x=7
-        defc    board_y=3
-        defc    default_attr=$07
-        defc    end_attr=$38
-        defc    off_attr_border=$00
-        defc    off_attr_letter=$04
-        defc    on_attr_border=$42
-        defc    on_attr_letter=$57
+board_x equ     7
+board_y equ     3
+
+default_attr    equ     $07
+end_attr        equ     $38
+off_attr_border equ     $00
+off_attr_letter equ     $04
+on_attr_border  equ     $42
+on_attr_letter  equ     $57
 
         call    draw_board
         ;; Seed RNG
