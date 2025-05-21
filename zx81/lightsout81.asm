@@ -1,4 +1,6 @@
         org     $4090
+        include "zx81text.asm"
+
         ;; Check memory size, and quit with error if it's under 2KB.
         ld      hl, no_mem_err
         ld      a, ($4005)
@@ -264,46 +266,42 @@ mp_1:   call    rnd
         djnz    mp_0
         ret
 
-INCLUDE "xorshift.asm"
+        include "xorshift.asm"
 
 ;;; Positioned messages, for poking into place. $FF-terminated, and the
 ;;; first two bytes indicate the offset into the display file to show
 ;;; them.
+        zx81inverse
 title_wait_msg:
         defw    $002D
-        defb    $B1,$AE,$AC,$AD,$B9,$B8,$80,$80,$B4,$BA,$B9,$FF
+        asc     "LIGHTS  OUT",$FF
         defw    $02BF
-        defb    $B5,$B1,$AA,$A6,$B8,$AA,$80,$80,$BC,$A6,$AE,$B9,$9B,$9B,$9B,$FF
+        asc     "PLEASE  WAIT...",$FF
 
 inst_msg:
         defw    $02BC
-        defb    $B5,$B7,$AA,$B8,$B8,$80,$B1,$AA,$B9,$B9,$AA,$B7,$B8,$80,$B9,$B4
-        defb    $80,$B2,$B4,$BB,$AA,$FF
+        asc     "PRESS LETTERS TO MOVE",$FF
         defw    $02D8
-        defb    $9D,$80,$AB,$B4,$B7,$80,$B3,$AA,$BC,$80,$B5,$BA,$BF,$BF,$B1,$AA
-        defb    $80,$80,$80,$80,$80,$9C,$80,$B9,$B4,$80,$B6,$BA,$AE,$B9,$FF
+        asc     "1 FOR NEW PUZZLE     0 TO QUIT",$FF
 
 win_again_msg:
         defw    $02BF
-        defb    $A8,$B4,$B3,$AC,$B7,$A6,$B9,$BA,$B1,$A6,$B9,$AE,$B4,$B3,$B8,$FF
+        asc     "CONGRATULATIONS",$FF
         defw    $02DF
-        defb    $B5,$B1,$A6,$BE,$80,$A6,$AC,$A6,$AE,$B3,$80,$90,$BE,$98,$B3,$91
-        defb    $8F,$FF
+        asc     "PLAY AGAIN (Y/N)?",$FF
 
 ;;; Unpositioned; these are for printing with RST 10 after play.
+        zx81text
 no_mem_err:
-        defb    $1E,$30,$27,$15,$00,$37,$26,$32,$00,$37,$2A,$36,$3A,$2E
-        defb    $37,$2A,$29,$1A,$00,$38,$34,$37,$37,$3E,$FF
+        asc     "2KB+ RAM REQUIRED, SORRY",$FF
 
 farewell_msg:
-        defb    $00,$00,$00,$00,$00,$00,$88,$88,$80,$80,$00,$31,$2E,$2C,$2D,$39
-        defb    $38,$00,$34,$3A,$39,$00,$80,$80,$88,$88,$76,$00,$00,$00,$27,$3A
-        defb    $32,$27,$2A,$37,$38,$2D,$34,$34,$39,$00,$38,$34,$2B,$39,$3C,$26
-        defb    $37,$2A,$1A,$00,$1E,$1C,$1D,$23,$76,$76,$76,$39,$2D,$26,$33,$30
-        defb    $38,$00,$2B,$34,$37,$00,$35,$31,$26,$3E,$2E,$33,$2C,$1B,$1B,$1b
-        defb    $76,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-        defb    $00,$16,$16,$32,$2E,$28,$2D,$26,$2A,$31,$00,$32,$26,$37,$39,$2E
-        defb    $33,$76,$FF
+        defb    $00,$00,$00,$00,$00,$00,$88,$88,$80,$80
+        asc     " LIGHTS OUT "
+        defb    $80,$80,$88,$88
+        asc     "\n   BUMBERSHOOT SOFTWARE, 2017\n\n\n"
+        asc     "THANKS FOR PLAYING...\n"
+        asc     "                --MICHAEL MARTIN\n",$FF
 
 on_border:
         defb    $07,$03,$84,$05,$85,$82,$83,$81

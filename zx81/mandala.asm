@@ -7,6 +7,7 @@
 ;;;   Redesigned and implemented by Michael Martin, 2019
 ;;; --------------------------------------------------------------------------
         org     $4090
+        include "zx81text.asm"
 
         ;; ROM routines
 KEYBOARD equ    $02bb          ; Scan keyboard
@@ -595,45 +596,57 @@ chopper_init:
 
         ;; Opening prompt for mode select
 mode_select_msg:
-        defb    $19,$14,$38,$2a,$31,$2a,$28,$39,$00,$2c,$26,$32,$2a,$00,$32
-        defb    $34,$29,$2a,$fe,$1b,$0c,$10,$1d,$11,$00,$32,$26,$33,$29,$26
-        defb    $31,$26,$00,$28,$2d,$2a,$28,$30,$2a,$37,$38,$fe,$1b,$0a,$10
-        defb    $1e,$11,$00,$28,$2d,$34,$35,$35,$2a,$37,$00,$28,$2d,$2a,$28
-        defb    $30,$2a,$37,$38,$ff
+        defb    $19,$14
+        asc     "SELECT GAME MODE"
+        defb    $fe,$1b,$0c
+        asc     "(1) MANDALA CHECKERS"
+        defb    $fe,$1b,$0a
+        asc     "(2) CHOPPER CHECKERS",$ff
 
         ;; Score display. Includes the actual score variables, which are
         ;; updated as the game proceeds. Cursor is homed after the score is
         ;; printed out.
 scores_msg:
-        defb    $0c,$18,$2d,$3a,$32,$26,$33,$0e,$fe,$02,$18
+        defb    $0c,$18
+        asc     "HUMAN:"
+        defb    $fe,$02,$18
 human_score:
-        defb    $1c,$fe,$0c,$16,$28,$34,$32,$35,$3a,$39,$2a,$37,$0e,$00
+        asc     "0"
+        defb    $fe,$0c,$16
+        asc     "COMPUTER: "
 computer_score:
-        defb    $1c,$fe,$21,$18,$ff
+        asc     "0"
+        defb    $fe,$21,$18,$ff
 
         ;; Human move prompt
 move_prompt_msg:
-        defb    $0c,$0d,$3e,$34,$3a,$37,$00,$32,$34,$3b,$2a,$0f,$fe,$0a,$0c
-        defb    $00,$00,$00,$00,$00,$fe,$0a,$0c,$ff
+        defb    $0c,$0d
+        asc     "YOUR MOVE?"
+        defb    $fe,$0a,$0c
+        asc     "     "
+        defb    $fe,$0a,$0c,$ff
 
         ;; Computer move report
 computer_move_msg:
-        defb    $0b,$10,$32,$3e,$00,$32,$34,$3b,$2a,$0e,$fe,$0a,$0f,$ff
+        defb    $0b,$10
+        asc     "MY MOVE:"
+        defb    $fe,$0a,$0f,$ff
 
         ;; Human wins
 human_wins_msg:
-        defb    $1e,$02,$3e,$34,$3a,$ff
+        defb    $1e,$02
+        asc     "YOU",$ff
 
         ;; Computer wins
 computer_wins_msg:
-        defb    $1d,$02,$2e,$ff
+        defb    $1d,$02
+        asc     "I",$ff
 
         ;; Computer concedes
 computer_concedes_msg:
-        defb    $1a,$03,$2e,$00,$28,$34,$33,$28,$2a,$29,$2a,$00,$39,$2d,$2a
-        defb    $00,$2c,$26,$32,$2a,$ff
+        defb    $1a,$03
+        asc     "I CONCEDE THE GAME",$ff
 
         ;; Play again?
 win_suffix_msg:
-        defb    $00,$3c,$2e,$33,$0e,$00,$35,$31,$26,$3e,$00,$26,$2c,$26,$2e
-        defb    $33,$00,$10,$3e,$18,$33,$11,$0f,$ff
+        asc     " WIN: PLAY AGAIN (Y/N)?",$ff

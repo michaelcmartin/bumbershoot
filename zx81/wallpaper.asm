@@ -4,16 +4,14 @@
         ;; WALLPAPER", published in "51 Game Programs for the Timex
         ;; Sinclair 1000 and 1500" (ed. Tim Hartnell).
 
-        ;; This file is intended to be assembled by z88dk, but does
-        ;; not require linking -- as a hybrid BASIC/machin code program
+        ;; This file is intended to be assembled by Sjasm, but does
+        ;; not require linking -- as a hybrid BASIC/machine code program
         ;; this file will assemble to a complete ZX81 memory dump on its
         ;; own. Assemble with the command:
         ;;
-        ;;       z80asm -b -r4009 wallpaper.asm
+        ;;       sjasm wallpaper.asm wallpaper.P
         ;;
-        ;; and then rename wallpaper.bin to WALLPAPER.P so that is will
-        ;; run in your emulator of choice. At least 2KB of RAM is
-        ;; required for proper operation.
+        ;; At least 2KB of RAM is required for proper operation.
 
         ;; .P files start at $4009
         org     16393
