@@ -1,6 +1,6 @@
-	defc	cls=$01c9
-	defc	kbdscn=$002b
-	defc	timer=$4216
+cls	equ	$01c9
+kbdscn	equ	$002b
+timer	equ	$4216
 
 	org	$6a00
 
@@ -104,4 +104,4 @@ stripe:	defb	$BF,$BF,$BF,$BF,$BF,$BF,$BF,$BF
 	defb	$BF,$BF,$BF,$BF,$BF,$B4,$BE,$BF
 	defb	$8F,$8F,$8F,$8F,$8F,$8F,$8F,$8F
 
-	defc	buffer=ASMPC
+buffer:

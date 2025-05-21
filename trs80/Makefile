@@ -7,10 +7,10 @@ bin2cmd: bin2cmd.c
 	./bin2cmd $< 6a00
 
 %.bin: %.asm
-	z80asm -b -r6a00 $<
+	sjasm $< $@
 
 tidy:
-	rm -f *.map *.bin *.obj *.sym
+	rm -f *.bin *.lst
 
 clean:
-	rm -f *.cmd *.map *.bin *.obj *.sym
+	rm -f *.cmd *.bin *.lst bin2cmd

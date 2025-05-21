@@ -1,4 +1,4 @@
-	defc	cls=$01c9
+cls	equ	$01c9
 
 	org	$6a00
 

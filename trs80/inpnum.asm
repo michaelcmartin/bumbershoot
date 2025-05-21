@@ -131,5 +131,6 @@ s_print:
         jr      s_print
 
 ;;; Variables
-        defc    input_buffer=ASMPC
-        defc    index=input_buffer+6
+	map	$
+input_buffer # 6
+index        # 1
