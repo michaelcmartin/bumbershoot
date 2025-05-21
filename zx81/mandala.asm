@@ -9,13 +9,13 @@
         org     $4090
 
         ;; ROM routines
-        defc    KEYBOARD=$02bb          ; Scan keyboard
-        defc    DECODE=$07bd            ; Convert scancode to character
-        defc    LOCADDR=$0918           ; Set cursor location
-        defc    CLS=$0a2a               ; Clear screen
+KEYBOARD equ    $02bb          ; Scan keyboard
+DECODE  equ     $07bd            ; Convert scancode to character
+LOCADDR equ     $0918           ; Set cursor location
+CLS     equ     $0a2a               ; Clear screen
 
         ;; System variables
-        defc    FRAMES=$4034            ; Frame count to seed RNG
+FRAMES  equ     $4034            ; Frame count to seed RNG
 
         ;; Skip the page-sensitive data block
         jr      main
@@ -571,7 +571,7 @@ gk_0:   call    rnd                     ; Advance RNG while you wait
         ld      a, (hl)
         ret
 
-INCLUDE "xorshift.asm"
+        include "xorshift.asm"
 
 ;;; --------------------------------------------------------------------------
 ;;;   DATA BLOCK

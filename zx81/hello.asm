@@ -1,3 +1,4 @@
+        org     $4090
         ld      bc, msg
 lp:     ld      a, (bc)
         cp      a, $ff

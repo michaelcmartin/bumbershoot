@@ -19,8 +19,8 @@
         org     16393
 
         ;; Some useful routines in the ROM
-        defc    KEYBOARD=$02bb
-        defc    SCROLL=$0c0e
+KEYBOARD equ    $02bb
+SCROLL  equ     $0c0e
 
         ;; System variables
         defb    $00             ; VERSN
@@ -154,7 +154,7 @@ kbck:   call    KEYBOARD
 
 donev:  defb    0
 
-INCLUDE "xorshift.asm"
+        include "xorshift.asm"
 
         ;; ----- MACHINE LANGUAGE PROGRAM ENDS HERE -----
 

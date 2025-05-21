@@ -1,3 +1,4 @@
+        org     $4090
         ;; Check memory size, and quit with error if it's under 2KB.
         ld      hl, no_mem_err
         ld      a, ($4005)

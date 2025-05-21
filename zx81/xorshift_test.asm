@@ -1,3 +1,4 @@
+        org     $4090
         ;; First, reset the RNG seed
         ld      hl, 1
         ld      (rnd_x), hl
@@ -38,4 +39,4 @@ hexout_4:
         rst     $10
         ret
 
-INCLUDE "xorshift.asm"
+        include "xorshift.asm"
