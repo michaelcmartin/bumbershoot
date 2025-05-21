@@ -14,9 +14,9 @@ board_y equ     3
 
 default_attr    equ     $07
 end_attr        equ     $38
-off_attr_border equ     $00
+off_attr_border equ     $47
 off_attr_letter equ     $04
-on_attr_border  equ     $42
+on_attr_border  equ     $57
 on_attr_letter  equ     $57
 
         call    draw_board
@@ -123,16 +123,31 @@ draw_board:
         ;; Load custom charset
         ld      hl, custom_chars
         ld      de, (udg)
-        ld      bc, $0070
+        ld      bc, $0080
         ldir
+
+        ;; Decompress logo
+        ld      hl, logo
+        ld      de, $4000
+logolp: ld      a,(hl)
+        inc     hl
+        or      a
+        jr      z, logo_done
+        ld      b,a
+        xor     a
+logo1:  ld      (de),a
+        inc     de
+        djnz    logo1
+        ld      b,a
+        ld      a,(hl)
+        inc     hl
+        ld      c,a
+        ldir
+        jr      logolp
+logo_done:
+
         ;; Draw the board
         call    s_print
-        defb    $16,0,10
-        defm    "LIG"
-        defb    $13,1
-        defm    "HTS O"
-        defb    $13,0
-        defm    "UT!"
         defb    $16,board_y,board_x ; AT board_y, board_x
         defb    $90,$94,$94,$94,$94,$94,$94,$94,$94,$94,$94,$94,$94,$94,$94,$94,$91,$0d,$ff
 
@@ -140,16 +155,16 @@ draw_board:
 pb_loop:
         call    s_print
         defb    $17,board_x,0   ; TAB(board_x)
-        defb    $95,$10,$00,$96,$97,$98,$96,$97,$98,$96,$97,$98,$96,$97,$98,$96,$97,$98,$10,$07,$95,$0d
+        defb    $95,$10,$00,$96,$97,$98,$96,$97,$98,$96,$97,$98,$96,$97,$98,$96,$97,$98,$10,$07,$9f,$0d
         defb    $17,board_x,0   ; TAB(board_x)
-        defb    $95,$10,$00,$99,$20,$9a,$99,$20,$9a,$99,$20,$9a,$99,$20,$9a,$99,$20,$9a,$10,$07,$95,$0d
+        defb    $95,$10,$00,$99,$20,$9a,$99,$20,$9a,$99,$20,$9a,$99,$20,$9a,$99,$20,$9a,$10,$07,$9f,$0d
         defb    $17,board_x,0   ; TAB(board_x)
-        defb    $95,$10,$00,$9b,$9c,$9d,$9b,$9c,$9d,$9b,$9c,$9d,$9b,$9c,$9d,$9b,$9c,$9d,$10,$07,$95,$0d,$ff
+        defb    $95,$10,$00,$9b,$9c,$9d,$9b,$9c,$9d,$9b,$9c,$9d,$9b,$9c,$9d,$9b,$9c,$9d,$10,$07,$9f,$0d,$ff
         djnz    pb_loop
 
         call    s_print
         defb    $17,board_x,0   ; TAB(board_x)
-        defb    $92,$94,$94,$94,$94,$94,$94,$94,$94,$94,$94,$94,$94,$94,$94,$94,$93,$0d,$ff
+        defb    $92,$9e,$9e,$9e,$9e,$9e,$9e,$9e,$9e,$9e,$9e,$9e,$9e,$9e,$9e,$9e,$93,$0d,$ff
 
         ld      bc,$1941
 pb_0:   call    charloc
@@ -376,17 +391,31 @@ rnd_1:  srl     h
         ret
 
 custom_chars:
-        defb    $00,$3f,$7f,$60,$60,$63,$67,$66 ; A: Upper-left border
-        defb    $00,$fc,$fe,$06,$06,$c6,$e6,$66 ; B: Upper-right border
-        defb    $66,$67,$63,$60,$60,$7f,$3f,$00 ; C: Lower-left border
-        defb    $66,$e6,$c6,$06,$06,$fe,$fc,$00 ; D: Lower-right border
-        defb    $00,$ff,$ff,$00,$00,$ff,$ff,$00 ; E: Horizontal edge
-        defb    $66,$66,$66,$66,$66,$66,$66,$66 ; F: Vertical edge
-        defb    $00,$00,$00,$00,$00,$00,$00,$01 ; G: NW Circle
-        defb    $00,$00,$00,$00,$00,$00,$7e,$ff ; H: N Circle
-        defb    $00,$00,$00,$00,$00,$00,$00,$80 ; I: NE Circle
-        defb    $03,$07,$07,$0f,$0f,$07,$07,$03 ; J: W Circle
-        defb    $c0,$e0,$e0,$f0,$f0,$e0,$e0,$c0 ; K: E Circle
-        defb    $01,$00,$00,$00,$00,$00,$00,$00 ; L: SW Circle
-        defb    $ff,$7e,$00,$00,$00,$00,$00,$00 ; M: S Circle
-        defb    $80,$00,$00,$00,$00,$00,$00,$00 ; N: SE Circle
+        defb    $00,$00,$00,$00,$00,$00,$01,$03 ; A: Upper-left border
+        defb    $00,$00,$00,$00,$00,$00,$80,$c0 ; B: Upper-right border
+        defb    $03,$01,$00,$00,$00,$00,$00,$00 ; C: Lower-left border
+        defb    $c0,$80,$00,$00,$00,$00,$00,$00 ; D: Lower-right border
+        defb    $00,$00,$00,$00,$00,$00,$ff,$ff ; E: Top edge
+        defb    $03,$03,$03,$03,$03,$03,$03,$03 ; F: Left edge
+        defb    $ff,$ff,$e0,$c0,$c0,$c0,$c0,$c0 ; G: NW Circle
+        defb    $ff,$ff,$00,$00,$00,$00,$00,$00 ; H: N Circle
+        defb    $ff,$ff,$07,$03,$03,$03,$03,$03 ; I: NE Circle
+        defb    $c0,$c0,$c0,$c0,$c0,$c0,$c0,$c0 ; J: W Circle
+        defb    $03,$03,$03,$03,$03,$03,$03,$03 ; K: E Circle
+        defb    $c0,$c0,$c0,$c0,$c0,$e0,$ff,$ff ; L: SW Circle
+        defb    $00,$00,$00,$00,$00,$00,$ff,$ff ; M: S Circle
+        defb    $03,$03,$03,$03,$03,$07,$ff,$ff ; N: SE Circle
+        defb    $ff,$ff,$00,$00,$00,$00,$00,$00 ; O: Bottom edge
+        defb    $c0,$c0,$c0,$c0,$c0,$c0,$c0,$c0 ; P: Right edge
+
+logo:   defb    $2a,$0b,$63,$11,$84,$61,$83,$04,$60,$60,$c8,$60,$80,$d5,$0b,$1f
+        defb    $0f,$3d,$39,$ef,$e3,$a0,$3c,$7b,$bf,$d8,$15,$0c,$c6,$31,$8c,$61
+        defb    $83,$06,$60,$31,$8c,$60,$c1,$80,$d4,$0b,$0c,$06,$63,$10,$c9,$26
+        defb    $60,$66,$38,$a6,$58,$14,$0d,$01,$fe,$78,$f8,$f3,$c7,$85,$c0,$1f
+        defb    $07,$c1,$e1,$80,$d4,$0b,$18,$04,$c2,$10,$81,$06,$20,$c3,$10,$82
+        defb    $0c,$f5,$0b,$18,$0c,$c0,$10,$81,$07,$00,$c1,$90,$c3,$0c,$f5,$0b
+        defb    $30,$09,$80,$3f,$81,$03,$80,$c1,$98,$43,$02,$13,$0f,$5f,$ff,$ff
+        defb    $ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$fa,$d3,$0b,$30,$09
+        defb    $80,$20,$83,$01,$c0,$c1,$98,$41,$02,$12,$11,$02,$af,$ff,$ff,$ff
+        defb    $ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$f5,$40,$d2,$0b,$61,$19
+        defb    $8e,$60,$83,$00,$e0,$60,$c8,$41,$81,$00
