@@ -2,7 +2,7 @@
         ;; Needs to be linked against kernel32.lib but otherwise requires no runtime.
         ;; Build commands (paths may need to be adjusted on your system):
         ;;     nasm -f win32 Lights-Out.asm
-        ;;     link /subsystem:console /nodefaultlib /entry:start Lights-Out.obj "c:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib\Kernel32.Lib"
+        ;;     link /subsystem:console /nodefaultlib /entry:start Lights-Out.obj "C:\Program Files (x86)\Windows Kits\10\Lib\10.0.19041.0\um\x86\kernel32.lib"
 
         GLOBAL  _start                  ; Where we start
         ;; Screen Buffer creation and configuration
@@ -34,17 +34,24 @@ _start: call    init
         call    clear_status
         mov     esi, gen
         call    draw_string
-        mov     dword [frame], 10000
-        mov     bl, 25
-.puzlp: call    rand
-        and     ax, 0xfff       ; Make sure quotient fits in AL
-        div     bl
-        mov     al, ah
-        add     al, 'A'
-        and     eax, 0xff
+        mov     dword [frame], 250
+.pflp:  mov     ebx, 'A'
+        call    rand
+        mov     edx, eax
+        call    rand
+        shl     eax, 16
+        mov     ax, dx
+.puzlp: shr     eax, 1
+        jnc     .skip
+        push    eax
+        mov     al, bl
         call    make_move
+        pop     eax
+.skip:  inc     ebx
+        cmp     bl, 'Z'
+        jne     .puzlp
         sub     dword [frame], 1
-        jnz     .puzlp
+        jnz     .pflp
 
         call    clear_status
         mov     esi, insns
@@ -363,7 +370,7 @@ write_string:
 clear_status:
         push    apibuf
         push    dword 0x00130000
-        push    dword 240
+        push    dword 400
         push    dword 0x20
         push    dword [hScreen]
         call    _FillConsoleOutputCharacterW@20

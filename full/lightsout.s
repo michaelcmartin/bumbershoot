@@ -156,15 +156,45 @@ _lp:    inc     $fd
         dex
         bne     _lp
         rts
+.scend
+
+.scope
+        .data
+        .space  _bits  4
+        .space  _index 1
+        .space  _tries 1
+        .text
 
 initpuzzle:
-        ldx     #$00
-        stx     $4000
-_rlp:   lda     #$19
-        jsr     get_rnd
+        jsr     rerandomize
+        lda     #30
+        sta     _tries
+_toplp: jsr     rnd
+        lda     rndval
+        sta     _bits
+        lda     rndval+1
+        sta     _bits+1
+        jsr     rnd
+        lda     rndval
+        sta     _bits+2
+        lda     rndval+1
+        sta     _bits+3
+        lda     #24
+        sta     _index
+_lp:    asl     _bits
+        rol     _bits+1
+        rol     _bits+2
+        rol     _bits+3
+        bcc     +
+        lda     _index
         jsr     move
-        inc     $4000
-        bne     _rlp
+*       dec     _index
+        bpl     _lp
+        lda     frames
+*       cmp     frames
+        bne     -
+        dec     _tries
+        bne     _toplp
         rts
 .scend
 
@@ -316,7 +346,13 @@ move:   jsr     rowcol
 
 ;;; Display interrupt and its management
 .scope
+        .data
+        .space  frames 1
+        .text
+
 enable_display_irq:
+        lda     #$00
+        sta     frames
         lda     #$7f
         sta     $dc0d
         lda     #$1b
@@ -363,6 +399,7 @@ _bot:   lda     #$1b            ; At bottom; disable ECM for logo
         sta     $d011
         lda     #$08            ; And scroll 0 for centered logo
         sta     $d016
+        inc     frames          ; Tick frame counter
         lda     #$48            ; Next IRQ is between logo and board
 
 _done:  sta     $d012           ; Register next IRQ line
@@ -397,47 +434,25 @@ _lp2:   lda     $ffff,y
 _done:  rts
 .scend
 
-.scope
+        .include "../asm/xorshift.s"
+
 randomize:
         jsr     $ffde           ; RDTIM
-        sty     $63
-        stx     $64
-        sta     $65
-        ldy     #$00
-        sta     $62
-        sta     $68
-        jsr     $bcd5           ; Turn QINT to FAC1, sort of
-        lda     #$ff
-        sta     $66             ; Force sign negative
-        jsr     $e097           ; RND(FAC1)
-        ;; Something about this RND call is wrecking the state of the
-        ;; FAC system, so we reset it all to 0s and this seems to fix
-        ;; stuff.
-        ldx     #$10            ; Clear out both FACs
-        lda     #$00
-_lp:    sta     $60,x
-        dex
-        bne     _lp
-        rts
+        ora     #$01            ; Make sure .AX isn't zero
+        jmp     srnd
 
-get_rnd:
+rerandomize:
+        jsr     $ffde           ; RDTIM
+        clc
+        adc     rndval
+        ora     #$01
         pha
-        lda     #$01            ; Accumulator = 1
-        jsr     $bc3c           ; FAC1 = accumulator
-        jsr     $e097           ; FAC1 = RND(FAC1)
-        jsr     $bc0c           ; FAC2 = FAC1 (rounded)
-        pla                     ; Accumulator = argument
-        jsr     $bc3c           ; FAC1 = accumulator
-        jsr     $ba2b           ; FAC1 = FAC2 * FAC1
-        jsr     $bccc           ; FAC1 = INT(FAC1)
-        jsr     $b1aa           ; .YA = FAC1
-        tya
-        rts
-.scend
+        txa
+        adc     rndval+1
+        tax
+        pla
+        jmp     srnd
 
-        ;; 207, 183, 208  - $cf, $b7, $d0
-        ;; 165,  32, 170  - $a5, $d0, $aa
-        ;; 204, 175, 186  - $cc, $af, $ba
 .scope
 screen: .word   _top,_row,_row,_row,_row,_row,_bot,0
 stclr:  .word   _stat,_spc38,_spc38,_spc38,0

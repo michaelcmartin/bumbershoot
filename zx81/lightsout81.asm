@@ -8,10 +8,15 @@
         jr      c, m_0
 
         call    draw_board
-        ;; Seed RNG
-        ld      hl, ($4034)     ; frame count since power on
-        ld      (rnd_x), hl
 m_start:
+        ;; Add frame count to initial RNG seed
+        ld      hl, ($4034)
+        ld      de, (rnd_x)
+        add     hl, de
+        jr      nz, m_seedok
+        inc     hl
+m_seedok:
+        ld      (rnd_x), hl
         ld      hl, title_wait_msg
         call    draw_text
         call    make_puzzle
@@ -252,17 +257,29 @@ gk_0:   call    rnd             ; step the RNG while waiting for a key
         ret
 
 make_puzzle:
-        ld      bc, 1000
+        ld      b,30
 mp_0:   push    bc
-mp_1:   call    rnd
-        ld      a, h
-        and     a, $1f          ; Extract a 0-31 value
-        cp      a, $19          ; Reroll if it's 25-31
-        jr      nc, mp_1
+        call    rnd
+        push    hl
+        call    rnd
+        pop     de
+        ld      b,25
+mp_1:   add     hl,hl
+        rl      e
+        rl      d
+        jr      nc,mp_2
+        push    bc
+        push    de
+        push    hl
+        ld      a,b
+        dec     a
         call    make_move
+        pop     hl
+        pop     de
         pop     bc
-        dec     c               ; Apparently DEC BC doesn't set Z?
-        jr      nz, mp_0
+mp_2:   djnz    mp_1
+        pop     bc
+        halt
         djnz    mp_0
         ret
 
@@ -293,7 +310,7 @@ win_again_msg:
 ;;; Unpositioned; these are for printing with RST 10 after play.
         zx81text
 no_mem_err:
-        asc     "2KB+ RAM REQUIRED, SORRY",$FF
+        asc     "2KB+ RAM REQUIRED",$FF
 
 farewell_msg:
         defb    $00,$00,$00,$00,$00,$00,$88,$88,$80,$80

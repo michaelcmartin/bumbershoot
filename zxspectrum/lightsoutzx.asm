@@ -20,10 +20,16 @@ on_attr_border  equ     $57
 on_attr_letter  equ     $57
 
         call    draw_board
-        ;; Seed RNG
-        ld      hl, (frames)
-        ld      (rnd_x), hl
 m_start:
+        ;; Add frame count to initial RNG seed
+        ld      hl, (frames)
+        ld      de, (rnd_x)
+        add     hl, de
+        jr      nz, m_seedok
+        inc     hl
+m_seedok:
+        ld      (rnd_x), hl
+
         call    clear_text
         call    s_print
         defb    $16,0,8
@@ -323,19 +329,26 @@ get_key:
         ret
 
 make_puzzle:
-        ld      bc, 1000
+        ld      b,60
 mp_0:   push    bc
-mp_1:   call    rnd
-        ld      a, h
-        and     a, $1f          ; Extract a 0-31 value
-        cp      a, $19          ; Reroll if it's 25-31
-        jr      nc, mp_1
-        add     'A'
-        ld      c, a
+        call    rnd
+        push    hl
+        call    rnd
+        pop     de
+        ld      b,25
+mp_1:   add     hl,hl
+        rl      e
+        rl      d
+        jr      nc,mp_2
+        push    bc
+        ld      a,b
+        add     'A'-1
+        ld      c,a
         call    make_move
         pop     bc
-        dec     c               ; Apparently DEC BC doesn't set Z?
-        jr      nz, mp_0
+mp_2:   djnz    mp_1
+        pop     bc
+        halt
         djnz    mp_0
         ret
 

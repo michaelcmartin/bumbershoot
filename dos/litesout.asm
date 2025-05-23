@@ -16,15 +16,22 @@ start:  call    clear_status
         mov     si, gen
         call    draw_string
 
-        mov     cx, 10000
-        mov     bl, 25
-puzlp:  call    rand
-        and     ax, 0xfff       ; Make sure quotient fits in AL
-        div     bl
-        mov     al, ah
-        add     al, 'A'
+        mov     cx, 500
+pflp:   mov     bl, 'A'
+        call    rand
+.puzlp: shr     ax, 1
+        jnc     .skip
+        push    ax
+        mov     al, bl
         call    make_move
-        loop    puzlp
+        pop     ax
+.skip:  inc     bl
+        cmp     bl, 'Q'
+        jne     .nroll
+        call    rand
+.nroll: cmp     bl, 'Z'
+        jne     .puzlp
+        loop    pflp
 
         call    clear_status
         mov     si, insns
