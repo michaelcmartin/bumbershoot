@@ -24,7 +24,7 @@ _next:  .word   0               ; End of program
         ;; Red for BG Color 2
         lda     #$02
         sta     $d023
-        ;; Copy over character set so we can have graphics for ECM
+        ;; Copy over character set
         sei
         lda     #$33
         sta     $01
@@ -39,14 +39,24 @@ _next:  .word   0               ; End of program
         sta     $01
         cli
         ;; Load in custom graphics
-        ldy     #$3f
+        ldy     #$67
 *       lda     gfx, y
         sta     $2190, y
         dey
         bpl     -
-        ;; Enable ECM and custom graphics
-        lda     #$db
-        sta     $d011
+        ldy     #$1f
+*       lda     gfx2,y
+        sta     $2118,y
+        dey
+        bpl     -
+        iny                             ; ldy #$00
+*       lda     gfx3, y
+        sta     $2400, y
+        iny
+        cpy     #$e0
+        bne     -
+        ;; Enable display interrupt to manage ECM and centering
+        jsr     enable_display_irq
         lda     #$18
         sta     $d018
         ;; Draw screen
@@ -100,10 +110,9 @@ finis:  lda     #$0e            ; Light blue border
         sta     $d020
         lda     #$06            ; Blue background
         sta     $d021
-        lda     #$9b            ; Disable ECM
-        sta     $d011
         lda     #$14            ; Restore normal charset
         sta     $d018
+        jsr     disable_display_irq
         lda     #$00            ; Clear keyboard buffer
         sta     $c6
         lda     #<bye
@@ -305,6 +314,64 @@ move:   jsr     rowcol
         jmp     flip
 .scend
 
+;;; Display interrupt and its management
+.scope
+enable_display_irq:
+        lda     #$7f
+        sta     $dc0d
+        lda     #$1b
+        sta     $d011
+        lda     #$48
+        sta     $d012
+        lda     #<_irq
+        sta     $314
+        lda     #>_irq
+        sta     $315
+        lda     #$01
+        sta     $d01a
+        rts
+
+disable_display_irq:
+        lda     #$00
+        sta     $d01a
+        lda     #$31
+        sta     $314
+        lda     #$ea
+        sta     $315
+        lda     #$81
+        sta     $dc0d
+        lda     #$1b            ; Restore normal graphics in case we were
+        sta     $d011           ; Mid screen at the time
+        lda     #$08
+        sta     $d016
+        rts
+
+_irq:   lda     #$01            ; Acknowledge interrupt
+        sta     $d019
+
+        lda     $d012           ; Midscreen or bottom?
+        bmi     _bot
+
+        lda     #$5b            ; At top; Enable ECM for board
+        sta     $d011
+        lda     #$0c            ; And scroll 4 to the right to center it
+        sta     $d016           ; and the instructions
+        lda     #$fb            ; Next IRQ is at the bottom
+        bne     _done
+
+_bot:   lda     #$1b            ; At bottom; disable ECM for logo
+        sta     $d011
+        lda     #$08            ; And scroll 0 for centered logo
+        sta     $d016
+        lda     #$48            ; Next IRQ is between logo and board
+
+_done:  sta     $d012           ; Register next IRQ line
+        lda     $dc0d           ; Check if there'd have been a timer IRQ
+        beq     _notim
+        jmp     $ea31           ; If so, jump to it
+_notim: jmp     $febc           ; If not, clean up
+.scend
+
 ;;; Utility functions
 .scope
 multistr:
@@ -372,20 +439,21 @@ get_rnd:
         ;; 165,  32, 170  - $a5, $d0, $aa
         ;; 204, 175, 186  - $cc, $af, $ba
 .scope
-screen: .word   _clr,_name,_row,_row,_row,_row,_row,0
+screen: .word   _top,_row,_row,_row,_row,_row,_bot,0
 stclr:  .word   _stat,_spc38,_spc38,_spc38,0
 stinst: .word   _stat, _inst,0
 stwait: .word   _stat, _wait,0
 stwin:  .word   _stat, _win,0
 bye:    .word   _bye,0
-_clr:   .byte   147,13,0
-_name:  .byte   13,"              ",$97,"L",$98,"I",$9b,"G",$05,"HTS O"
-        .byte   $9b,"U",$98,"T",$97,"!",13,13,$9b,0
-_row:   .byte   "            234234234234234",13
-        .byte   "            5 65 65 65 65 6",13
-        .byte   "            789789789789789",13,0
+_top:  .byte   147,"              ",$9b,$12,"@ABCDEFGHIJK",$92
+        .byte   13,"            ",$12,"LMNOPQRSTUVWXYZ[",$92,13,13
+        .byte   "           <===============>",13,0
+_row:   .byte   "           :234234234234234;",13
+        .byte   "           :5 65 65 65 65 6;",13
+        .byte   "           :789789789789789;",13,0
+_bot:   .byte   "           #$$$$$$$$$$$$$$$%",13,0
 _stat:  .byte   $13,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d
-        .byte   $0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,0
+        .byte   $0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,0
 _spc38: .byte   13,"                                      ",0
 _inst:  .byte   13,"         PRESS LETTERS TO MOVE",13
         .byte   "        PRESS F1 FOR NEW PUZZLE",13
@@ -404,4 +472,41 @@ gfx:    .byte   $ff,$ff,$e0,$c0,$c0,$c0,$c0,$c0
         .byte   $c0,$c0,$c0,$c0,$c0,$e0,$ff,$ff
         .byte   $00,$00,$00,$00,$00,$00,$ff,$ff
         .byte   $03,$03,$03,$03,$03,$07,$ff,$ff
+        .byte   $03,$03,$03,$03,$03,$03,$03,$03
+        .byte   $c0,$c0,$c0,$c0,$c0,$c0,$c0,$c0
+        .byte   $00,$00,$00,$00,$00,$00,$01,$03
+        .byte   $00,$00,$00,$00,$00,$00,$ff,$ff
+        .byte   $00,$00,$00,$00,$00,$00,$80,$c0
+gfx2:   .byte   $03,$01,$00,$00,$00,$00,$00,$00
+        .byte   $ff,$ff,$00,$00,$00,$00,$00,$00
+        .byte   $c0,$80,$00,$00,$00,$00,$00,$00
+gfx3:   .byte   $00,$01,$00,$01,$01,$03,$03,$06
+        .byte   $00,$f0,$c0,$80,$80,$00,$00,$11
+        .byte   $00,$f3,$66,$4c,$cc,$98,$98,$98
+        .byte   $00,$d3,$31,$21,$01,$03,$02,$e6
+        .byte   $00,$9e,$0c,$08,$08,$f8,$08,$08
+        .byte   $00,$fe,$92,$10,$10,$10,$30,$30
+        .byte   $00,$3a,$66,$62,$70,$38,$1c,$0e
+        .byte   $00,$03,$06,$0c,$0c,$0c,$0c,$06
+        .byte   $00,$c7,$63,$31,$19,$19,$19,$0c
+        .byte   $00,$bb,$8a,$08,$0c,$84,$84,$84
+        .byte   $00,$fd,$65,$20,$30,$30,$10,$18
+        .byte   $00,$80,$80,$c0,$c0,$20,$20,$10
+        .byte   $00,$00,$00,$00,$00,$05,$2a,$00
+        .byte   $00,$00,$00,$00,$00,$ff,$ff,$00
+        .byte   $06,$0c,$1f,$00,$00,$ff,$ff,$00
+        .byte   $31,$63,$e7,$00,$00,$ff,$ff,$00
+        .byte   $18,$18,$8f,$00,$00,$ff,$ff,$00
+        .byte   $46,$c6,$8f,$00,$00,$ff,$ff,$00
+        .byte   $18,$18,$3c,$00,$00,$ff,$ff,$00
+        .byte   $30,$30,$78,$00,$00,$ff,$ff,$00
+        .byte   $46,$66,$5c,$00,$00,$ff,$ff,$00
+        .byte   $06,$03,$01,$00,$00,$ff,$ff,$00
+        .byte   $0c,$18,$f0,$00,$00,$ff,$ff,$00
+        .byte   $86,$c6,$7c,$00,$00,$ff,$ff,$00
+        .byte   $08,$0c,$1e,$00,$00,$ff,$ff,$00
+        .byte   $00,$18,$18,$00,$00,$ff,$ff,$00
+        .byte   $00,$00,$00,$00,$00,$ff,$ff,$00
+        .byte   $00,$00,$00,$00,$00,$a0,$54,$00
+
 .scend
