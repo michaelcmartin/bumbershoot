@@ -1,4 +1,5 @@
         .alias  chrout  $ffd2
+        .alias  rdtim   $ffde
         .alias  getin   $ffe4
         .alias  stop    $ffe1
 
@@ -16,6 +17,7 @@
 _next:  .word   0               ; End of program
 .scend
         jsr     randomize
+        jsr     init_sound
 
         ;; Black screen
         lda     #$00
@@ -89,10 +91,16 @@ mainlp: jsr     stop
         bcs     mainlp
         sec
         sbc     #'A
+        pha
         jsr     move
         jsr     wonpuzzle
-        bmi     mainlp
+        bpl     victry
+        pla
+        jsr     move_sound
+        jmp     mainlp
         ;; Victory!
+victry: pla
+        jsr     win_sound
         lda     #<stclr
         ldx     #>stclr
         jsr     multistr
@@ -113,6 +121,7 @@ finis:  lda     #$0e            ; Light blue border
         lda     #$14            ; Restore normal charset
         sta     $d018
         jsr     disable_display_irq
+        jsr     deinit_sound
         lda     #$00            ; Clear keyboard buffer
         sta     $c6
         lda     #<bye
@@ -322,9 +331,22 @@ _fchar: lda     ($fb),y
         sta     ($fb),y
         rts
 
+move_sound:
+        jsr     rowcol
+        jsr     point
+        ldy     #$00
+        lda     ($fb),y
+        bmi     +
+        jsr     low_ding
+        rts
+*       jsr     high_ding
+        rts
+
 move:   jsr     rowcol
         stx     $fd
         sty     $fe
+        ldx     $fd
+        ldy     $fe
         jsr     flip
         ldx     $fd
         ldy     $fe
@@ -437,12 +459,12 @@ _done:  rts
         .include "../asm/xorshift.s"
 
 randomize:
-        jsr     $ffde           ; RDTIM
+        jsr     rdtim
         ora     #$01            ; Make sure .AX isn't zero
         jmp     srnd
 
 rerandomize:
-        jsr     $ffde           ; RDTIM
+        jsr     rdtim
         clc
         adc     rndval
         ora     #$01
@@ -452,6 +474,89 @@ rerandomize:
         tax
         pla
         jmp     srnd
+
+deinit_sound:
+        ldx     #$18            ; Clear all registers including volume
+        .byte   $2c             ; Nullify next instruction
+reset_sound:
+        ldx     #$17            ; Clear all registers but volume
+*       lda     #$00
+*       sta     $d400,x
+        dex
+        bpl     -
+        rts
+
+init_sound:
+        jsr     reset_sound
+        lda     #$08
+        sta     $d402           ; Pulse waves are square
+        sta     $d403
+        sta     $d409
+        sta     $d40a
+        lda     #$0f            ; Max volume
+        sta     $d418
+        rts
+
+low_ding:
+        lda     #$00            ; Degate any earlier note
+        sta     $d404
+        lda     #$08            ; 300ms decay
+        sta     $d405
+        lda     #$25            ; Play C4
+        sta     $d400
+        lda     #$11
+        sta     $d401
+        lda     #$41            ; Play a pulse-wave note
+        sta     $d404
+        rts
+
+high_ding:
+        lda     #$00            ; Degate any earlier note
+        sta     $d404
+        lda     #$08            ; 300ms decay
+        sta     $d405
+        lda     #$4b            ; Play C5
+        sta     $d400
+        lda     #$22
+        sta     $d401
+        lda     #$41            ; Play a pulse-wave note
+        sta     $d404
+        rts
+
+win_sound:
+        lda     #$00            ; Degate any earlier notes
+        sta     $d404
+        sta     $d40b
+        lda     #$0a            ; 1500ms decay
+        sta     $d405
+        sta     $d40c
+        lda     #$34            ; Voice 1: E5
+        sta     $d400
+        lda     #$2b
+        sta     $d401
+        lda     #$95            ; Voice 2: C6
+        sta     $d407
+        lda     #$44
+        sta     $d408
+        lda     #$41            ; Play first note
+        sta     $d404
+        sta     $d40b
+        lda     #$08            ; Wait 8 jiffies
+        sta     $fb
+*       jsr     rdtim
+        sta     $fc
+*       jsr     rdtim
+        cmp     $fc
+        beq     -
+        dec     $fb
+        bne     --
+        lda     #$00            ; Regate for second note
+        sta     $d404
+        sta     $d40b
+        lda     #$41
+        sta     $d404
+        sta     $d40b
+        rts
 
 .scope
 screen: .word   _top,_row,_row,_row,_row,_row,_bot,0
