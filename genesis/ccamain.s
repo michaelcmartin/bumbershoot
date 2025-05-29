@@ -71,27 +71,23 @@ CCAStep:
         ;; Check the internal points first
         move.w  #(126*128-3), d2 ; 126 non-edge rows and 128 columns, skipping
                                  ; the first and last
-        movea.l a0, a2          ; Point a2 to first cell, one cell SE of
-        add.w   #129, a2        ; upper left corner
-        movea.l a1, a3          ; And do the same with a3 and target
-        add.w   #129, a3        ; matrix
-.lp:    move.b  (a2), d4        ; d4 = this cell's color
+        lea     129(a0),a2      ; Point a2 to first non-edge cell
+        lea     129(a1),a3      ; And do the same with a3 and target
+.lp:    move.b  (a2)+,d4        ; d4 = this cell's color
         move.b  d4, d5
         addq    #1, d5
-        and.b   #$0f, d5        ; d5 = (d4 + 1) & 0x0f = target color
-        cmp.b   -128(a2), d5    ; Check N neighbor
+        and.b   #$0f,d5         ; d5 = (d4 + 1) & 0x0f = target color
+        cmp.b   -129(a2),d5     ; Check N neighbor
         beq.s   .eat
-        cmp.b   -1(a2), d5      ; Check W neighbor
+        cmp.b   -2(a2),d5       ; Check W neighbor
         beq.s   .eat
-        cmp.b   1(a2), d5       ; Check E neighbor
+        cmp.b   (a2),d5         ; Check E neighbor
         beq.s   .eat
-        cmp.b   128(a2), d5     ; Check S neighbor
+        cmp.b   127(a2),d5      ; Check S neighbor
         bne.s   .next
 .eat:   move.b  d5, d4          ; Final color is one step up
-.next:  move.b  d4, (a3)        ; Store final (possibly initial) color in target
-        addq    #1, a2
-        addq    #1, a3
-.lpend: dbra    d2, .lp
+.next:  move.b  d4, (a3)+       ; Store final (possibly initial) color in target
+        dbra    d2, .lp
 
         ;; Now check the corners
         move.w  #127, d6
