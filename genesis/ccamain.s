@@ -55,6 +55,25 @@ CCARender:
         move.l  (sp)+, d2
         rts
 
+        list macro
+
+        macro check_cell base, north, west, east, south
+        move.b  d4, d5
+        addq    #1, d5
+        and.b   #$0f,d5         ; d5 = (d4 + 1) & 0x0f = target color
+        cmp.b   north(base),d5     ; Check N neighbor
+        beq.s   .eat ## \?
+        cmp.b   west(base),d5       ; Check W neighbor
+        beq.s   .eat ## \?
+        cmp.b   east(base),d5         ; Check E neighbor
+        beq.s   .eat ## \?
+        cmp.b   south(base),d5      ; Check S neighbor
+        bne.s   .next ## \?
+.eat ## \?
+        move.b  d5, d4          ; Final color is one step up
+.next ## \?
+        endm
+
 CCAStep:
         ;; Before anything else, check if we should reset instead
         move.b  reset_requested, d0
@@ -74,19 +93,8 @@ CCAStep:
         lea     129(a0),a2      ; Point a2 to first non-edge cell
         lea     129(a1),a3      ; And do the same with a3 and target
 .lp:    move.b  (a2)+,d4        ; d4 = this cell's color
-        move.b  d4, d5
-        addq    #1, d5
-        and.b   #$0f,d5         ; d5 = (d4 + 1) & 0x0f = target color
-        cmp.b   -129(a2),d5     ; Check N neighbor
-        beq.s   .eat
-        cmp.b   -2(a2),d5       ; Check W neighbor
-        beq.s   .eat
-        cmp.b   (a2),d5         ; Check E neighbor
-        beq.s   .eat
-        cmp.b   127(a2),d5      ; Check S neighbor
-        bne.s   .next
-.eat:   move.b  d5, d4          ; Final color is one step up
-.next:  move.b  d4, (a3)+       ; Store final (possibly initial) color in target
+        check_cell a2, -129, -2, 0, 127
+        move.b  d4, (a3)+       ; Store final (possibly initial) color in target
         dbra    d2, .lp
 
         ;; Now check the corners
