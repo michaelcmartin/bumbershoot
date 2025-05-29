@@ -80,7 +80,7 @@ CCAStep:
         btst    #0, d0
         bne     CCAReset
 
-        movem.l d2-d6/a0-a3, -(sp)
+        movem.l d2-d5/a0-a3, -(sp)
         movea.l CurBuf, a0      ; Source buffer
         move.l  a0, d0          ; Compute destination buffer by
         eor.w   #$4000, d0      ; flipping the $4000 bit
@@ -98,53 +98,40 @@ CCAStep:
         dbra    d2, .lp
 
         ;; Now check the corners
-        move.w  #127, d6
-.lp3:   move.w  d6, d2
-        moveq   #0, d3
-        bsr.s   .dopt
-        exg     d2, d3
-        bsr.s   .dopt
-        move.w  #127, d2
-        bsr.s   .dopt
-        exg     d2, d3
-        bsr.s   .dopt
-        dbra    d6, .lp3
+        move.b  (a0),d4
+        check_cell a0, 1, 127, 128, $3f80
+        move.b  d4,(a1)
+        move.b  $7f(a0),d4
+        check_cell a0, 0, $7e, $ff, $3fff
+        move.b  d4,$7f(a1)
+        move.b  $3f80(a0),d4
+        check_cell a0, 0, $3f00, $3f81, $3fff
+        move.b  d4,$3f80(a1)
+        move.b  $3fff(a0),d4
+        check_cell a0, $7f, $3f7f, $3f80, $3ffe
+        move.b  d4,$3fff(a1)
 
-        movem.l (sp)+, d2-d6/a0-a3
-        rts
+        ;; Finally test the edges
+        lea     1(a0),a2        ; Horizontal src pointer
+        lea     1(a1),a3        ; Horizontal dest pointer
+        lea     128(a0),a0      ; Vertical src pointer
+        lea     128(a1),a1      ; Vertical dest pointer
+        moveq   #125,d2         ; 126 cells
+.lp2:   move.b  $3f80(a2),d4
+        check_cell a2,0,$3f00,$3f7f,$3f81
+        move.b  d4,$3f80(a3)
+        move.b  (a2)+,d4
+        check_cell a2,-2,0,127,$3f7f
+        move.b  d4,(a3)+
+        move.b  (a0),d4
+        check_cell a0,-128,1,127,128
+        move.b  d4,(a1)
+        move.b  127(a0),d4
+        check_cell a0,-1,0,126,255
+        move.b  d4,127(a1)
+        lea     128(a0),a0
+        lea     128(a1),a1
+        dbra    d2,.lp2
 
-.index: move.w  d2, d0          ; d0 = (y & 0x7f) * 128
-        lsl.w   #7, d0
-        move.w  d3, d1          ; d1 = (x & 0x7f)
-        or.w    d1, d0          ; d0 = ((y & 0x7f) * 128) + (x & 0x7f)
-        rts
-.check: bsr     .index
-        cmp.b   (a0, d0), d5
-        bne.s   .done
-        move.b  d5, d4
-.done:  rts
-
-.dopt:  bsr     .index
-        move.b  (a0, d0), d4    ; d4 = this cell's color
-        move.b  d4, d5
-        addq    #1, d5
-        and.b   #$0f, d5        ; d5 = (d4 + 1) & 0x0f = target color
-        subq    #1, d2
-        and.w   #$7f, d2
-        bsr.s   .check
-        addq    #2, d2
-        and.w   #$7f, d2
-        bsr.s   .check
-        subq    #1, d2
-        and.w   #$7f, d2
-        subq    #1, d3
-        and.w   #$7f, d3
-        bsr.s   .check
-        addq    #2, d3
-        and.w   #$7f, d3
-        bsr.s   .check
-        subq    #1, d3
-        and.w   #$7f, d3
-        bsr.s   .index
-        move.b  d4, (a1, d0)
+        movem.l (sp)+, d2-d5/a0-a3
         rts
