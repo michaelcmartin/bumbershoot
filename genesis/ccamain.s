@@ -93,10 +93,23 @@ CCAStep:
         lea     129(a0),a2      ; Point a2 to first non-edge cell
         lea     129(a1),a3      ; And do the same with a3 and target
 .lp:    move.b  (a2)+,d4        ; d4 = this cell's color
-        check_cell a2, -129, -2, 0, 127
-        move.b  d4, (a3)+       ; Store final (possibly initial) color in target
+        move.b  d4, d5
+        addq    #1, d5
+        and.b   #$0f,d5         ; d5 = (d4 + 1) & 0x0f = target color
+        cmp.b   -129(a2),d5     ; Check N neighbor
+        beq.s   .eat
+        cmp.b   -2(a2),d5       ; Check W neighbor
+        beq.s   .eat
+        cmp.b   (a2),d5         ; Check E neighbor
+        beq.s   .eat
+        cmp.b   127(a2),d5      ; Check S neighbor
+        bne.s   .skip
+.eat:   move.b  d5, (a3)+       ; Store updated color in target
         dbra    d2, .lp
-
+        bra.s   .cdone
+.skip:  move.b  d4, (a3)+       ; Store initial color in target
+        dbra    d2, .lp
+.cdone:
         ;; Now check the corners
         move.b  (a0),d4
         check_cell a0, 1, 127, 128, $3f80
