@@ -80,7 +80,7 @@ CCAStep:
         btst    #0, d0
         bne     CCAReset
 
-        movem.l d2-d5/a0-a3, -(sp)
+        movem.l d2-d5/a2-a3, -(sp)
         movea.l CurBuf, a0      ; Source buffer
         move.l  a0, d0          ; Compute destination buffer by
         eor.w   #$4000, d0      ; flipping the $4000 bit
@@ -133,5 +133,5 @@ CCAStep:
         lea     128(a1),a1
         dbra    d2,.lp2
 
-        movem.l (sp)+, d2-d5/a0-a3
+        movem.l (sp)+, d2-d5/a2-a3
         rts
