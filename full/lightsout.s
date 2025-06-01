@@ -575,14 +575,11 @@ win_sound:
         lda     #$41            ; Play first note
         sta     $d404
         sta     $d40b
-        lda     #$08            ; Wait 8 jiffies
-        sta     $fb
-*       jsr     rdtim
-        sta     $fc
-*       jsr     rdtim
-        cmp     $fc
+        ldx     #$08            ; Wait 8 jiffies
+*       lda     $a2
+*       cmp     $a2
         beq     -
-        dec     $fb
+        dex
         bne     --
         lda     #$00            ; Regate for second note
         sta     $d404
