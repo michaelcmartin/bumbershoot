@@ -172,4 +172,6 @@ VBL:    movem.l d0-d2/a0-a1, -(sp)
         include "xorshift.s"
         include "fakecga.s"
         include "simplefm.s"
+        include "8k_dac.s"
+        include "lz4dec.s"
         include "logo.s"

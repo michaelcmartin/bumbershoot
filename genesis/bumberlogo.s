@@ -74,4 +74,6 @@ HBL:
 VBL:
 	rte
 
+        include "8k_dac.s"
+        include "lz4dec.s"
         include "logo.s"
