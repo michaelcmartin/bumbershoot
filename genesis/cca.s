@@ -71,6 +71,7 @@ reset_requested:                ; Bit 0 = reset requested (START was pressed)
         include "reset.s"
 
         bsr     BumbershootLogo
+        bsr     BumbershootTitle
         bsr     InitFakeCGA
         bsr     CCAInit
         bsr     SetupFM
@@ -167,6 +168,7 @@ VBL:    movem.l d0-d2/a0-a1, -(sp)
         move.l  d1, 4(a0)
         bra     .done
 
+        include "ccatitle.s"
         include "ccamain.s"
         include "joystick.s"
         include "xorshift.s"
