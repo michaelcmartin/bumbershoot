@@ -3,8 +3,7 @@ InitFakeCGA:
 
         ;; Prep pointers
         movea.l #$C00000, a0
-        move.l  a0, a1
-        addq.l  #4, a1
+        lea     4(a0),a1
 
         ;; Set 64x64 scroll size and word increments.
         move.l  #$90118f02, (a1)

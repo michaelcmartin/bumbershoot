@@ -72,6 +72,7 @@ reset_requested:                ; Bit 0 = reset requested (START was pressed)
 
         bsr     BumbershootLogo
         bsr     BumbershootTitle
+        bsr     srnd
         bsr     InitFakeCGA
         bsr     CCAInit
         bsr     SetupFM
@@ -82,7 +83,7 @@ reset_requested:                ; Bit 0 = reset requested (START was pressed)
         move.w  #$8164, (a0)    ; Enable VBLANK interrupt
         move.w  #$2500, sr      ; Unmask interrupt level 6
 
-mainlp: bsr     rnd             ; Tick the PRNG
+mainlp: bsr     tick_rnd
         bsr     CCAStep
         bsr     CCARender
         bra     mainlp
@@ -102,7 +103,7 @@ LINE_1111:
 EXTINT:
 INT:
 HBL:
-	rte
+        rte
 
 VBL:    movem.l d0-d2/a0-a1, -(sp)
         bsr     ReadJoy1

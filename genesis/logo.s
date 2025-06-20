@@ -1,11 +1,14 @@
 ;;; Bumbershoot Software intro (logo/sound)
 ;;; This routine includes a skip to a 32KB boundary so it's probably best
 ;;; to put it at the very end of any given project
-;;; Both lz4dec.s and 8k_dac.s need to be included in any project that
-;;; includes hit
+;;; Include lz4dec.s, 8k_dac.s, and joystick.s in any project that includes
+;;; this, and include lz4dec _immediately_ before this file.
+;;; As a side effect this function will add the frame count spent to the
+;;; value in d0
 
 BumbershootLogo:
-        movem.l d2-d3/a2-a3,-(sp)
+        movem.l d2-d4/a2-a3,-(sp)
+        move.l  d0,d4                   ; Shift frame count from d0->d4
 
         lea     .logodata,a0
         lea     $ff0000,a1
@@ -56,6 +59,7 @@ BumbershootLogo:
 .v2:    move.w  (a3),d0
         btst    #3,d0                   ; Wait for VBLANK
         beq.s   .v2
+        addq    #1,d4                   ; Increment frame count
         bsr     ReadJoy1
         btst    #7,d0                   ; Start pressed?
         bne     .skip                   ; If so, end immediately
@@ -106,6 +110,7 @@ BumbershootLogo:
 .f3b2:  move.w  (a3),d0
         btst    #3,d0
         beq.s   .f3b2
+        addq    #1,d4                   ; Increment frame count
         bsr     ReadJoy1
         btst    #7,d0
         bne.s   .skip
@@ -145,7 +150,8 @@ BumbershootLogo:
 .pfix:  move.l  (a0)+,(a2)
         dbra    d0,.pfix
 
-        movem.l (sp)+,d2-d3/a2-a3
+        move.l  d4,d0                   ; Adjusted frame counter back to d0
+        movem.l (sp)+,d2-d4/a2-a3
         rts
 
 .logodata:

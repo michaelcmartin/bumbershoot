@@ -3,7 +3,6 @@ CurBuf: ds      4
 
         seg     text
 CCAInit:
-        bsr     srnd
         move.l  #CCA_buf_0, CurBuf
         move.w  #0, mirror_ready ; Also clears reset_requested
         ;; Fall through to CCAReset
