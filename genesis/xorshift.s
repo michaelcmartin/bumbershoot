@@ -1,13 +1,12 @@
 	seg	data
-rnd_x:	ds	2
-rnd_y:	ds	2
+rnd_v:	ds	4			; "x" and "y" words in that order
 
 	seg text
-srnd:	move.l	d0,rnd_x
+srnd:	move.l	d0,rnd_v
 	;; fall through to tick_rnd
 
 tick_rnd:
-	lea	rnd_x,a0
+	lea	rnd_v,a0
 	moveq	#1,d0
 	add.l	d0,(a0)
 	tst.w	(a0)
@@ -19,7 +18,7 @@ tick_rnd:
 .ok2:	rts
 
 rnd:	movem.l	d2-d3,-(sp)
-	lea	rnd_x,a0
+	lea	rnd_v,a0
 	;; x ^= x << 5
 	move.w	(a0),d0
 	move.w	2(a0),d1
