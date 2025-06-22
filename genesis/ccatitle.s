@@ -22,7 +22,8 @@ BumbershootTitle:
 	beq.s	.blit			; Finish string if null
 	move.w	d0,(a2)			; Write to VRAM
 	bra.s	.line
-.ready:	move.w	#$8144,(a3)		; Re-enable display
+.ready:	move.w	#$8238,(a3)		; Flip to blank nametable at first
+	move.w	#$8144,(a3)		; Re-enable display
 
 	moveq	#1,d3			; Scanline to start the bleed
 .wait:	move.w	(a3),d0
@@ -31,6 +32,7 @@ BumbershootTitle:
 .v:	move.w	(a3),d0
 	btst	#3,d0			; Wait for VBLANK
 	beq.s	.v
+	move.w	#$8230,(a3)		; Set correct Plane A nametable
 	addq	#1,d2			; Increment frame count
 	bsr	ReadJoy1
 	btst	#7,d0			; Start pressed?
