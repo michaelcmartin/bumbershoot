@@ -50,7 +50,7 @@ def set_note(score, voice, note, length, time):
 (voice1, voice2) = musicmacro.bach_sample
 
 piano = [0x71, 0x0d, 0x33, 0x01, # Detune/Multiple
-         0x23, 0x2d, 0x26, 0x00, # Total level
+         0x23, 0x2d, 0x26, 0x10, # Total level
          0x5f, 0x99, 0x5f, 0x94, # Rate Scaling/Attack rate
          0x05, 0x05, 0x05, 0x07, # First decay rate/AM disabled
          0x02, 0x02, 0x02, 0x02, # Secondary decay rate
@@ -91,6 +91,6 @@ collated.append(0)
 
 t = 0
 while t < len(collated):
-    print(("        defb    $" + ",$".join(["%02X" % c for c in collated[t:t+16]])))
+    print(("        defb    0x" + ",0x".join(["%02X" % c for c in collated[t:t+16]])))
     t += 16
 print("        ;; %d bytes in song" % len(collated))
