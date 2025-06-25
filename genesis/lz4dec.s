@@ -15,6 +15,7 @@ lz4dec:	movem.l	d2-d3/a2-a3,-(a7)
 .copy:	move.b	(a0)+,(a1)+		; And do the byte copy
 	dbra	d1,.copy
 .bkref:	moveq	#0,d2			; Load little-endian backref
+	moveq	#0,d3
 	move.b	(a0)+,d3
 	move.b	(a0)+,d2
 	lsl.w	#8,d2
