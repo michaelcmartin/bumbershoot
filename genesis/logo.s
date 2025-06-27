@@ -132,9 +132,9 @@ BumbershootLogo:
 	dbra	d0,.f3c
 	dbra	d3,.fade3
 
-	;; Stop playback by taking over the Z80 bus
-.skip:	move.w	#256,$a11100
-	move.w	#256,$a11200
+	;; Stop playback by taking over the Z80 bus and forcing a reset
+.skip:	move.w	#0,$a11200
+	move.w	#256,$a11100
 
 	;; Clear screen
 	move.l	#$40940003,(a3)

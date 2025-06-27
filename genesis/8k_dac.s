@@ -1,5 +1,4 @@
 SetupDAC:
-	move.l	a2,-(sp)
 	moveq	#0,d0
 	move.w	#$100,d1
 	;; Capture bus from Z80
@@ -21,9 +20,9 @@ SetupDAC:
 	moveq	#0,d0
 	move.w	d0,$100(a0)
 	move.w	d0,(a0)
+	moveq	#19,d0
+.ZRst:	dbra	d0,.ZRst
 	move.w	d1,$100(a0)
-
-	move.l	(sp)+,a2
 	rts
 
 .PlayerProg:
