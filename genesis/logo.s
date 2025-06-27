@@ -18,8 +18,19 @@ BumbershootLogo:
 	lea	4(a2),a3
 	lea	$ff0000,a1
 
+	;; Several emulators have a "soft reset" that corrupts our
+	;; reset logic. Clean up scroll data here just in case.
+	;; The rest of the state we care about will all otherwise be
+	;; written before we can possibly look at it.
+	tst.w	(a3)
+	moveq	#0,d1
+	move.l	#$81048f02,(a3)		; Disable display, VDP increment 2
+	move.l	#$40000010,(a3)		; Vertical scroll zero
+	move.l	d1,(a2)
+	move.l	#$6c000002,(a3)		; Horizontal scroll zero
+	move.l	d1,(a2)
+
 	;; Load palette
-	move.w	#$8f02,(a3)		; VDP increment = 2
 	move.l	#$c0000000,(a3)		; Write to CRAM 0
 	moveq	#15,d1
 .pallp: move.l	(a1)+,(a2)
