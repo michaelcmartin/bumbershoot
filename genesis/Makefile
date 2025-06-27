@@ -36,11 +36,11 @@ reallyclean:
 	rm -f $(BINARIES) $(Z80OBJS) $(TOOLS) res/logogfx.bin
 
 hello.bin: reset.s res/sinestra.bin
-bumberlogo.bin: reset.s logo.s 8k_dac.s lz4dec.s 8k_dac.bin
+bumberlogo.bin: reset.s logo.s 8k_dac.s lz4dec.s 8k_dac.bin z80load.s
 bumberlogo.bin: res/logogfx.bin res/bumbersong.bin
 cca.bin: reset.s fakecga.s logo.s joystick.s xorshift.s 8k_dac.s 8k_dac.bin
-cca.bin: ccamain.s res/logogfx.bin res/bumbersong.bin simplefm.s fm_mus.bin
+cca.bin: ccamain.s res/logogfx.bin res/bumbersong.bin z80load.s fm_mus.bin
 cca.bin: lz4dec.s ccatitle.s
-sprcont.bin: reset.s text.s joystick.s psg.s psg80.bin res/sinestra.bin
+sprcont.bin: reset.s text.s joystick.s z80load.s psg80.bin res/sinestra.bin
 fm_mus.bin: res/bachsong.bin
 psg80.bin: res/nyansong.bin

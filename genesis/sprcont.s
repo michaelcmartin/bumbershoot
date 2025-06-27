@@ -78,7 +78,7 @@ VBL:
 
 	include "text.s"
 	include "joystick.s"
-	include "psg.s"
+	include	"z80load.s"
 
 main:	subq	#8,sp			; Reserve space for fn args
 
@@ -94,7 +94,10 @@ main:	subq	#8,sp			; Reserve space for fn args
 
 	bsr	init_sprites
 
-	bsr	SetupPSG
+	lea	NyanCat,a0
+	move.w	#NyanCat_len,d0
+	moveq	#0,d1
+	bsr	Z80Load
 
 	move.w	#$8144,$c00004
 
@@ -295,3 +298,7 @@ sprite_attrs:
 	dc.w	124, 3, $2001, 124+320
 	dc.w	124+224, 0, $2001, 124+320
 	dc.w	128+112, 2, $2002, 128+160
+
+NyanCat:
+	incbin	"psg80.bin"
+NyanCat_len equ $ - NyanCat

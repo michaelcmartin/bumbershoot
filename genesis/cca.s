@@ -75,7 +75,11 @@ reset_requested:			; Bit 0: reset request (START pressed)
 	bsr	srnd
 	bsr	InitFakeCGA
 	bsr	CCAInit
-	bsr	SetupFM
+
+	lea	FM80,a0
+	move.w	#FM80_len,d0
+	moveq	#0,d1
+	bsr	Z80Load
 
 	;; Now that we've set up the VRAM intially, VRAM shall only be
 	;; touched inside the VBLANK interrupt.
@@ -169,12 +173,17 @@ VBL:	movem.l	d0-d2/a0-a1,-(sp)
 	move.l	d1,4(a0)
 	bra	.done
 
+FM80:	incbin	"fm_mus.bin"
+FM80_len equ $ - FM80
+
+	align	2
+
 	include	"ccatitle.s"
 	include	"ccamain.s"
 	include	"joystick.s"
 	include	"xorshift.s"
 	include	"fakecga.s"
-	include	"simplefm.s"
+	include	"z80load.s"
 	include	"8k_dac.s"
 	include	"lz4dec.s"
 	include	"logo.s"

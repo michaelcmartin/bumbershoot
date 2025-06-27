@@ -1,8 +1,8 @@
 ;;; Bumbershoot Software intro (logo/sound)
 ;;; This routine includes a skip to a 32KB boundary so it's probably best
 ;;; to put it at the very end of any given project
-;;; Include lz4dec.s, 8k_dac.s, and joystick.s in any project that includes
-;;; this, and include lz4dec _immediately_ before this file.
+;;; Include lz4dec.s, 8k_dac.s, joystick.s, and z80load.s in any project that
+;;; includes this, and include lz4dec _immediately_ before this file.
 ;;; As a side effect this function will add the frame count spent to the
 ;;; value in d0
 
