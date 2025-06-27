@@ -1,4 +1,4 @@
-;;; Z80Load: cpoies data into the Z80 address space.
+;;; Z80Load: copies data into the Z80 address space.
 ;;; Arguments: a0: Source address (68k).
 ;;;            d0: Source length (bytes)
 ;;;            d1: Destination address (z80)
