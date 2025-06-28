@@ -18,23 +18,8 @@ BumbershootLogo:
 	lea	4(a2),a3
 	lea	$ff0000,a1
 
-	;; Even though the logo runs first, we cannot rely on having just
-	;; run the powerup reset. If the user pressed the RESET button
-	;; (or chose "soft reset" from an emulator menu), our init code
-	;; is not re-run. Reset the VDP registers that we'll need for
-	;; this display.
-	tst.w	(a3)			; Reset VDP control word parity
-	move.l	#$81048f02,(a3)		; Disable display, VDP increment 2
-	move.l	#$82308407,(a3)		; Name tables at $C000 and $E000
-	move.l	#$86008b00,(a3)		; Full-screen horiz and vert scroll
-	move.l	#$8c818d2b,(a3)		; 40-column, scroll table at $AC00
-	moveq	#0,d1
-	move.l	#$40000010,(a3)		; Vertical scroll zero
-	move.l	d1,(a2)
-	move.l	#$6c000002,(a3)		; Horizontal scroll zero
-	move.l	d1,(a2)
-
 	;; Load palette
+	move.w	#$8f02,(a3)		; VDP increment = 2
 	move.l	#$c0000000,(a3)		; Write to CRAM 0
 	moveq	#15,d1
 .pallp: move.l	(a1)+,(a2)
