@@ -11,7 +11,6 @@ fire         #  1
 collision    #  1
 
 irq:	push	ix
-	ld	ix,sprattrs
 	ld	a,(collision)
 	and	a
 	call	nz,award_point
@@ -19,6 +18,7 @@ irq:	push	ix
 
 	call	read_joystick
 
+	ld	ix,sprattrs
 	ld	a,(ix+1)
 	add	h
 	cp	$06
