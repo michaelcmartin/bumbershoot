@@ -12,7 +12,8 @@ controllers     # 12
 	jp	vblank
 	db	"SHOOTING GALLERY/BUMBERSHOOT SOFTWARE'S/2025"
 
-main:	call	MODE_1
+main:	call	TURN_OFF_SOUND
+	call	MODE_1
 	;; Draw static screen
 	xor	a			; Clear VRAM
 	ld	de,$4000
