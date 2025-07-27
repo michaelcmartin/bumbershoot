@@ -12,16 +12,7 @@ controllers     # 12
 	jp	vblank
 	db	"SHOOTING GALLERY/BUMBERSHOOT SOFTWARE'S/2025"
 
-main:	ld	de,init_reg		; Init registers
-	ld	b,0
-.reglp:	ld	a,(de)
-	inc	de
-	ld	c,a
-	call	WRITE_REGISTER
-	inc	b
-	ld	a,b
-	cp	8
-	jr	nz,.reglp
+main:	call	MODE_1
 	;; Draw static screen
 	xor	a			; Clear VRAM
 	ld	de,$4000
@@ -29,38 +20,37 @@ main:	ld	de,init_reg		; Init registers
 	ld	l,a
 	call	FILL_VRAM
 	ld	a,$07			; Draw divider line
-	ld	hl,$0020
+	ld	hl,$1820
 	ld	de,$0020
 	call	FILL_VRAM
 	ld	a,$68			; Draw ground
 	ld	de,$0060
-	ld	hl,$02a0
+	ld	hl,$1aa0
 	call	FILL_VRAM
 	ld	a,$f0			; Initialize Color RAM
 	ld	de,$0020		; Most everything is white on black
-	ld	hl,$0380
+	ld	hl,$2000
 	call	FILL_VRAM
 	ld	a,$22			; Ground is green
-	ld	hl,$38d
+	ld	hl,$200d
 	ld	de,1
 	call	FILL_VRAM
 	ld	hl,initial_gfx
 	ld	bc,$000b		; Score display
-	ld	de,$0014
+	ld	de,$1814
 	call	WRITE_VRAM
 	;; Initialize graphics patterns
 	ld	bc,$0088		; Tile graphics
-	ld	de,$0808
+	ld	de,$0008
 	call	WRITE_VRAM
 	ld	bc,$0018		; Sprite graphics
-	ld	de,$0b00
+	ld	de,$3b00
 	call	WRITE_VRAM
 	ld	bc,$0030		; Load sprite attrs to CPU RAM
 	ld	de,sprattrs
 	ldir
-	ld	a,$d0			; Write sprite terminator
 	ld	bc,$0031		; Then blit them to VRAM
-	ld	de,$0300
+	ld	de,$1b00
 	ld	hl,initial_sprattr
 	call	WRITE_VRAM
 
@@ -90,13 +80,13 @@ vblank:	ex	af,af'
 
 blit_sprites:
 	ld	hl,sprattrs		; Blit updated sprites to VRAM
-	ld	de,$0300
+	ld	de,$1b00
 	ld	bc,$0030
 	jp	WRITE_VRAM
 
 blit_score:
 	ld	hl,scorebuf
-	ld	de,$001b
+	ld	de,$181b
 	ld	bc,$0004
 	jp	WRITE_VRAM
 
@@ -127,9 +117,6 @@ read_joystick:
 	dec	h
 1	pop	bc
 	ret
-
-init_reg:
-	db	$00,$80,$00,$0e,$01,$06,$01,$f1
 
 	include	"../gallerycore.asm"
 
