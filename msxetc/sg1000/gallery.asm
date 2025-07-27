@@ -46,12 +46,10 @@ main:	ld	de,init_reg		; Init VDP registers
 	ld	bc,$0030		; Load sprite attrs to CPU RAM
 	ld	de,sprattrs
 	ldir
-	ld	bc,$0030		; Then blit them to VRAM
+	ld	bc,$0031		; Then blit them to VRAM
 	ld	de,$0300
-	ld	hl,sprattrs
+	ld	hl,initial_sprattr
 	rst	blit_vram
-	ld	a,$d0			; Write sprite terminator
-	out	(VDPDATA),a
 	;;	Set up interrupt handler
 	ld	hl,.irq
 	ld	(irqvec),hl
