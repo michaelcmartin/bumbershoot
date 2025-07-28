@@ -2,7 +2,7 @@
 
 	org	$8000
 
-	map	$7020
+	map	$702b
 controllers     # 12
 
 	dw	$55AA,0,0,0
@@ -36,23 +36,26 @@ main:	call	TURN_OFF_SOUND
 	ld	hl,$200d
 	ld	de,1
 	call	FILL_VRAM
-	ld	hl,initial_gfx
-	ld	bc,$000b		; Score display
+	ld	hl,gfx_score
+	ld	bc,$000b
 	ld	de,$1814
 	call	WRITE_VRAM
 	;; Initialize graphics patterns
-	ld	bc,$0088		; Tile graphics
+	ld	hl,gfx_pat
+	ld	bc,$0088
 	ld	de,$0008
 	call	WRITE_VRAM
-	ld	bc,$0018		; Sprite graphics
+	ld	hl,gfx_sprpat
+	ld	bc,$0018
 	ld	de,$3b00
 	call	WRITE_VRAM
-	ld	bc,$0030		; Load sprite attrs to CPU RAM
+	ld	hl,gfx_sprattr
+	ld	bc,$0030
 	ld	de,sprattrs
 	ldir
 	ld	bc,$0031		; Then blit them to VRAM
 	ld	de,$1b00
-	ld	hl,initial_sprattr
+	ld	hl,gfx_sprattr
 	call	WRITE_VRAM
 
 	ld	bc,$01e1

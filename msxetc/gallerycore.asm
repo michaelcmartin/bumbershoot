@@ -147,10 +147,9 @@ award_point:
 	pop	hl
 	ret
 
-initial_gfx:
-	;; Score string
+gfx_score:
 	db	1,2,3,4,5,6,0,8,8,8,8
-	;; Font patterns
+gfx_pat:
 	db	$00,$3c,$60,$3c,$02,$62,$3c,$00 ; $01: S
 	db	$00,$3c,$62,$60,$60,$62,$3c,$00 ; $02: C
 	db	$00,$3c,$62,$62,$62,$62,$3c,$00 ; $03: O
@@ -168,12 +167,11 @@ initial_gfx:
 	db	$00,$7e,$04,$08,$10,$20,$60,$00 ; $0f: 7
 	db	$00,$3c,$62,$3c,$62,$62,$3c,$00 ; $10: 8
 	db	$00,$3c,$62,$3e,$02,$62,$3c,$00 ; $11: 9
-	;; Sprite patterns
+gfx_sprpat:
 	db	$10,$38,$ba,$ba,$fe,$fe,$92,$00 ; $60: Blaster
 	db	$00,$3c,$42,$5a,$5a,$42,$3c,$00 ; $61: Target
 	db	$00,$00,$00,$00,$00,$10,$10,$10 ; $62: Missile
-	;; Starting sprite attributes
-initial_sprattr:
+gfx_sprattr:
 	db	$99,$78,$60,$09,$38,$38,$61,$06
 	db	$38,$78,$61,$06,$38,$b8,$61,$06
 	db	$c0,$78,$62,$0b,$c0,$78,$62,$0b

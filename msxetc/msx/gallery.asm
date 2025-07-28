@@ -39,26 +39,26 @@ INIT:	ld	de,init_reg		; Init VDP registers
 	ld	a,$22			; Ground is green
 	ld	hl,$38d
 	call	WRTVRM
-	ld	hl,initial_gfx
+	ld	hl,gfx_score
 	ld	bc,$000b		; Score display
 	ld	de,$0014
 	call	LDIRVM
 	;; Initialize graphics patterns
-	ld	hl,initial_gfx+$b
+	ld	hl,gfx_pat
 	ld	bc,$0088		; Tile graphics
 	ld	de,$0808
 	call	LDIRVM
-	ld	hl,initial_gfx+$b+$88
+	ld	hl,gfx_sprpat
 	ld	bc,$0018		; Sprite graphics
 	ld	de,$0b00
 	call	LDIRVM
-	ld	hl,initial_sprattr
+	ld	hl,gfx_sprattr
 	ld	bc,$0030		; Load sprite attrs to CPU RAM
 	ld	de,sprattrs
 	ldir
 	ld	bc,$0031		; Then blit them to VRAM
 	ld	de,$0300
-	ld	hl,initial_sprattr
+	ld	hl,gfx_sprattr
 	call	LDIRVM
 	ld	bc,$e101
 	call	WRTVDP

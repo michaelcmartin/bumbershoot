@@ -32,11 +32,13 @@ main:	ld	de,init_reg		; Init VDP registers
 	ld	a,$22			; Ground is green
 	ld	de,$38d
 	rst	write_vram
-	ld	hl,initial_gfx
+	ld	hl,gfx_score
 	ld	bc,$000b		; Score display
 	ld	de,$0014
 	rst	blit_vram
-	;; Initialize graphics patterns
+	;; Initialize graphics patterns. We control the BIOS here so we know
+	;; that HL ends up taking the correct value for each next step after
+	;; each call to blit_vram.
 	ld	bc,$0088		; Tile graphics
 	ld	de,$0808
 	rst	blit_vram
@@ -48,7 +50,7 @@ main:	ld	de,init_reg		; Init VDP registers
 	ldir
 	ld	bc,$0031		; Then blit them to VRAM
 	ld	de,$0300
-	ld	hl,initial_sprattr
+	ld	hl,gfx_sprattr
 	rst	blit_vram
 	;;	Set up interrupt handler
 	ld	hl,.irq
@@ -64,7 +66,6 @@ main:	ld	de,init_reg		; Init VDP registers
 	and	$20
 	ld	(collision),a
 	jp	irq
-
 
 blit_sprites:
 	ld	hl,sprattrs		; Blit updated sprites to VRAM
