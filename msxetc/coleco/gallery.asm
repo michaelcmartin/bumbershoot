@@ -122,6 +122,6 @@ read_joystick:
 1	pop	bc
 	ret
 
-	include	"../gallerycore.asm"
+	include	"../common/gallerycore.asm"
 
 	ds	$a000-$,$ff

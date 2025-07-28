@@ -131,6 +131,6 @@ init_reg:
 directions:
 	dw	$0000,$00fe,$02fe,$0200,$0202,$0002,$fe02,$fe00,$fefe
 
-	include	"../gallerycore.asm"
+	include	"../common/gallerycore.asm"
 
 	ds	$a000-$,$ff

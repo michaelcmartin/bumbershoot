@@ -107,6 +107,6 @@ read_joystick:
 init_reg:
 	db	$00,$80,$00,$0e,$01,$06,$01,$f1
 
-	include	"../gallerycore.asm"
+	include	"../common/gallerycore.asm"
 
 	ds	$400-$,$ff
