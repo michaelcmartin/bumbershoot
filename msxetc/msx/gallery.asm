@@ -9,21 +9,25 @@
 	map	$e000
 	dw	$4241,INIT,0,0,0,0,0,0
 
-INIT:	ld	de,init_reg		; Init VDP registers
-	ld	c,0
-.reglp:	ld	a,(de)
-	inc	de
-	ld	b,a
+INIT:	ld	hl,0			; Set up VRAM tables
+	ld	(T32NAM),hl
+	ld	h,$08
+	ld	(T32CGP),hl
+	ld	(T32PAT),hl
+	ld	hl,$0300
+	ld	(T32ATR),hl
+	ld	l,$80
+	ld	(T32COL),hl
+	ld	a,$f
+	ld	(FORCLR),a
+	ld	a,1
+	ld	(BAKCLR),a
+	ld	(BDRCLR),a
+	call	INIT32
+	ld	bc,$e101		; Magnify sprites
 	call	WRTVDP
-	inc	c
-	ld	a,c
-	cp	8
-	jr	nz,.reglp
+
 	;; Draw static screen
-	ld	a,$00			; Clear lower 4KB of VRAM
-	ld	bc,$1000
-	ld	hl,0
-	call	FILVRM
 	ld	a,$07			; Draw divider line
 	ld	bc,$0020
 	ld	hl,$0020
@@ -31,10 +35,6 @@ INIT:	ld	de,init_reg		; Init VDP registers
 	ld	a,$68			; Draw ground
 	ld	bc,$0060
 	ld	hl,$02a0
-	call	FILVRM
-	ld	a,$f0			; Initialize Color RAM
-	ld	bc,$0020		; Most everything is white on black
-	ld	hl,$0380
 	call	FILVRM
 	ld	a,$22			; Ground is green
 	ld	hl,$38d
@@ -60,8 +60,6 @@ INIT:	ld	de,init_reg		; Init VDP registers
 	ld	de,$0300
 	ld	hl,gfx_sprattr
 	call	LDIRVM
-	ld	bc,$e101
-	call	WRTVDP
 
 	ld	hl,0
 	ld	(score),hl
@@ -124,9 +122,6 @@ read_joystick:
 	pop	de
 	pop	bc
 	ret
-
-init_reg:
-	db	$00,$80,$00,$0e,$01,$06,$01,$f1
 
 directions:
 	dw	$0000,$00fe,$02fe,$0200,$0202,$0002,$fe02,$fe00,$fefe
