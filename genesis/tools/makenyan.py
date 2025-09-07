@@ -1,88 +1,13 @@
 #!/usr/bin/env python
 
-# A Chiptune rendition of the Nyancat song, itself adapted from
-# Vincent Johnson's arrangement, as seen improvised upon by Tom
-# Brier here: https://www.youtube.com/watch?v=dIivJwz5jL8
+# Add the sound directory to pythonpath so we can import our music macros
+import os.path
+import sys
 
-nyan = ["""r-0-32
+musicpath = os.path.dirname(os.path.realpath(sys.argv[0]))
+sys.path.insert(0, os.path.join(musicpath, '..', '..', 'sound'))
 
-g-5-2 a-5-2 e-5-1 e-5-2 c-5-1 d#5-1 d-5-1 c-5-2 c-5-2 d-5-2
-d#5-2 d#5-1 d-5-1 c-5-1 d-5-1 e-5-1 g-5-1
-a-5-1 e-5-1 g-5-1 d-5-1 e-5-1 c-5-1 d-5-1 c-5-1
-e-5-2 g-5-2 a-5-1 e-5-1 g-5-1 d-5-1
-e-5-1 c-5-1 d#5-1 e-5-1 d#5-1 d-5-1 c-5-1 d-5-1
-d#5-2 c-5-1 d-5-1 e-5-1 g-5-1 d-5-1 e-5-1 d-5-1 c-5-1 d-5-2 c-5-2 d-5-2
-
-g-5-2 a-5-2 e-5-1 e-5-2 c-5-1 d#5-1 d-5-1 c-5-2 c-5-2 d-5-2
-d#5-2 d#5-1 d-5-1 c-5-1 d-5-1 e-5-1 g-5-1
-a-5-1 e-5-1 g-5-1 d-5-1 e-5-1 c-5-1 d-5-1 c-5-1
-e-5-2 g-5-2 a-5-1 e-5-1 g-5-1 d-5-1
-e-5-1 c-5-1 d#5-1 e-5-1 d#5-1 d-5-1 c-5-1 d-5-1
-d#5-2 c-5-1 d-5-1 e-5-1 g-5-1 d-5-1 e-5-1 d-5-1 c-5-1 d-5-2 c-5-2 d-5-2
-
-c-5-2 g-4-1 a-4-1 c-5-2 g-4-1 a-4-1
-c-5-1 d-5-1 e-5-1 c-5-1 f-5-1 e-5-1 f-5-1 g-5-1
-c-5-2 c-5-2 g-4-1 a-4-1 c-5-1 g-4-1
-f-5-1 e-5-1 d-5-1 c-5-1 g-4-1 e-4-1 f-4-1 g-4-1
-c-5-2 g-4-1 a-4-1 c-5-2 g-4-1 a-4-1
-c-5-1 c-5-1 d-5-1 e-5-1 c-5-1 g-4-1 a-4-1 g-4-1
-c-5-2 c-5-1 b-4-1 c-5-1 g-4-1 a-4-1 c-5-1
-f-5-1 e-5-1 f-5-1 g-5-1 c-5-2 b-4-2
-
-c-5-2 g-4-1 a-4-1 c-5-2 g-4-1 a-4-1
-c-5-1 d-5-1 e-5-1 c-5-1 f-5-1 e-5-1 f-5-1 g-5-1
-c-5-2 c-5-2 g-4-1 a-4-1 c-5-1 g-4-1
-f-5-1 e-5-1 d-5-1 c-5-1 g-4-1 e-4-1 f-4-1 g-4-1
-c-5-2 g-4-1 a-4-1 c-5-2 g-4-1 a-4-1
-c-5-1 c-5-1 d-5-1 e-5-1 c-5-1 g-4-1 a-4-1 g-4-1
-c-5-2 c-5-1 b-4-1 c-5-1 g-4-1 a-4-1 c-5-1
-f-5-1 e-5-1 f-5-1 g-5-1 c-5-2 d-5-2""",
-        """e-6-1 f-6-1 g-6-2 c-7-2 e-6-1 f-6-1
-g-6-1 c-7-1 d-7-1 e-7-1 d-7-1 b-6-1 c-7-2
-g-6-2 e-6-1 f-6-1 g-6-2 c-7-2
-d-7-1 b-6-1 c-7-1 d-7-1 f-7-1 e-7-1 f-7-1 d-7-1
-
-f-3-2 a-4-2 g-3-2 g-4-2 c-3-2 a-4-2 a-3-2 a-4-2
-d-3-2 f-4-2 g-3-2 g-4-2 c-3-2 g-4-2 e-3-2 a#4-2
-f-3-2 a-4-2 g-3-2 g-4-2 c-3-2 a-4-2 a-3-2 a-4-2
-d-3-2 f-4-2 g-3-2 g-4-2 c-3-2 d-3-2 d#3-2 e-3-2
-
-f-3-2 a-4-2 g-3-2 g-4-2 c-3-2 a-4-2 a-3-2 a-4-2
-d-3-2 f-4-2 g-3-2 g-4-2 c-3-2 g-4-2 e-3-2 a#4-2
-f-3-2 a-4-2 g-3-2 g-4-2 c-3-2 a-4-2 a-3-2 a-4-2
-d-3-2 f-4-2 g-3-2 g-4-2 c-3-2 d-3-2 d#3-2 e-3-2
-
-f-3-2 a-4-2 c-3-2 a-4-2 e-3-2 g-4-2 a-3-2 g-4-2
-d-3-2 a-4-2 a-3-2 a-4-2 c-3-2 g-4-2 e-3-2 g-4-2
-f-3-2 a-4-2 c-3-2 a-4-2 e-3-2 g-4-2 a-3-2 g-4-2
-d-3-2 a-4-2 a-3-2 a-4-2 c-3-2 d-3-2 e-3-2 e-3-2
-
-f-3-2 a-4-2 c-3-2 a-4-2 e-3-2 g-4-2 a-3-2 g-4-2
-d-3-2 a-4-2 a-3-2 a-4-2 c-3-2 g-4-2 e-3-2 g-4-2
-f-3-2 a-4-2 c-3-2 a-4-2 e-3-2 g-4-2 a-3-2 g-4-2
-d-3-2 a-4-2 a-3-2 a-4-2 c-3-2 d-3-2 d#3-2 e-3-2""",
-        """r-0-32
-
-a-3-2 f-4-2 r-0-2 d-4-2 r-0-2 d#4-2 r-0-2 g-4-2
-f#3-2 c-4-2 f-3-2 f-4-2 r-0-2 e-4-2 r-0-2 e-4-2
-a-3-2 f-4-2 r-0-2 d-4-2 r-0-2 d#4-2 r-0-2 g-4-2
-f#3-2 c-4-2 f-4-2 f-4-2 e-3-2 f-3-2 f#3-2 g-3-2
-
-a-3-2 f-4-2 r-0-2 d-4-2 r-0-2 d#4-2 r-0-2 g-4-2
-f#3-2 c-4-2 f-3-2 f-4-2 r-0-2 e-4-2 r-0-2 e-4-2
-a-3-2 f-4-2 r-0-2 d-4-2 r-0-2 d#4-2 r-0-2 g-4-2
-f#3-2 c-4-2 f-4-2 f-4-2 e-3-2 f-3-2 f#3-2 g-3-2
-
-a-3-2 f-4-2 r-0-2 f-4-2 r-0-2 f-4-2 r-0-2 f-4-2
-f-3-2 f-4-2 r-0-2 f-4-2 e-3-2 e-4-2 g-3-2 c-4-2
-a-3-2 f-4-2 r-0-2 f-4-2 r-0-2 e-4-2 r-0-2 e-4-2
-f-3-2 f-4-2 r-0-2 f-4-2 e-3-2 f-3-2 g-3-2 g#3-2
-
-a-3-2 f-4-2 r-0-2 f-4-2 r-0-2 f-4-2 r-0-2 f-4-2
-f-3-2 f-4-2 r-0-2 f-4-2 e-3-2 e-4-2 g-3-2 c-4-2
-a-3-2 f-4-2 r-0-2 f-4-2 r-0-2 e-4-2 r-0-2 e-4-2
-f-3-2 f-4-2 r-0-2 f-4-2 e-3-2 f-3-2 f#3-2 g-3-2"""]
-
+import musicmacro
 
 def textdump_z88dk(result, loop_point):
     i = 0
@@ -127,26 +52,25 @@ def psg_pokes(val, voice):
         return [0]
     return [(val & 0x0f) | 0x80 | (voice << 5), val >> 4]
 
-def note_val(octave, freq):
-    if freq == 0:
+def note_val(note):
+    if note == 0:
         # Rest
         return 0
     hz = 440.0
     val = 4 * 12 + notes["a-"]
-    target = octave * 12 + freq
     step = 2.0 ** (1.0 / 12)
-    result = psg_val(hz * (step ** (target - val)))
+    result = psg_val(hz * (step ** (note - val)))
     if result >= 1024:
         raise ValueError("Illegal note %d-%d -> %d" % (freq, octave, result))
     return result
 
 song = []
-for voice in nyan:
+duration_scale = (91 / 90) # Macro tempo is slightly off from original code
+for voice in musicmacro.nyan_sample:
     track = []
-    for note in voice.split():
-        freq = notes[note[:2]]
-        (octave, duration) = [int(x) for x in note[2:].split('-')]
-        track.append(note_val(octave, freq))
+    for (note, duration) in musicmacro.parse(voice):
+        duration = int(duration * duration_scale)
+        track.append(note_val(note))
         if duration > 1:
             track.extend([0] * (duration-1))
     song.append(track)
@@ -164,7 +88,7 @@ while i < len(song):
     while i < len(song) and song[i] == (0, 0, 0):
         duration += 1
         i += 1
-    result.append(duration * 7)
+    result.append(duration)
     for j in range(len(frame)):
         result.extend(psg_pokes(frame[j], j))
 result.append(0) # end of song
