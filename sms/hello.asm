@@ -1,5 +1,5 @@
 	define	SMS
-	include	"sg1000bios.asm"
+	include	"sega8bios.asm"
 
 main:	ld	hl,palette
 	ld	de,$8000
