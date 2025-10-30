@@ -40,7 +40,12 @@ static uint8_t rom_size_code(uint32_t n)
     uint32_t test = 0x2000;
     uint8_t result = 10;
     while (test < n) {
-        test <<= 1;
+        if (test == 0x8000)
+            test = 0xC000;
+        else if (test == 0xC000)
+            test = 0x10000;
+        else
+            test <<= 1;
         ++result;
     }
     return result & 0x0f;
@@ -78,7 +83,10 @@ static bool load_and_process(FILE *f)
         }
     }
     /* Compute intended ROM size */
-    final_size = next_power_of_two(rom_size);
+    if (rom_size > 0x8000 && rom_size <= 0xC000)
+        final_size = 0xC000;
+    else
+        final_size = next_power_of_two(rom_size);
     if (final_size < 0x2000) final_size = 0x2000;
     printf("Input file is %u bytes, final file will be %u bytes\n", rom_size, final_size);
     /* Add contribution of any 0xFF bytes past 32KB to our checksum */
