@@ -2,19 +2,52 @@
 	include	"sega8bios.asm"
 
 fontbuf	# 8
+cursor  # 1
 
-main:	ld	hl,palette
-	ld	de,$8000
-	ld	bc,16
-	rst	blit_vram
+main:	ld	a,$3f
+	ld	de,$800f
+	rst	write_vram
+	ld	e,$1f
+	rst	write_vram
+	xor	a
+	ld	(cursor),a
 
 	call	makefont
 	call	mkscr
-	ld	hl,$01c0
+	call	setpal
+
+	ei
+	ld	hl,$01e0
 	rst	set_vdp_register
 
 1	halt
+	halt
+	halt
+	call	setpal
 	jr	1B
+
+setpal:	ld	de,$8001
+	ld	hl,colorcycle
+	ld	a,(cursor)
+	add	l
+	jr	nc,1F
+	inc	h
+1	ld	l,a
+	ld	bc,8
+	rst	blit_vram
+	ld	de,$8009
+	ld	a,l
+	add	7
+	jr	nc,1F
+	inc	h
+1	ld	l,a
+	ld	bc,6
+	rst	blit_vram
+	ld	a,(cursor)
+	inc	a
+	and	7
+	ld	(cursor),a
+	ret
 
 makefont:
 	ld	de,$0400
@@ -84,9 +117,9 @@ mkscr:	ld	de,$3800+9*64+20
 	jr	nz,1B
 	ret
 
-palette:
-	defb	$00,$0f,$08,$28,$20,$32,$33,$02
-	defb	$07,$0a,$04,$14,$10,$21,$22,$3f
+colorcycle:
+	defb	$02,$07,$0f,$08,$28,$20,$32,$33,$02,$07,$0f,$08,$28,$20,$32
+	defb	$01,$06,$0a,$04,$14,$10,$21,$22,$01,$06,$0a,$04,$14
 
 bgpats:	defd	$ffffff,$ff000000,$ff,$ff00,$ffff,$ff0000,$ff00ff,$ffff00
 
