@@ -26,26 +26,40 @@ main:	ld	a,$3f
 	call	setpal
 	jr	1B
 
-setpal:	ld	de,$8001
+setpal:	ld	de,$8007
 	ld	hl,colorcycle
 	ld	a,(cursor)
 	add	l
 	jr	nc,1F
 	inc	h
 1	ld	l,a
-	ld	bc,8
+	ld	bc,2
+	rst	blit_vram
+	ld	de,$8001
+	ld	bc,6
+	rst	blit_vram
+	ld	de,$8017
+	ld	bc,2
+	rst	blit_vram
+	ld	de,$8011
+	ld	bc,6
 	rst	blit_vram
 	ld	de,$8009
 	ld	a,l
-	add	7
+	add	17
 	jr	nc,1F
 	inc	h
 1	ld	l,a
 	ld	bc,6
 	rst	blit_vram
+	ld	de,$8019
+	ld	bc,6
+	inc	hl
+	inc	hl
+	rst	blit_vram
 	ld	a,(cursor)
 	inc	a
-	and	7
+	and	15
 	ld	(cursor),a
 	ret
 
@@ -97,7 +111,9 @@ makefont:
 	jr	nz,.chrlp
 	ret
 
-mkscr:	ld	de,$3800+9*64+20
+mkscr:	ld	hl,0
+	push	hl
+	ld	de,$3800+9*64+20
 	ld	hl,msg
 	ld	c,7
 1	call	prep_vram_write
@@ -105,21 +121,35 @@ mkscr:	ld	de,$3800+9*64+20
 2	ld	a,(hl)
 	out	(VDPDATA),a
 	inc	hl
-	xor	a
+	ex	(sp),hl
+	ld	a,l
 	out	(VDPDATA),a
+	ex	(sp),hl
 	djnz	2B
 	ld	a,e
 	add	64
 	ld	e,a
 	jr	nc,2F
 	inc	d
-2	dec	c
+2	ex	(sp),hl
+	ld	a,l
+	xor	8
+	ld	l,a
+	ex	(sp),hl
+	dec	c
 	jr	nz,1B
+	pop	hl
 	ret
 
 colorcycle:
-	defb	$02,$07,$0f,$08,$28,$20,$32,$33,$02,$07,$0f,$08,$28,$20,$32
-	defb	$01,$06,$0a,$04,$14,$10,$21,$22,$01,$06,$0a,$04,$14
+	defb	$02,$02,$07,$07,$0f,$0f,$08,$08
+	defb	$28,$28,$20,$20,$32,$32,$33,$33
+	defb	$02,$02,$07,$07,$0f,$0f,$08,$08
+	defb	$28,$28,$20,$20,$32,$32,$33
+	defb	$01,$01,$06,$06,$0a,$0a,$04,$04
+	defb	$14,$14,$10,$10,$21,$21,$22,$22
+	defb	$01,$01,$06,$06,$0a,$0a,$04,$04
+	defb	$14,$14,$10,$10,$21,$21,$22
 
 bgpats:	defd	$ffffff,$ff000000,$ff,$ff00,$ffff,$ff0000,$ff00ff,$ffff00
 
