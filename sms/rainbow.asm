@@ -26,16 +26,13 @@ main:	ld	a,$3f
 	call	setpal
 	jr	1B
 
-setpal:	ld	de,$8007
+setpal:	ld	de,$8001
 	ld	hl,colorcycle
 	ld	a,(cursor)
 	add	l
 	jr	nc,1F
 	inc	h
 1	ld	l,a
-	ld	bc,2
-	rst	blit_vram
-	ld	de,$8001
 	ld	bc,6
 	rst	blit_vram
 	ld	de,$8017
@@ -44,9 +41,12 @@ setpal:	ld	de,$8007
 	ld	de,$8011
 	ld	bc,6
 	rst	blit_vram
+	ld	de,$8007
+	ld	bc,2
+	rst	blit_vram
 	ld	de,$8009
 	ld	a,l
-	add	17
+	add	15
 	jr	nc,1F
 	inc	h
 1	ld	l,a
@@ -149,7 +149,7 @@ colorcycle:
 	defb	$01,$01,$06,$06,$0a,$0a,$04,$04
 	defb	$14,$14,$10,$10,$21,$21,$22,$22
 	defb	$01,$01,$06,$06,$0a,$0a,$04,$04
-	defb	$14,$14,$10,$10,$21,$21,$22
+	defb	$14,$14,$10,$10,$21
 
 bgpats:	defd	$ffffff,$ff000000,$ff,$ff00,$ffff,$ff0000,$ff00ff,$ffff00
 
