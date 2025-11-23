@@ -11,7 +11,7 @@ clean:
 %.rom: msx/%.asm
 	sjasm $< $@
 
-$.col: coleco/%.asm
+%.col: coleco/%.asm
 	sjasm $< $@
 
 res/tms9918.bin: ../asm/fonts/tms9918.s
