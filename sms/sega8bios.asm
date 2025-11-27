@@ -12,6 +12,13 @@
 ;;; RAM, defines additional ports, and fully configures the standard
 ;;; mapper and all VDP registers for Mode 4 operation.
 ;;;
+;;; When assembling for the SMS, you may also define RASTERINT to
+;;; expand the IRQ handler. This should only be done if you intend
+;;; to rely on raster effects through VDP register 11; otherwise
+;;; you are spending ROM and RAM space for checks that will never
+;;; succeed. Note that mid-screen raster interrupts will still
+;;; update the vdp_status register.
+;;;
 ;;; The following restarts and routines are defined:
 ;;;
 ;;; RST $08: set_vdp_register. Set VDP register H to L. Trashes A.
@@ -39,6 +46,8 @@
 ;;; The following global variables are defined:
 ;;;
 ;;; irqvec: If nonzero, call this function on each VBLANK interrupt.
+;;; rastervec: Defined only when RASTERINT is defined. If nonzero, call
+;;;         this function on any interrupt that isn't VBLANK.
 ;;; frames: 16-bit frame count, updated each VDP interrupt.
 ;;; joy1:   Latest polled value from controller 1. NOT the same as
 ;;;         IOPORT1's value; Controller 2 data is masked off and bits are
@@ -51,6 +60,11 @@
 ;;;         assumed to be connected to a pause button.
 ;;; vdp_status: Cached value of the VDP status register, sampled on VDP
 ;;;             interrupt.
+;;;
+;;; The irqvec and rastervec functions are called with the shadow
+;;; registers swapped in, but if you use IX or IY. you must preserve and
+;;; restore those on the stack yourself or risk them being trashed from
+;;; the perspective of the main program.
 ;;;----------------------------------------------------------------------
 
 ifdef SG1000
@@ -83,6 +97,9 @@ joy1_pressed #  1
 joy2_pressed #  1
 paused       #  1
 vdp_status   #  1
+ifdef RASTERINT
+rastervec    #  2
+endif
 
 	di
 	im	1
@@ -133,9 +150,8 @@ read_vblk:
 ;;; $0038: IRQ handler
 	ex	af,af'
 	exx
-	ld	hl,(frames)
-	inc	hl
-	ld	(frames),hl
+	in	a,(VDPSTAT)		; Read status word
+	ld	(vdp_status),a
 	jp	.irq_cont
 
 ;;; Remaining implementations of restart functions
@@ -244,8 +260,18 @@ endif
 ;;; Remaining implementation of IRQ handler
 
 .irq_cont:
-	in	a,(VDPSTAT)		; Read status word
-	ld	(vdp_status),a
+ifdef RASTERINT
+	bit	7,a
+	jr	nz,.vblnk
+	ld	hl,(rastervec)		; Load raster IRQ handler
+	ld	a,h			; Is it zero?
+	or	l
+	call	nz,1F			; If not, call it
+	jr	.end			; Either way, done.
+endif
+.vblnk:	ld	hl,(frames)
+	inc	hl
+	ld	(frames),hl
 	ld	hl,(joy1)		; Move last input to HL
 	in	a,(IOPORT2)		; Read new inputs into DE
 	xor	$ff			; and switch them to active-high
@@ -273,7 +299,7 @@ endif
 	ld	a,h			; Is it zero?
 	or	l
 	call	nz,1F
-	exx				; Restore main program registers
+.end	exx				; Restore main program registers
 	ex	af,af'
 	ei				; and return from IRQ
 	reti
