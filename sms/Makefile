@@ -1,24 +1,27 @@
-all: hello.sms sprcont.sms rainbow.sms multiscroll.sms horizmap.sms
+SMSROMS=hello.sms sprcont.sms rainbow.sms multiscroll.sms horizmap.sms raster.sms
+LISTFILES=$(patsubst %.sms,%.lst,$(SMSROMS))
+FONTS=sinestra.bin halogen.bin
+TOOLS=smsfix
+
+all: $(SMSROMS)
 
 %.sms: %.asm smsfix
 	sjasm $< $@ && ./smsfix $@
 
+$(FONTS): %.bin: ../asm/fonts/%.s
+	ophis -o $@ $<
+
 smsfix: tools/smsfix.c
 	gcc -O2 -o $@ $<
 
-sinestra.bin: ../asm/fonts/sinestra.s
-	ophis -o $@ $<
-
-halogen.bin: ../asm/fonts/halogen.s
-	ophis -o $@ $<
-
 clean:
-	rm -f hello.sms sprcont.sms rainbow.sms multiscroll.sms horizmap.sms sinestra.bin halogen.bin smsfix
+	rm -f $(SMSROMS) $(TOOLS) $(LISTFILES)
 
-reallyclean:
-	rm -f hello.sms hello.lst sprcont.sms sprcont.lst rainbow.sms rainbow.lst multiscroll.sms multiscroll.lst horizmap.sms horizmap.lst halogen.bin sinestra.bin smsfix
+tidy:
+	rm -rf $(TOOLS) $(LISTFILES)
 
 hello.asm: sega8bios.asm
 sprcont.asm: sega8bios.asm ../genesis/res/nyansong.bin sinestra.bin
 rainbow.asm: sega8bios.asm sinestra.bin
 multiscroll.asm: sega8bios.asm sinestra.bin halogen.bin
+raster.asm: sega8bios.asm
