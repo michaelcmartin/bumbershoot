@@ -1,5 +1,5 @@
 ROMS = cbanner gallery nyancat xorshift99
-GROMS = gbanner
+GROMS = gbanner xsrnd
 
 BINARIES = $(patsubst %,%c.bin,$(ROMS)) $(patsubst %,%g.bin,$(GROMS))
 ROMCTGS = $(patsubst %,%.ctg,$(ROMS))
