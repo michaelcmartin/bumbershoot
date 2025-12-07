@@ -1,15 +1,17 @@
 ROMS = cbanner gallery nyancat xorshift99
-GROMS = gbanner xsrnd
+GROMS = gbanner
+HROMS = xsrnd
 
-BINARIES = $(patsubst %,%c.bin,$(ROMS)) $(patsubst %,%g.bin,$(GROMS))
+BINARIES = $(patsubst %,%c.bin,$(ROMS) $(HROMS)) $(patsubst %,%g.bin,$(GROMS) $(HROMS))
 ROMCTGS = $(patsubst %,%.ctg,$(ROMS))
 GROMCTGS = $(patsubst %,%.ctg,$(GROMS))
+HROMCTGS = $(patsubst %,%.ctg,$(HROMS))
 ROMRPKS = $(patsubst %,%.rpk,$(ROMS))
 GROMRPKS = $(patsubst %,%.rpk,$(GROMS))
 
 all-rpk: $(ROMRPKS) $(GROMRPKS)
 
-all-ctg: $(ROMCTGS) $(GROMCTGS)
+all-ctg: $(ROMCTGS) $(GROMCTGS) $(HROMCTGS)
 
 all-bin: $(BINARIES)
 
@@ -38,3 +40,6 @@ $(ROMCTGS): %.ctg: %c.bin
 
 $(GROMCTGS): %.ctg: %g.bin
 	convert-ctg $(subst g.bin,.bin,$<)
+
+$(HROMCTGS): %.ctg: %c.bin %g.bin
+	convert-ctg $(subst c.bin,.bin,$<)
