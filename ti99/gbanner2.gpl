@@ -33,6 +33,10 @@ START	ALL >20				* CLEAR SCREEN
 	HTEXT '  pppppppppppppppppppppppppppp  '
 	FEND
 
+	DST MINUET,@>83CC
+	AND >FE,@>93FD
+	ST 1,@>83CE
+
 LOOP	SCAN
 	BR LOOP
 	EXIT
@@ -56,4 +60,6 @@ SPRATTR	BYTE 80,60,>80,4,80,60,>84,10
 
 SPRMOVE	BYTE >D8,>14,>00,>00,>D8,>14,>00,>00
 	BYTE >0A,>EC,>00,>00,>0A,>EC,>00,>00
+
+MINUET  BCOPY "minuet.bin"
 	END START

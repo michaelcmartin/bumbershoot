@@ -22,6 +22,7 @@ cbanner.asm: vdplib.asm
 gallery.asm: vdplib.asm
 nyancat.asm: vdplib.asm
 xorshift99.asm: vdplib.asm
+gbanner2g.bin: minuet.bin
 
 %c.bin: %.asm
 	xas99.py -Rb -o $@ $<
@@ -43,3 +44,6 @@ $(GROMCTGS): %.ctg: %g.bin
 
 $(HROMCTGS): %.ctg: %c.bin %g.bin
 	convert-ctg $(subst c.bin,.bin,$<)
+
+minuet.bin: ../sound/musicmacro.py tools/makesoundlist.py
+	tools/makesoundlist.py
