@@ -45,39 +45,49 @@ def note_val(note):
         raise ValueError("Illegal note %d -> %d" % (note, result))
     return result
 
-song = []
-for voice in musicmacro.bach_sample:
-    track = []
-    t = 0
-    for (note, duration) in musicmacro.parse(voice):
-        note_on = int(t)
-        note_off = int(t + (duration * 7/8))
-        while len(track) <= note_off:
-            track.append(0)
-        track[note_off] = -1
-        track[note_on] = note_val(note)
-        t += duration
-    song.append(track)
+def convert_song(voices):
+    song = []
+    for voice in voices:
+        track = []
+        t = 0
+        for (note, duration) in musicmacro.parse(voice):
+            note_on = int(t)
+            note_off = int(t + (duration * 7/8))
+            note_complete = int(t + duration)
+            while len(track) <= note_complete:
+                track.append(0)
+            track[note_off] = -1
+            track[note_on] = note_val(note)
+            t += duration
+        song.append(track)
 
-song = list(zip(*song))
-result = []
-i = 0
-while i < len(song):
-    frame = song[i]
-    duration = 1
-    i += 1
-    while i < len(song) and song[i] == (0, 0):
-        duration += 1
+    song = list(zip(*song))
+    result = []
+    i = 0
+    while i < len(song):
+        frame = song[i]
+        duration = 1
         i += 1
-    pokes = []
-    for j in range(len(frame)):
-        pokes.extend(psg_pokes(frame[j], j))
-    if len(pokes) > 0:
-        result.append(len(pokes))
-        result.extend(pokes)
-        result.append(duration)
-result.extend([4,0x9f,0xbf,0xdf,0xff,0]) # end of song
+        while i < len(song) and song[i] == (0, 0):
+            duration += 1
+            i += 1
+        pokes = []
+        for j in range(len(frame)):
+            pokes.extend(psg_pokes(frame[j], j))
+        if len(pokes) > 0:
+            result.append(len(pokes))
+            result.extend(pokes)
+            result.append(duration)
+    result.extend([4,0x9f,0xbf,0xdf,0xff,0]) # end of song
+    return result
 
-out = open("minuet.bin", "wb")
-out.write(bytes(result))
-out.close()
+def convert(voices, outfilename):
+    sound_list = convert_song(voices)
+    out = open(outfilename, "wb")
+    out.write(bytes(sound_list))
+    out.close()
+
+if __name__ == '__main__':
+    for voices, fname in zip([musicmacro.bach_sample, *musicmacro.bach_sample_units],
+                             ["minuet.bin", "minuet_a.bin", "minuet_b.bin"]):
+        convert(voices, fname)

@@ -99,6 +99,7 @@ def oldstyle_text(notes, tempo):
 def generate_sample_music():
     """Pre-encoded songs used by various demo programs."""
     global bach_sample
+    global bach_sample_units
     global banner_sample
     global nyan_sample
 
@@ -107,7 +108,7 @@ def generate_sample_music():
                   L4O4EEE8G8DDD8G8CL8DC<B>C<A2.
                   O3L8GB>DG<A>F#G4<G4G4GB>DG<A>F#G4<G4G4
                   O4L8E4DC<BA>D4C<BAGL12AB>C<L4DF#G2."""
-    voice1_b = """O3L8GABAGF#G4E4E4>GF#EGF#EF#4<B4B4
+    voice1_b = """T120O3L8GABAGF#G4E4E4>GF#EGF#EF#4<B4B4
                   O4L8GF#EGF#EL4F#<B>EL12F#GAL4<B>D#ED#8E8F#
                   O4L8G4GF#EDE4EDC<B>C4C<BAGF#4EF#D4
                   O3L4ADDBDD>CL8DC<B>C<A2.
@@ -118,7 +119,7 @@ def generate_sample_music():
                   O2L4CGC<B>G<BA>F#GL8DEF#DEF#
                   O2L8G2D4<GB>DGD<BG2>D4<GB>DGD<B
                   O2L4CEG<B>DGCDDGD<G"""
-    voice2_b = """O2L4ED#<B>E<BE>EGBL8<B>D#F#BF#D#
+    voice2_b = """T120O2L4ED#<B>E<BE>EGBL8<B>D#F#BF#D#
                   O2L4EGB<B>AGAB<B>E2.
                   O1L4B>DGCDE<AB>CD<AD
                   O2L8F#DF#DF#DGDGDGDF#4D4G4DEF#DEF#
@@ -129,6 +130,7 @@ def generate_sample_music():
     voice2 = voice2_a + voice2_a + voice2_b + voice2_b
 
     bach_sample = (voice1, voice2)
+    bach_sample_units = [(voice1_a, voice2_a), (voice1_b, voice2_b)]
 
     # A chiptune rendition of The Star-Spangled Banner, adapted
     # from the PCjr port of John Jainschigg's "Portrait of Liberty"
