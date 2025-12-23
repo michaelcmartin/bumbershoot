@@ -8,15 +8,16 @@ GROMCTGS = $(patsubst %,%.ctg,$(GROMS))
 HROMCTGS = $(patsubst %,%.ctg,$(HROMS))
 ROMRPKS = $(patsubst %,%.rpk,$(ROMS))
 GROMRPKS = $(patsubst %,%.rpk,$(GROMS))
+HROMRPKS = $(patsubst %,%.rpk,$(HROMS))
 
-all-rpk: $(ROMRPKS) $(GROMRPKS)
+all-rpk: $(ROMRPKS) $(GROMRPKS) $(HROMRPKS)
 
 all-ctg: $(ROMCTGS) $(GROMCTGS) $(HROMCTGS)
 
 all-bin: $(BINARIES)
 
 clean:
-	rm -f $(BINARIES) $(ROMRPKS) $(GROMRPKS) $(ROMCTGS) $(GROMCTGS)
+	rm -f $(BINARIES) $(ROMRPKS) $(GROMRPKS) $(HROMRPKS) $(ROMCTGS) $(GROMCTGS) $(HROMCTGS)
 
 cbanner.asm: vdplib.asm
 gallery.asm: vdplib.asm
@@ -44,6 +45,9 @@ $(GROMCTGS): %.ctg: %g.bin
 
 $(HROMCTGS): %.ctg: %c.bin %g.bin
 	convert-ctg $(subst c.bin,.bin,$<)
+
+$(HROMRPKS): %.rpk: %c.bin %g.bin
+	tools/makerpk.py $(subst c.bin,,$<)
 
 minuet.bin: ../sound/musicmacro.py tools/makesoundlist.py
 	tools/makesoundlist.py
