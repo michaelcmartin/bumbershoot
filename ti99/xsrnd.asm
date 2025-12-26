@@ -1,7 +1,7 @@
 	AORG	>6000
 
 	DATA	0,0,0,0,0,0,0,0
-	DATA	0,RNG,PHEX
+	DATA	0,RNG,PHEX,DOSONG
 
 RNG	LWPI	>8300
 	MOV	R14,R0
@@ -18,7 +18,6 @@ RNG	LWPI	>8300
 	B	*R11
 
 PHEX	LWPI	>8300
-	LIMI	0
 	CLR	R1
 	LI	R2,>4000
 	MOVB	@>837F,@>8305		* Low byte of R2 = CCOL
@@ -45,8 +44,7 @@ PHEX	LWPI	>8300
 	JL	!
 	SB	@C20,@>837F
 	AB	@C01,@>837E
-!	LIMI	2
-	LWPI	>83E0
+!	LWPI	>83E0
 	B	*R11
 !PDIGI	ANDI	R0,>0F00
 	AI	R0,>3000
@@ -56,6 +54,41 @@ PHEX	LWPI	>8300
 !	MOVB	R0,@>8C00
 	B	*R11
 
+DOSONG	LWPI	>8300
+	MOV	R0,R12
+	MOV	R0,R13
+	MOV	@CISR,@>83C4
+	LWPI	>83E0
+	B	*R11
+
+ISR	LWPI	>8300
+	MOVB	@>83CE,@>83CE		* Sound list done?
+	JNE	!DONE			* If not, we're done too
+	MOVB	@>9802,R9		* Read original GROM location
+	NOP
+	MOVB	@>9802,@>8313		*  into R9
+	DEC	R9
+!GLOAD	MOVB	R13,@>9C02		* Dereference R13 into GROM
+	SWPB	R13
+	MOVB	R13,@>9C02
+	SWPB	R13
+	MOVB	@>9800,R10		* R10 holds word value
+	NOP
+	MOVB	@>9800,@>8315		* Load final value the hard way
+	MOV	R10,R10			* Is it zero?
+	JNE	!OK
+	MOV	R12,R13			* If so, copy start of song back
+	JMP	-!GLOAD			* And reload
+!OK	INCT	R13			* Otherwise advance song pointer
+	MOV	R10,@>83CC		* Set pattern sound list address
+	MOVB	@C01,@>83CE		* Start sound playback
+	MOVB	R9,@>9C02		* Restore the GROM address
+	SWPB	R9
+	MOVB	R9,@>9C02
+!DONE	LWPI	>83E0
+	B	*R11
+
 C01:	BYTE	>01
 C04:	BYTE	>04
 C20:	BYTE	>20
+CISR:	DATA	ISR
