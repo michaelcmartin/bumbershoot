@@ -23,8 +23,8 @@ cbanner.asm: vdplib.asm
 gallery.asm: vdplib.asm
 nyancat.asm: vdplib.asm
 xorshift99.asm: vdplib.asm
-gbanner2g.bin: minuet.bin
-xsrndg.bin: minuet.bin
+gbanner2.gpl: minuet.bin
+xsrnd.gpl: minuet.bin
 
 %c.bin: %.asm
 	xas99.py -Rb -o $@ $<
