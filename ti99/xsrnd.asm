@@ -61,32 +61,30 @@ DOSONG	LWPI	>8300
 	LWPI	>83E0
 	B	*R11
 
-ISR	LWPI	>8300
-	MOVB	@>83CE,@>83CE		* Sound list done?
+ISR	MOVB	@>83CE,@>83CE		* Sound list done?
 	JNE	!DONE			* If not, we're done too
-	MOVB	@>9802,R9		* Read original GROM location
+	LWPI	>8300
+	MOVB	@>9802,R10		* Read original GROM location
 	NOP
-	MOVB	@>9802,@>8313		*  into R9
-	DEC	R9
+	MOVB	@>9802,@>8315		*  into R10
+	DEC	R10
 !GLOAD	MOVB	R13,@>9C02		* Dereference R13 into GROM
 	SWPB	R13
 	MOVB	R13,@>9C02
 	SWPB	R13
-	MOVB	@>9800,R10		* R10 holds word value
-	NOP
-	MOVB	@>9800,@>8315		* Load final value the hard way
-	MOV	R10,R10			* Is it zero?
+	MOVB	@>9800,@>83CC		* Load new sound list ptr
+	INCT	R13			* Increment song ptr while we wait
+	MOVB	@>9800,@>83CD
+	MOV	@>83CC,@>83CC		* Is it zero?
 	JNE	!OK
 	MOV	R12,R13			* If so, copy start of song back
 	JMP	-!GLOAD			* And reload
-!OK	INCT	R13			* Otherwise advance song pointer
-	MOV	R10,@>83CC		* Set pattern sound list address
-	MOVB	@C01,@>83CE		* Start sound playback
-	MOVB	R9,@>9C02		* Restore the GROM address
-	SWPB	R9
-	MOVB	R9,@>9C02
-!DONE	LWPI	>83E0
-	B	*R11
+!OK	MOVB	@C01,@>83CE		* Otherwise start sound playback
+	MOVB	R10,@>9C02		* Restore the GROM address
+	SWPB	R10
+	MOVB	R10,@>9C02
+	LWPI	>83E0
+!DONE	B	*R11
 
 C01:	BYTE	>01
 C04:	BYTE	>04
