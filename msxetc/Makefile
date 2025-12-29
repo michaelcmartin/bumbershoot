@@ -19,5 +19,5 @@ res/tms9918.bin: ../asm/fonts/tms9918.s
 
 gallery.sg: sg1000/sg1000bios.asm
 vdpmodes.sg: sg1000/sg1000bios.asm res/g2loom.bin res/mltdemo.bin res/tms9918.bin
-gallery.col: coleco/coleco_bios.asm
+gallery.col: coleco/coleco_bios.asm coleco/silent_start.asm
 gallery.rom: msx/msxbios.asm

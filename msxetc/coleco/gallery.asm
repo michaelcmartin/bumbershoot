@@ -5,21 +5,15 @@
 	map	$702b
 controllers     # 12
 
-	dw	$55AA,0,0,0
+	dw	$AA55,0,0,0
 	dw	controllers
 	dw	main
 	ds	$8021-$
 	jp	vblank
-	db	"SHOOTING GALLERY/BUMBERSHOOT SOFTWARE'S/2025"
 
-main:	call	TURN_OFF_SOUND
-	call	MODE_1
-	;; Draw static screen
-	xor	a			; Clear VRAM
-	ld	de,$4000
-	ld	h,a
-	ld	l,a
-	call	FILL_VRAM
+main:
+	include	"silent_start.asm"
+	;; Create the static parts of the screen
 	ld	a,$07			; Draw divider line
 	ld	hl,$1820
 	ld	de,$0020
