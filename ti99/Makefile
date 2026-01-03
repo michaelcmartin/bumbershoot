@@ -1,4 +1,4 @@
-ROMS = cbanner gallery nyancat xorshift99
+ROMS = cbanner gallery nyancat recursion xorshift99
 GROMS = gbanner gbanner2
 HROMS = xsrnd
 
