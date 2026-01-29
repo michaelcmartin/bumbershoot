@@ -13,7 +13,7 @@
 
         ;;  BASIC program that just calls our machine language code
 .scope
-        .word   _next, 2015     ; Next line and current line number
+        .word   _next, 2026     ; Next line and current line number
         .byte   $9e," 2062",0   ; SYS 2062
 _next:  .word   0               ; End of program
 .scend
@@ -47,7 +47,7 @@ _next:  .word   0               ; End of program
         sta     $2190, y
         dey
         bpl     -
-        ldy     #$1f
+        ldy     #$57
 *       lda     gfx2,y
         sta     $2118,y
         dey
@@ -58,16 +58,20 @@ _next:  .word   0               ; End of program
         iny
         cpy     #$e0
         bne     -
+        ldx     #$00
+*       lda     shadow_nw,x
+        sta     sprpat,x
+        lda     shadow_nw+256,x
+        sta     sprpat+256,x
+        inx
+        bne     -
         ;; Enable display interrupt to manage ECM and centering
         jsr     enable_display_irq
-        lda     #$18
-        sta     $d018
         ;; Draw screen
         lda     #<screen
         ldx     #>screen
         jsr     multistr
         jsr     draw_letters
-        jsr     draw_shadow
 maingo: lda     #<stclr
         ldx     #>stclr
         jsr     multistr
@@ -93,15 +97,25 @@ mainlp: jsr     stop
         sec
         sbc     #'A
         pha
+        pha
+        pha
         jsr     move
+        pla
+        jsr     draw_cell
+
         jsr     wonpuzzle
         bpl     victry
         pla
         jsr     move_sound
+        jsr     delay8
+        pla
+        jsr     draw_cell
         jmp     mainlp
         ;; Victory!
 victry: pla
         jsr     win_sound
+        pla
+        jsr     draw_cell
         lda     #<stclr
         ldx     #>stclr
         jsr     multistr
@@ -172,36 +186,6 @@ _lp:    inc     $fd
 .scend
 
 .scope
-draw_shadow:
-        ldx     #$00
-*       lda     shadow_nw,x
-        sta     sprpat,x
-        lda     shadow_nw+256,x
-        sta     sprpat+256,x
-        inx
-        bne     -
-        ldx     #$10
-*       lda     shadow_loc,x
-        sta     $d000,x
-        dex
-        bpl     -
-        ldx     #$07
-*       lda     #$0b
-        sta     $d027,x
-        lda     shadow_pat,x
-        sta     $7f8,x
-        dex
-        bpl     -
-        lda     #$06
-        sta     $d017
-        lda     #$30
-        sta     $d01d
-        lda     #$ff
-        sta     $d015
-        rts
-.scend
-
-.scope
         .data
         .space  _bits  4
         .space  _index 1
@@ -233,8 +217,8 @@ _lp:    asl     _bits
         jsr     move
 *       dec     _index
         bpl     _lp
-        lda     frames
-*       cmp     frames
+        lda     $a2
+*       cmp     $a2
         bne     -
         dec     _tries
         bne     _toplp
@@ -287,51 +271,34 @@ _rcend: clc
         tax
         rts
 
-point:  lda     #$d5
+        ;; Given X, Y in 0-4, put 0x4ac+3*X+120*Y in $FB. This is the
+        ;; address of the top-left corner of the cell at (X, Y).
+point:  stx     $fb
+        txa
+        asl                             ; Clears carry
+        adc     $fb                     ; Also won't hit carry; max is 12
+        adc     #$ac                    ; Max is $b8, still no carry
         sta     $fb
         lda     #$04
         sta     $fc
         cpy     #$00
-        beq     _px
+        beq     _done
 _pylp:  clc
         lda     #$78
         adc     $fb
         sta     $fb
-        lda     #$00
-        adc     $fc
-        sta     $fc
-        dey
+        bcc     +
+        inc     $fc
+*       dey
         bne     _pylp
-_px:    txa
-        asl
-        clc
-        adc     $fb
-        sta     $fb
-        lda     #$00
-        adc     $fc
-        sta     $fc
-        txa
-        clc
-        adc     $fb
-        sta     $fb
-        lda     #$00
-        adc     $fc
-        sta     $fc
-        rts
+_done:  rts
 
-flip:   cpx     #$05
+flip:   ;; Bounds-check.
+        cpx     #$05
         bcs     _bad
         cpy     #$05
         bcs     _bad
         jsr     point
-        ;; Subtract 41 from the "point" pointer to hit the upper left
-        sec
-        lda     $fb
-        sbc     #$29
-        sta     $fb
-        lda     $fc
-        sbc     #$00
-        sta     $fc
         ;; Then flip all 9 characters.
         jsr     _frow
         ldy     #$28
@@ -342,27 +309,90 @@ flip:   cpx     #$05
         ldy     #$29
         lda     ($fb), y
         bmi     _fon
-        lda     #$0b
+        ldx     #$0b
         .byte   $2c             ; BIT Absolute; skip next instruction
-_fon:   lda     #$01
-        pha
+_fon:   ldx     #$01
         lda     $fc
         eor     #$dc
         sta     $fc
-        pla
+        txa
         sta     ($fb),y
-        lda     $fc
-        eor     #$dc
-        sta     $fc
 _bad:   rts
 _frow:  jsr     _fchar
-        iny
         jsr     _fchar
-        iny
         ;; Fall through to _fchar
 _fchar: lda     ($fb),y
         eor     #$80
         sta     ($fb),y
+        iny
+        rts
+
+
+        ;; Flip the pushed-ness of the button identified by A
+draw_cell:
+        pha                             ; Save original character
+        jsr     rowcol
+        sty     $fe                     ; Preserve X,Y in $FE and stack
+        txa
+        pha
+        jsr     point
+        ldy     #$00
+        lda     ($fb),y                 ; Get current character
+        eor     #$14                    ; Flip pushed-ness
+        sta     $fd                     ; Make it our character counter
+        ldx     #$00
+*       lda     button_offsets,x
+        tay
+        lda     $fd
+        sta     ($fb),y
+        inx
+        inc     $fd
+        cpx     #$08
+        bne     -
+        pla                             ; Restore coordinates
+        tax
+        ldy     $fe
+        lda     $fd
+        and     #$10                    ; Was this button pressed?
+        bne     _released               ; Branch if not
+        lda     spr_mask,x              ; Otherwise, disable shadow
+        eor     #$ff
+        and     spr_enable,y
+        sta     spr_enable,y
+        pla                             ; Restore character
+        asl                             ; Multiply by 8 for font offset
+        asl
+        asl
+        adc     #$07                    ; Start at the bottom
+        tax
+        ldy     #$07
+*       dex
+        lda     $2008,x                 ; Shift char left and down
+        asl
+        sta     $2009,x
+        dey
+        bne     -
+        lda     #$00
+        sta     $2008,x
+        rts
+_released:
+        lda     spr_mask,x              ; Re-enable shadow
+        ora     spr_enable,y
+        sta     spr_enable,y
+        pla
+        asl
+        asl
+        asl
+        tax
+        ldy     #$07
+*       lda     $2009,x                 ; Shift character right and up
+        lsr
+        sta     $2008,x
+        inx
+        dey
+        bne     -
+        lda     #$00
+        sta     $2008,x
         rts
 
 move_sound:
@@ -403,17 +433,23 @@ move:   jsr     rowcol
 ;;; Display interrupt and its management
 .scope
         .data
-        .space  frames 1
+        .space  _irq_phase 1
+        .space  spr_enable 5
         .text
 
 enable_display_irq:
         lda     #$00
-        sta     frames
+        sta     _irq_phase
+        lda     #$ff
+        ldx     #$04
+*       sta     spr_enable,x
+        dex
+        bne     -
         lda     #$7f
         sta     $dc0d
         lda     #$1b
         sta     $d011
-        lda     #$48
+        lda     irq_rows
         sta     $d012
         lda     #<_irq
         sta     $314
@@ -441,24 +477,93 @@ disable_display_irq:
 _irq:   lda     #$01            ; Acknowledge interrupt
         sta     $d019
 
-        lda     $d012           ; Midscreen or bottom?
-        bmi     _bot
-
-        lda     #$5b            ; At top; Enable ECM for board
+        ldx     _irq_phase
+        beq     _bot            ; Handle phase 0
+        cpx     #$06
+        bne     _not6
+        lda     #$cd            ; Handle phase 6: move bottom shadow into place
+        sta     $d001
+        sta     $d003
+        lda     #$8f
+        sta     $d000
+        lda     #$bf
+        sta     $d002
+        lda     #$c3
+        sta     $07f8
+        sta     $07f9
+        lda     #$03
+        sta     $d01d
+        lda     #$ff
+        sta     $d015
+        jmp     _done
+_not6:  cpx     #$07
+        bne     _not7
+        lda     #$16            ; Mixed-case charset for status bar
+        sta     $d018
+        lda     #$1b            ; And disable ECM so we can do mixed-case too
+        sta     $d011
+        bne     _done
+_not7:  dex
+        bne     _mid
+        lda     #$5b            ; Phase 1; Enable ECM for board
         sta     $d011
         lda     #$0c            ; And scroll 4 to the right to center it
         sta     $d016           ; and the instructions
-        lda     #$fb            ; Next IRQ is at the bottom
         bne     _done
-
-_bot:   lda     #$1b            ; At bottom; disable ECM for logo
-        sta     $d011
-        lda     #$08            ; And scroll 0 for centered logo
+_mid:   dex
+        lda     shadow_rows,x   ; Phases 2-5; move cell shadows down a unit
+        ldy     #$08
+*       sta     $d001,y
+        dey
+        dey
+        bpl     -
+        lda     spr_enable+1,x  ; Set this row's sprite-enable
+        sta     $d015
+        dex
+        bne     _done           ; For phases != 3, we're done
+        lda     #$ba            ; For phase 3, move the corners down
+        sta     $d00b
+        sta     $d00d
+        lda     #$90            ; Also the left shadow
+        sta     $d00f
+        lda     #$c2            ; Adjust sprite patterns
+        sta     $07fd
+        lda     #$c4
+        sta     $07fe
+        bne     _done
+_bot:   lda     #$08            ; Scroll 0 for centered logo
         sta     $d016
-        inc     frames          ; Tick frame counter
-        lda     #$48            ; Next IRQ is between logo and board
+        lda     #$18            ; Back to the graphical charset
+        sta     $d018
+        ldx     #$10            ; Restore sprite positions and configurations
+*       lda     shadow_loc,x
+        sta     $d000,x
+        dex
+        bpl     -
+        ldx     #$07
+*       lda     #$0b
+        sta     $d027,x
+        lda     shadow_pat,x
+        sta     $7f8,x
+        dex
+        bpl     -
+        lda     #$80
+        sta     $d017
+        lda     #$00
+        sta     $d01d
+        lda     spr_enable
+        sta     $d015
 
-_done:  sta     $d012           ; Register next IRQ line
+_done:  ldx     _irq_phase
+        inx
+        cpx     #phase_count
+        bne     +
+        ldx     #$00
+*       lda     irq_rows,x
+        sta     $d012           ; Register next IRQ line
+        stx     _irq_phase
+        cpx     #$00            ; At bottom of screen?
+        bne     _notim          ; If not, return immediately
         lda     $dc0d           ; Check if there'd have been a timer IRQ
         beq     _notim
         jmp     $ea31           ; If so, jump to it
@@ -575,18 +680,21 @@ win_sound:
         lda     #$41            ; Play first note
         sta     $d404
         sta     $d40b
-        ldx     #$08            ; Wait 8 jiffies
-*       lda     $a2
-*       cmp     $a2
-        beq     -
-        dex
-        bne     --
+        jsr     delay8
         lda     #$00            ; Regate for second note
         sta     $d404
         sta     $d40b
         lda     #$41
         sta     $d404
         sta     $d40b
+        rts
+
+delay8: ldx     #$08
+*       lda     $a2
+*       cmp     $a2
+        beq     -
+        dex
+        bne     --
         rts
 
 .scope
@@ -596,7 +704,7 @@ stinst: .word   _stat, _inst,0
 stwait: .word   _stat, _wait,0
 stwin:  .word   _stat, _win,0
 bye:    .word   _bye,0
-_top:  .byte   147,"              ",$9b,$12,"@ABCDEFGHIJK",$92
+_top:   .byte   147,"              ",$9b,$12,"@ABCDEFGHIJK",$92
         .byte   13,"            ",$12,"LMNOPQRSTUVWXYZ[",$92,13,13
         .byte   "           <===============>",13,0
 _row:   .byte   "           :234234234234234;",13
@@ -606,14 +714,17 @@ _bot:   .byte   "           #$$$$$$$$$$$$$$$%",13,0
 _stat:  .byte   $13,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d
         .byte   $0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,$0d,0
 _spc38: .byte   13,"                                      ",0
-_inst:  .byte   13,"         PRESS LETTERS TO MOVE",13
-        .byte   "        PRESS F1 FOR NEW PUZZLE",13
-        .byte   "         PRESS RUN/STOP TO END",0
-_wait:  .byte   13,13,$99,"    PLEASE WAIT, CREATING PUZZLE...",$9b,0
-_win:   .byte   13,"       CONGRATULATIONS, YOU WIN!",13,13
-        .byte   "           PLAY AGAIN (Y/N)?",0
+_inst:  .byte   13,"         pRESS LETTERS TO MOVE",13
+        .byte   "        pRESS f1 FOR NEW PUZZLE",13
+        .byte   "         pRESS run/stop TO END",0
+_wait:  .byte   13,13,$99,"    pLEASE WAIT, CREATING PUZZLE...",$9b,0
+_win:   .byte   13,"       cONGRATULATIONS, YOU WIN!",13,13
+        .byte   "           pLAY AGAIN (y/n)?",0
 _bye:   .byte   $93,$9a,13,"THANKS FOR PLAYING!",13
-        .byte   "   -- MICHAEL MARTIN, 2025",13,0
+        .byte   "   -- MICHAEL MARTIN, 2026",13,0
+
+button_offsets:
+        .byte   0,1,2,40,42,80,81,82
 
 gfx:    .byte   $ff,$ff,$e0,$c0,$c0,$c0,$c0,$c0
         .byte   $ff,$ff,$00,$00,$00,$00,$00,$00
@@ -625,12 +736,20 @@ gfx:    .byte   $ff,$ff,$e0,$c0,$c0,$c0,$c0,$c0
         .byte   $03,$03,$03,$03,$03,$07,$ff,$ff
         .byte   $07,$07,$07,$07,$07,$07,$07,$07
         .byte   $e0,$e0,$e0,$e0,$e0,$e0,$e0,$e0
-        .byte   $00,$00,$00,$00,$00,$01,$03,$06
+        .byte   $00,$00,$00,$00,$00,$01,$03,$07
         .byte   $00,$00,$00,$00,$00,$ff,$ff,$ff
-        .byte   $00,$00,$00,$00,$00,$80,$c0,$60
-gfx2:   .byte   $06,$03,$01,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$80,$c0,$e0
+gfx2:   .byte   $07,$03,$01,$00,$00,$00,$00,$00
         .byte   $ff,$ff,$ff,$00,$00,$00,$00,$00
-        .byte   $60,$c0,$80,$00,$00,$00,$00,$00
+        .byte   $e0,$c0,$80,$00,$00,$00,$00,$00
+        .byte   $ff,$ff,$ff,$c0,$80,$80,$80,$80
+        .byte   $ff,$ff,$ff,$00,$00,$00,$00,$00
+        .byte   $ff,$ff,$ff,$0f,$07,$07,$07,$07
+        .byte   $80,$80,$80,$80,$80,$80,$80,$80
+        .byte   $07,$07,$07,$07,$07,$07,$07,$07
+        .byte   $80,$80,$80,$80,$80,$80,$c0,$ff
+        .byte   $00,$00,$00,$00,$00,$00,$00,$ff
+        .byte   $07,$07,$07,$07,$07,$07,$0f,$ff
 gfx3:   .byte   $00,$01,$00,$01,$01,$03,$03,$06
         .byte   $00,$f0,$c0,$80,$80,$00,$00,$11
         .byte   $00,$f3,$66,$4c,$cc,$98,$98,$98
@@ -676,10 +795,10 @@ shadow_sw:
         .byte   $00,$c0,$00,$00,$c0,$00,$00,$c0,$00,$00,$c0,$00,$00,$c0,$00,$00
         .byte   $c8,$00,$00,$e0,$00,$00,$f0,$00,$00,$7f,$ff,$ff,$3f,$ff,$ff,$00
 shadow_s:
+        .byte   $ff,$ff,$ff,$ff,$ff,$ff,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
         .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
         .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
         .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-        .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$ff,$ff,$ff,$ff,$ff,$ff,$00
 shadow_se:
         .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
         .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
@@ -690,11 +809,26 @@ shadow_ne:
         .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
         .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
         .byte   $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+shadow_cell:
+        .byte   $00,$00,$00,$00,$00,$00,$40,$00,$00,$40,$00,$00,$40,$00,$00,$40
+        .byte   $00,$00,$40,$00,$00,$40,$00,$00,$40,$00,$00,$40,$00,$00,$40,$00
+        .byte   $00,$40,$00,$00,$40,$00,$00,$40,$00,$00,$40,$00,$00,$40,$00,$00
+        .byte   $40,$00,$00,$40,$00,$00,$40,$00,$00,$60,$00,$00,$3F,$FF,$F0,$00
 
 shadow_loc:
-        .byte   $77,$51,$77,$66,$77,$90,$77,$ba,$8f,$ba,$bf,$ba,$de,$ba,$de,$51
+        .byte   $7c,$54,$94,$54,$ac,$54,$c4,$54,$dc,$54,$77,$51,$de,$51,$77,$66
         .byte   $00
 
+shadow_rows:
+        .byte   $6c,$84,$9c,$b4
+
 shadow_pat:
-        .byte   $c0,$c1,$c1,$c2,$c3,$c3,$c4,$c5
+        .byte   $c6,$c6,$c6,$c6,$c6,$c0,$c5,$c1
+
+spr_mask:
+        .byte   $01,$02,$04,$08,$10
+
+irq_rows:
+        .byte   $fb,$48,$55,$6d,$85,$9d,$c9,$d4
+        .alias  phase_count ^-irq_rows
 .scend
