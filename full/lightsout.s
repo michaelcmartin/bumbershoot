@@ -478,8 +478,31 @@ _irq:   lda     #$01            ; Acknowledge interrupt
         sta     $d019
 
         ldx     _irq_phase
-        beq     _bot            ; Handle phase 0
-        cpx     #$06
+        bne     _not0
+        lda     #$08            ; Phase 0: Scroll 0 for centered logo
+        sta     $d016
+        lda     #$18            ; Back to the graphical charset
+        sta     $d018
+        ldx     #$10            ; Restore sprite positions and configurations
+*       lda     shadow_loc,x
+        sta     $d000,x
+        dex
+        bpl     -
+        ldx     #$07
+*       lda     #$0b
+        sta     $d027,x
+        lda     shadow_pat,x
+        sta     $7f8,x
+        dex
+        bpl     -
+        lda     #$80
+        sta     $d017
+        lda     spr_enable
+        sta     $d015
+        lda     #$00
+        sta     $d01d
+        beq     _done
+_not0:  cpx     #$06
         bne     _not6
         lda     #$cd            ; Handle phase 6: move bottom shadow into place
         sta     $d001
@@ -495,10 +518,10 @@ _irq:   lda     #$01            ; Acknowledge interrupt
         sta     $d01d
         lda     #$ff
         sta     $d015
-        jmp     _done
+        bne     _done
 _not6:  cpx     #$07
         bne     _not7
-        lda     #$16            ; Mixed-case charset for status bar
+        lda     #$16            ; Phase 7: Mixed-case charset for status bar
         sta     $d018
         lda     #$1b            ; And disable ECM so we can do mixed-case too
         sta     $d011
@@ -530,29 +553,6 @@ _mid:   dex
         sta     $07fd
         lda     #$c4
         sta     $07fe
-        bne     _done
-_bot:   lda     #$08            ; Scroll 0 for centered logo
-        sta     $d016
-        lda     #$18            ; Back to the graphical charset
-        sta     $d018
-        ldx     #$10            ; Restore sprite positions and configurations
-*       lda     shadow_loc,x
-        sta     $d000,x
-        dex
-        bpl     -
-        ldx     #$07
-*       lda     #$0b
-        sta     $d027,x
-        lda     shadow_pat,x
-        sta     $7f8,x
-        dex
-        bpl     -
-        lda     #$80
-        sta     $d017
-        lda     #$00
-        sta     $d01d
-        lda     spr_enable
-        sta     $d015
 
 _done:  ldx     _irq_phase
         inx
