@@ -1,9 +1,12 @@
 ;;; ----------------------------------------------------------------------
 ;;;   Unframed LZ4 Decoder
-;;;   a0: source buffer
-;;;   a1: destination buffer
+;;;   (c) Michael C. Martin, 2025. Available under MIT License.
 ;;; ----------------------------------------------------------------------
 
+;;; lz4dec: Decompress a single unframed LZ4 block of at most 64KB size.
+;;;   a0: source buffer
+;;;   a1: destination buffer
+;;;   Trashes a0/a1/d0/d1.
 lz4dec:	movem.l	d2-d3/a2-a3,-(a7)
 	move.l	a1,a3			; Cache original pointer
 .loop:	move.b	(a0)+,d0		; Load lengths byte into d0

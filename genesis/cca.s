@@ -185,5 +185,5 @@ FM80_len equ $ - FM80
 	include	"fakecga.s"
 	include	"z80load.s"
 	include	"8k_dac.s"
-	include	"lz4dec.s"
+	include	"../asm/lz4core/lz4u_m68k.s"
 	include	"logo.s"

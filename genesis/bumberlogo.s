@@ -77,5 +77,5 @@ VBL:
 	include	"joystick.s"
 	include	"8k_dac.s"
 	include	"z80load.s"
-	include	"lz4dec.s"
+	include	"../asm/lz4core/lz4u_m68k.s"
 	include	"logo.s"

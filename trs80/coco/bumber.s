@@ -36,7 +36,7 @@ CLS	STA	,Y+
 	BNE	CLS
 	RTS
 
-	INCLUDE	"lz4dec.s"
+	INCLUDE	"../../asm/lz4core/lz4u_6809.s"
 SCREEN	INCLUDEBIN "res/bumberlz4.bin"
 SAMPLE	INCLUDEBIN "res/bumberwav.bin"
 SAMPLE_END

@@ -46,7 +46,7 @@ res/sinestra.bin: ../../asm/fonts/sinestra.s
 %.bin: %.s
 	asm6809 -o $@ $<
 
-bumber.bin: lz4dec.s res/bumberlz4.bin res/bumberwav.bin
+bumber.bin: ../../asm/lz4core/lz4u_6809.s res/bumberlz4.bin res/bumberwav.bin
 bmptxt.bin: res/sinestra.bin
 linetest.bin: bitmap.s
 liberty.bin: banner.s bitmap.s softsoniq.s
