@@ -1,6 +1,3 @@
-	db	"Z80BIN:Lights Out!",$1a
-	dw	tape_start, tape_start, tape_end-1
-
 KBREAD	EQU	$e018
 VIDEO	EQU	$e01b
 
