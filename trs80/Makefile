@@ -1,4 +1,4 @@
-all: inpnum.cmd zoom.cmd jabber.cmd
+all: inpnum.cmd zoom.cmd jabber.cmd lightsout.cmd
 
 bin2cmd: bin2cmd.c
 	gcc -O2 -o $@ $<
