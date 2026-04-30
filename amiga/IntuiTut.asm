@@ -31,6 +31,7 @@ _LVOCloseLibrary = -414
 
 ;;; exec.library structure offsets
 pr_MsgPort       =   92
+pr_CLI           =  172
 mp_SigBit        =   15
 
 ;;; intuition.library vector offsets
@@ -66,7 +67,10 @@ _LVOMove         = -240
 	jsr	_LVOFindTask(a6)
 	move.l	d0,a0
 
-	;; Consume the process-start event
+	;; Consume the process-start event, if any
+	moveq	#0,d4			; Start with no event recorded
+	tst.l	pr_CLI(a0)		; Is there even an event to collect?
+	bne.s	begin			; If not (AmigaDOS launch), just go
 	lea	pr_MsgPort(a0),a2
 	move.l	a2,a0
 	jsr	_LVOWaitPort(a6)
@@ -75,7 +79,7 @@ _LVOMove         = -240
 	move.l	d0,d4			; WBStartMsg
 
 	;; Load our libraries
-	lea	intuitionlib,a1
+begin:	lea	intuitionlib,a1
 	moveq.l	#0,d0
 	jsr	_LVOOpenLibrary(a6)
 	move.l	d0,d6			; IntuitionBase
@@ -142,11 +146,13 @@ finish:
 	move.l	d6,a1			; IntuitionBase
 	jsr	_LVOCloseLibrary(a6)
 
-	;; Shut down: Reply to startup message
+	;; Shut down: Reply to startup message, if any
+	tst.l	d4			; is there one?
+	beq.s	.fin
 	jsr	_LVOForbid(a6)
 	move.l	d4,a1			; WBStartupMsg
 	jsr	_LVOReplyMsg(a6)
-	clr.l	d0			; Return code?
+.fin:	clr.l	d0			; Return code
 	rts
 
 	data
