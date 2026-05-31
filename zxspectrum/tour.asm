@@ -182,7 +182,7 @@ plot:	;; Convert coordinate to address in DE
 
 ;;; LINE: Draw in color C from HL to DE, as per PLOT.
 line:
-	;; Local variables and indices
+	;; Local variables
 .dx # 2
 .dy # 2
 .sx # 1
@@ -191,13 +191,8 @@ line:
 .y1 # 1
 .x2 # 1
 .y2 # 1
-.dxi equ .dx-.dx
-.sxi equ .sx-.dx
-.syi equ .sy-.dx
-	;; Store registers (x/y 1/2 stay constant)
-	push ix
+	;; Store registers (x/y 1/2 stay constant, so no need to stack them)
 	push bc
-	ld ix,.dx
 	ld (.x1),hl
 	ld (.x2),de
 
@@ -226,8 +221,10 @@ line:
 	xor a				; Top byte of dy is always 0
 	ld (.dy+1),a
 
+	ld a,(.dx)
+	ld b,a
 	ld a,(.dy)
-	cp (ix+.dxi)
+	cp b
 	jr nc,.y_major
 	;; X-major branch: dx > dy
 	ld a,(.dx)			; d = -dx
@@ -245,8 +242,8 @@ line:
 	ld a,(.x2)			; if (x==x2) break;
 	cp l
 	jr z,.end
-	ld a,l				; x += sx
-	add (ix+.sxi)
+	ld a,(.sx)			; x += sx
+	add l
 	ld l,a
 	ex (sp),hl			; HL = d, (SP) = x/y
 	ld de,(.dy)			; d += dy
@@ -255,8 +252,8 @@ line:
 	ld de,(.dx)			; d += dx
 	add hl,de
 	ex (sp),hl			; HL = x/y, (SP) = d
-	ld a,h				; y += sy
-	add (ix+.syi)
+	ld a,(.sy)			; y += sy
+	add h
 	ld h,a
 	jr .xmlp			; And on to next pixel
 1	ex (sp),hl			; if d still negative, HL=x/y, (SP)=d
@@ -279,8 +276,8 @@ line:
 	ld a,(.y2)			; if (y==y2) break;
 	cp h
 	jr z,.end
-	ld a,h				; y += sy
-	add (ix+.syi)
+	ld a,(.sy)			; y += sy
+	add h
 	ld h,a
 	ex (sp),hl			; HL = d, (SP) = x/y
 	ld de,(.dx)			; d += dx
@@ -289,8 +286,8 @@ line:
 	ld de,(.dy)			; d += dy
 	add hl,de
 	ex (sp),hl			; HL = x/y, (SP)=d
-	ld a,l				; x += sx
-	add (ix+.sxi)
+	ld a,(.sx)			; x += sx
+	add l
 	ld l,a
 	jr .ymlp			; and on to next pixel
 1	ex (sp),hl			; if d still negative, HL=x/y, (SP)=d
@@ -301,7 +298,6 @@ line:
 	ld hl,(.x1)
 	ld de,(.x2)
 	pop bc
-	pop ix
 	ret
 
 reverse_sprite:
