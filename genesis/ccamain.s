@@ -10,7 +10,7 @@ CCAInit:
 CCAReset:
 	movem.l	d2-d3/a2,-(sp)
 	movea.l	CurBuf,a2
-	move.w	#4095,d2
+	move.w	#(CCA_buf_size/4-1),d2
 .lp:	bsr	rnd
 	moveq	#3,d3
 .cell:	move.w	d0,d1
@@ -31,14 +31,14 @@ CCARender:
 	move.l	d2,-(sp)
 	movea.l	CurBuf,a0
 	lea	CCA_vram_mirror,a1
-	moveq	#63,d0			; Pairs of rows
-.rows:	moveq	#63,d1			; Pairs of columns
+	moveq	#(CCA_height/2-1),d0	; Pairs of rows
+.rows:	moveq	#(CCA_width/2-1),d1	; Pairs of columns
 .cols:	;; Bottom row first
 	move.w	#$0100,d2		; after the shift, v-flip on
-	move.b	128(a0),d2
+	move.b	CCA_width(a0),d2
 	asl.w	#4,d2
-	or.b	129(a0),d2
-	move.w	d2,8192(a1)
+	or.b	(CCA_width+1)(a0),d2
+	move.w	d2,CCA_vram_size(a1)
 	;; Then top row, advancing our pointers
 	moveq	#$0,d2
 	move.b	(a0)+,d2
@@ -47,7 +47,7 @@ CCARender:
 	move.w	d2,(a1)+
 	dbra	d1,.cols
 	;; Skip the row we just dealt with
-	add.w	#128,a0
+	add.w	#CCA_width,a0
 	dbra	d0,.rows
 	;; Clean up, we're done
 	move.b	#2,mirror_ready
@@ -82,7 +82,7 @@ CCAStep:
 	movem.l	d2-d5/a2-a3,-(sp)
 	movea.l	CurBuf,a0		; Source buffer
 	move.l	a0,d0			; Compute destination buffer by
-	eor.w	#$4000,d0		; flipping the $4000 bit
+	eor.w	#CCA_buf_xor,d0		; flipping the $4000 bit
 	move.l	d0,a1			; Destination buffer
 	move.l	a1,CurBuf		; Which will be the next source buffer
 

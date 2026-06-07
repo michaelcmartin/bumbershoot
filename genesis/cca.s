@@ -1,14 +1,34 @@
 	seg	data
 	org	$ff0000
+
+; automaton size
+CCA_width  equ 128
+CCA_height equ 128
+
+CCA_buf_size equ CCA_width * CCA_height
 CCA_buf_0:
-	ds	$4000
+	ds	CCA_buf_size
 CCA_buf_1:
-	ds	$4000
+	ds	CCA_buf_size
+CCA_buf_xor equ CCA_buf_0 ^ CCA_buf_1
+
+CCA_vram_size equ CCA_width * CCA_height / 2
 CCA_vram_mirror:
-	ds	$4000
+	ds	CCA_vram_size
+CCA_vram_mirror1:
+	ds	CCA_vram_size
+
+DMA_vram_sizelo  equ $9300 | ((CCA_vram_size >> 1) & $ff)
+DMA_vram_sizehi  equ $9400 | ((CCA_vram_size >> 9) & $ff)
+DMA_vram_addrlo  equ $9500 | ((CCA_vram_mirror >> 1) & $ff)
+DMA_vram_mirror  equ $96009700 | ((CCA_vram_mirror  << 7) & $ff0000) | ((CCA_vram_mirror  >> 17) & $7f)
+DMA_vram_mirror1 equ $96009700 | ((CCA_vram_mirror1 << 7) & $ff0000) | ((CCA_vram_mirror1 >> 17) & $7f)
+
 	;; Lesser globals
-scroll_pos:
-	ds	4
+scroll_vpos:
+	ds	2
+scroll_hpos:
+	ds	2
 mirror_ready:
 	ds	1
 reset_requested:			; Bit 0: reset request (START pressed)
@@ -112,7 +132,7 @@ HBL:
 VBL:	movem.l	d0-d2/a0-a1,-(sp)
 	bsr	ReadJoy1
 	movea.l #$00c00000,a0
-	lea	scroll_pos,a1
+	lea	scroll_vpos,a1
 	move.l	#$81648f02,4(a0) ; Word write, no DMA
 	;; VSRAM WRITE to $0000 (Vertical scroll table)
 	move.l	#$40000010,4(a0)
@@ -158,17 +178,17 @@ VBL:	movem.l	d0-d2/a0-a1,-(sp)
 .done:	movem.l	(sp)+,d0-d2/a0-a1
 	rte
 .dma:	move.l	#$40000083,d1		; Target DMA for first blit
-	move.l	#$9640977f,d2		; Source RAM for first blit
+	move.l	#DMA_vram_mirror,d2	; Source RAM for first blit
 	subq	#1,d0			; Is this the first blit?
 	bne.s	.first
 	move.l	#$60000083,d1		; If not, adjust target and source
-	move.l	#$9650977f,d2		; addresses as needed
+	move.l	#DMA_vram_mirror1,d2	; addresses as needed
 .first:	move.b	d0,mirror_ready		; Either way, save new blits-remaining
 	;; Now enable DMA, load in length and source addresses.
 	;; This assumes 512-byte alignment for each blit source, which we
 	;; do in fact have.
-	move.l	#$81749300,4(a0)
-	move.l	#$94109500,4(a0)
+	move.l	#($81740000 | DMA_vram_sizelo),4(a0)
+	move.l	#((DMA_vram_sizehi << 16) | DMA_vram_addrlo),4(a0)
 	move.l	d2,4(a0)
 	move.l	d1,4(a0)
 	bra	.done
