@@ -1,11 +1,15 @@
 	seg	data
 	org	$ff0000
 
-; automaton size
+; automaton size in cells
 CCA_width  equ 128
 CCA_height equ 128
 
-CCA_buf_size equ CCA_width * CCA_height
+; size of a row in bytes and in longwords
+CCA_row_bytes equ CCA_width / 2
+CCA_row_longs equ CCA_row_bytes / 4
+
+CCA_buf_size equ CCA_row_bytes * CCA_height
 CCA_buf_0:
 	ds	CCA_buf_size
 CCA_buf_1:
