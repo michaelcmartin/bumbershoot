@@ -100,7 +100,7 @@ CCARender:
 	and.l	d3,d0		; abcdefgh -> abcdefg0
 	moveq	#$0F,d1
 	and.b	west(a1),d1	; 0L
-	or.l	d1,d0		; abcdefg0 -> abcdefgL
+	or.b	d1,d0		; abcdefg0 -> abcdefgL
 	ror.l	#4,d0		; abcdefgL -> Labcdefg
 	swarcmpne d6, d4, d0, d1
 	and.l	d1,d5
@@ -109,10 +109,9 @@ CCARender:
 	;; and the new byte have to shift in opposite directions
 	move.l	d3,d0
 	lsl.l	#4,d0		; abcdefgh -> bcdefgh0
-	moveq	#0,d1
 	move.b	east(a1),d1	; R_
 	lsr.b	#4,d1		; 0R
-	or.l	d1,d0		; bcdefgh0 -> bcdefghR
+	or.b	d1,d0		; bcdefgh0 -> bcdefghR
 	swarcmpne d6, d4, d0, d1
 	and.l	d1,d5
 	;; make writeback mask (1111 = no match, keep d3; 0000 = match, keep d4)
