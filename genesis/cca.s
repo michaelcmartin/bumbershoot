@@ -2,13 +2,10 @@
 	org	$ff0000
 
 ; automaton size in cells
-CCA_width  equ 128
+CCA_width  equ 128	; also size of a VRAM mirror row in bytes
 CCA_height equ 128
 
-; size of a row in bytes and in longwords
 CCA_row_bytes equ CCA_width / 2
-CCA_row_longs equ CCA_row_bytes / 4
-
 CCA_buf_size equ CCA_row_bytes * CCA_height
 CCA_buf_0:
 	ds	CCA_buf_size
@@ -16,14 +13,14 @@ CCA_buf_1:
 	ds	CCA_buf_size
 CCA_buf_xor equ CCA_buf_0 ^ CCA_buf_1
 
-CCA_vram_size equ CCA_width * CCA_height / 2
+CCA_plane_size equ CCA_width * CCA_height / 2
 CCA_vram_mirror:
-	ds	CCA_vram_size
+	ds	CCA_plane_size
 CCA_vram_mirror1:
-	ds	CCA_vram_size
+	ds	CCA_plane_size
 
-DMA_vram_sizelo  equ $9300 | ((CCA_vram_size >> 1) & $ff)
-DMA_vram_sizehi  equ $9400 | ((CCA_vram_size >> 9) & $ff)
+DMA_vram_sizelo  equ $9300 | ((CCA_plane_size >> 1) & $ff)
+DMA_vram_sizehi  equ $9400 | ((CCA_plane_size >> 9) & $ff)
 DMA_vram_addrlo  equ $9500 | ((CCA_vram_mirror >> 1) & $ff)
 DMA_vram_mirror  equ $96009700 | ((CCA_vram_mirror  << 7) & $ff0000) | ((CCA_vram_mirror  >> 17) & $7f)
 DMA_vram_mirror1 equ $96009700 | ((CCA_vram_mirror1 << 7) & $ff0000) | ((CCA_vram_mirror1 >> 17) & $7f)

@@ -3,8 +3,19 @@ CurBuf: ds	4
 
 	seg	text
 CCAInit:
+	move.l	d2,-(sp)
 	move.l	#CCA_buf_0,CurBuf
 	move.w	#0,mirror_ready		; Also clears reset_requested
+	;; prepare VRAM mirror
+	lea	CCA_vram_mirror,a0
+	lea	CCA_plane_size(a0),a1
+	moveq	#0,d0
+	move.l	#$10001000,d1		; v-flip on
+	move.w	#(CCA_plane_size/4-1),d2
+.lp	move.l	d0,(a0)+
+	move.l	d1,(a1)+
+	dbra	d2,.lp
+	move.l	(sp)+,d2
 	;; Fall through to CCAReset
 
 CCAReset:
@@ -24,26 +35,51 @@ CCAReset:
 CCARender:
 	move.b	mirror_ready,d0
 	bne	CCARender
-	move.l	d2,-(sp)
+	movem.l	a2-a3,-(sp)
 	movea.l	CurBuf,a0
 	lea	CCA_vram_mirror,a1
-	moveq	#(CCA_height/2-1),d0	; Pairs of rows
-.rows:	moveq	#(CCA_row_bytes-1),d1	; One two-cell byte becomes one nametable word
-.cols:	;; Bottom row first
-	move.w	#$1000,d2		; v-flip on
-	move.b	CCA_row_bytes(a0),d2
-	move.w	d2,CCA_vram_size(a1)
-	;; Then top row, advancing our pointers
-	moveq	#$0,d2
-	move.b	(a0)+,d2
-	move.w	d2,(a1)+
-	dbra	d1,.cols
-	;; Skip the row we just dealt with
-	add.w	#CCA_row_bytes,a0
-	dbra	d0,.rows
+	movea.w	#CCA_plane_size,a2
+	movea.w	#(CCA_width-CCA_plane_size),a3
+	moveq	#(CCA_height-1),d0
+.lp	move.l	(a0)+,d1
+	movep.l	d1,1(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,9(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,17(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,25(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,33(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,41(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,49(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,57(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,65(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,73(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,81(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,89(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,97(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,105(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,113(a1)
+	move.l	(a0)+,d1
+	movep.l	d1,121(a1)
+	adda.l	a2,a1
+	exg	a2,a3
+	dbra	d0,.lp
 	;; Clean up, we're done
 	move.b	#2,mirror_ready
-	move.l	(sp)+,d2
+	movea.l	(sp)+,a2
+	movea.l	(sp)+,a3
 	rts
 
 	list macro
@@ -157,7 +193,7 @@ CCAStep:
 	;; a1 now points to the second row
 	;; a3 now points to the end of the buffer
 	;; a4 now points to the third row
-	movea.l a0,a3			; reset north neighbor
+	movea.l	a0,a3			; reset north neighbor
 	lea	lastrow(a0),a5		; stop at the last row
 	bsr.s	updaterows
 	;; a1 now points to the last row
@@ -174,7 +210,7 @@ CCAStep:
 	;; the outer loop bne doesn't fit in a short branch
 updaterows:
 	updateeight edgewest, 0
-	moveq	#(CCA_row_longs-3),d2
+	moveq	#(CCA_width/8-3),d2
 .cols	updateeight -5, 0
 	dbra	d2,.cols
 	updateeight -5, edgeeast
