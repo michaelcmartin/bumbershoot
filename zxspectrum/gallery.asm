@@ -1,12 +1,13 @@
 	org	$7000
 	map	bss_start
-	;; Graphics data:  must be first
+;;; Graphics data:  must be first
 reversed_blaster # 32
 target_gfx # 192
 blaster_lgfx # 192
 blaster_rgfx # 192
 blank_gfx # 192
-	;; Game logic data
+;;; Game logic data
+shot_requested # 1
 blaster_x # 1
 blaster_old_x # 1
 blaster_facing # 1
@@ -15,33 +16,81 @@ target_y # 1
 target_x # 3
 target_old_r1 # 2
 target_old_r2 # 2
+max_shot_y # 1
+num_shots # 1
+;;; Shot tables.
+shot_y # 16
+shot_x # 16
+shot_tails # 64
+shot_heads # 48
+
+	;; Put our mask list at the top so we know it's all on one
+	;; memory page
+	jr	1F			; ... and jump past it
+x_mask:	defb	$80,$40,$20,$10,$08,$04,$02,$01
+1
+
+	call	initialize
+
+main:	halt
+	call	render
+	call	frame_logic
+	call	award_point
+	call	check_quit
+	jr	nz,main
+
+	;; Quit program: clear back to normal display
+	ld	a,$38
+	jp	clrto
+
+initialize:
+	call	clear_bss
+	call	create_sprites
+	call	init_game_state
+	jp	draw_main_screen
 
 
-	;; Prepare the sprite graphics with the necessary mirroring...
+render:	call	erase_targets
+	call	erase_shot_tails
+	call	draw_targets
+	call	update_blaster
+	jp	draw_shots
+
+frame_logic:
+	call	handle_input
+	call	move_autonomous
+	call	record_display_list
+	call	compact_shots
+	jp	new_shot
+
+;;; ----------------------------------------------------------------------
+;;;   Game initialization
+;;; ----------------------------------------------------------------------
+
+clear_bss:
+	xor	a
+	ld	hl,bss_start
+	ld	de,bss_start+1
+	ld	bc,bss_end - bss_start - 1
+	ld	(hl),a
+	ldir
+	ret
+
+create_sprites:
+	;; Create mirrored blaster
 	ld	hl,gfx+32
 	ld	de,reversed_blaster
 	call	reverse_sprite
-	;; ... and shifting
+
+	;; Create shifted versions of all sprites. The clear_bss
+	;; call has already generated the blank_gfx asset.
 	ld	hl,gfx
 	ld	ix,target_gfx
 	ld	b,3
-	call	shift_sprites
-	;; ... and clearing
-	xor	a
-	ld	b,192
-1	ld	a,(hl)
-	inc	hl
-	djnz	1B
+	jp	shift_sprites
 
-	;; Initialize score
-	ld	a,$30
-	ld	hl,score
-	ld	b,4
-1	ld	(hl),a
-	inc	hl
-	djnz	1B
-
-	;; Initialize remaining game logic
+init_game_state:
+	;; Initialize sprite positions
 	ld	a,64
 	ld	(blaster_x),a
 	ld	(blaster_old_x),a
@@ -59,7 +108,16 @@ target_old_r2 # 2
 	ld	hl,0
 	ld	(target_old_r1),hl
 
-	;; Generate the main screen display
+	;; Reset score
+	ld	a,$30
+	ld	hl,score
+	ld	b,4
+1	ld	(hl),a
+	inc	hl
+	djnz	1B
+	ret
+
+draw_main_screen:
 	ld	a,$02			;; Black screen, red text
 	call	clrto			;; for main screen (shots/targets)
 	ld	hl,$5a60		;; Blaster track
@@ -80,15 +138,18 @@ target_old_r2 # 2
 	inc	hl
 	djnz	1B
 	ld	hl,header
-	call	print
+	jp	print
 
-	;; Main Game Loop here
-main:	halt
+;;; ----------------------------------------------------------------------
+;;;   Screen rendering
+;;; ----------------------------------------------------------------------
+
+;;; Erase two rows at target_old_r1 and target_old_r2, if required
+erase_targets:
 	ld	hl,(target_old_r1)
 	ld	a,h
 	or	a
-	jr	z,.draw_targets
-	;; Erase two rows at target_old_r1 and target_old_r2
+	ret z
 	push	hl
 	xor	a
 	ld	(hl),a
@@ -101,7 +162,26 @@ main:	halt
 	ld	de,(target_old_r2)
 	ld	bc,32
 	ldir
-.draw_targets:
+	ret
+
+;;; Erase the bottom two pixels of each shot,
+erase_shot_tails:
+	ld	hl,shot_tails
+1	ld	e,(hl)
+	inc	hl
+	ld	a,(hl)
+	or	a
+	ret	z
+	ld	d,a
+	inc	hl
+	xor	a
+	ld	(de),a
+	inc	d			; Shot trails don't cross cells
+	ld	(de),a
+	jr	1B
+	ret
+
+draw_targets:
 	ld	a,(target_y)
 	ld	d,a
 	ld	b,3
@@ -117,21 +197,24 @@ main:	halt
 	pop	de
 	pop	hl
 	djnz	1B
+	ret
+
+update_blaster:
 	;; Erase blaster if necessary
 	ld	a,(blaster_old_x)
 	ld	hl,blaster_x
 	cp	(hl)
-	jr	z,1F
+	jr	z,.draw_blaster
 	ld	hl,blaster_old_facing
 	sub	2
 	bit	0,(hl)
-	jr	z,2F
+	jr	z,1F
 	sub	3
-2	ld	e,a
+1	ld	e,a
 	ld	d,152
 	ld	hl,blank_gfx
 	call	draw_sprite
-1	;; Now draw the blaster
+.draw_blaster:
 	ld	a,(blaster_x)
 	sub	5
 	ld	e,a
@@ -145,7 +228,54 @@ main:	halt
 	add	3
 	ld	e,a
 1	call	draw_sprite
-	;; Rendering complete. Copy current values to old.
+	ret
+
+draw_shots:
+	ld	de,shot_heads
+.shotlp:
+	;; Load next shot into HL
+	ld	a,(de)			; Low byte of shot address
+	inc	de
+	ld	l,a
+	ld	a,(de)			; High byte of shot address (0 = end)
+	inc	de
+	or	a
+	ret	z
+	ld	h,a
+	ld	a,(de)			; mask for shot location in byte
+	;; Leave DE here for now; we'll need to reload it later
+	;; Composit top of shot into screen
+	;; TODO: Also check collision on this one byte
+	or	(hl)
+	ld	(hl),a
+	;; Draw the rest of the shot in case something erased it
+	ld	b,5
+.drawlp:
+	inc	h			; Advance one pixel down, inline
+	ld	a,7
+	and	h
+	jr	nz,1F
+	ld	a,l
+	add	32
+	ld	l,a
+	jr	c,1F
+	ld	a,h
+	sub	8
+	ld	h,a
+1	ld	a,(de)
+	or	(hl)
+	ld	(hl),a
+	djnz	.drawlp
+	;; Proceed to next shot
+	inc	de			; Advance to next shot element
+	jr	.shotlp
+
+;;; ----------------------------------------------------------------------
+;;;   Frame Update Logic Routines
+;;; ----------------------------------------------------------------------
+
+handle_input:
+	;; Copy current blaster/target locations to last-frame locations
 	ld	hl,blaster_x
 	ld	b,2
 1	ld	a,(hl)
@@ -153,29 +283,30 @@ main:	halt
 	ld	(hl),a
 	inc	hl
 	djnz	1B
-	;; Handle input
+	;; Process keypresses
 	call	read_keys
-	jr	z,.end
-	ld	de,blaster_x
+	xor	1			; Store fire button
+	ld	(shot_requested),a
+	ld	de,blaster_x		; Process left and right
 	ld	a,(de)
 	add	l
-	cp	4
+	cp	4			; Bounds-check
 	jr	z,1F
 	cp	123
 	jr	nz,2F
 1	sub	l
 2	ld	(de),a
-	ld	a,l
+	ld	a,l			; Did we press a direction at all?
 	or	a
 	jr	z,1F
-	rlca
-	and	1
+	rlca				; If so, convert sign to 0/1 and
+	and	1			; use it as our blaster facing
 	ld	(blaster_facing),a
-1	ld	de,target_y
+1	ld	de,target_y		; Now process up and down
 	ld	a,(de)
 	add	h
 	add	h
-	cp	$08
+	cp	$08			; Bounds-check the targets
 	jr	z,1F
 	cp	$8a
 	jr	nz,2F
@@ -189,10 +320,10 @@ main:	halt
 	or	a
 	jr	z,1F
 	jp	m,.up
-	ld	a,(target_y)
+	ld	a,l
 	sub	2
 	jr	2F
-.up:	ld	a,(target_y)
+.up:	ld	a,l
 	add	16
 2	push	af
 	call	row_addr
@@ -204,6 +335,9 @@ main:	halt
 	inc	a
 	call	row_addr
 1	ld	(target_old_r2),de
+	ret
+
+move_autonomous:
 	;; Move targets left
 	ld	hl,target_x
 	ld	b,3
@@ -215,18 +349,188 @@ main:	halt
 2	ld	(hl),a
 	inc	hl
 	djnz	1B
-	jp	main
+	;; Advance onscreen shots - they go offscreen when Y = 0
+	ld	hl,shot_y
+	ld	a,(num_shots)
+	or	a
+	ret	z			; Return immediately if no shots
+	ld	b,a
+1	ld	a,(hl)
+	or	a
+	jr	z,2F
+	sub	2
+	ld	(hl),a
+2	inc	hl
+	djnz	1B
+	ret
 
-	;; Quit program: clear back to normal display
-.end:	ld	a,$38
-	jp	clrto
+	;; Translate surviving shot locations to shot_heads/tails
+record_display_list:
+	ld	ix,shot_y
+	ld	hl,shot_tails
+	push	hl
+	ld	hl,shot_heads
+	ld	a,(num_shots)
+	or	a			; Any shots at all?
+	jr	z,.done
+	ld	b,a
+.shotplotlp:
+	push	bc
+	ld	a,(ix)
+	cp	8
+	jr	c,.checkdel
+	call	row_addr
+	ld	a,(ix+16)
+	ld	b,a
+	rrca
+	rrca
+	rrca
+	and	$1f
+	add	e
+	ld	(hl),a
+	inc	hl
+	ld	(hl),d
+	inc	hl
+	ld	de,x_mask
+	ld	a,b
+	and	7
+	add	e
+	ld	e,a
+	ld	a,(de)
+	ld	(hl),a
+	inc	hl
+.checkdel:
+	pop	bc
+	ex	(sp),hl			; Now consider tails
+	push	bc
+1	ld	a,(ix)
+	add	6
+	cp	8
+	jr	c,.nextshot
+	call	row_addr
+	ld	a,(ix+16)
+	ld	b,a
+	rrca
+	rrca
+	rrca
+	and	$1f
+	add	e
+	ld	(hl),a
+	inc	hl
+	ld	(hl),d
+	inc	hl
+.nextshot:
+	inc	ix
+	pop	bc
+	ex	(sp),hl			; HL back to pointing at heads
+	djnz	.shotplotlp
+	;; Terminate the heads-and-tails lists
+.done:	xor	a
+	ld	(hl),a
+	inc	hl
+	ld	(hl),a
+	pop	hl
+	ld	(hl),a
+	inc	hl
+	ld	(hl),a
+	ret
+
+;;; TODO: Generate erase codes for shots with collision recorded
+;;;       then mark the shot for deletion by zeroing its Y coordinate.
+erase_shot:
+	ret
+
+;;; Compact the shot array and update max_shot_y. Trashes ABCDEHL/IX.
+compact_shots:
+	xor	a			; Max Shot Y starts at 0
+	ld	(max_shot_y),a
+	ld	a,(num_shots)
+	or	a			; No shots? Nothing to compact.
+	ret	z
+	ld	ix,shot_y		; Read ptr for Y and X
+	ld	hl,shot_y		; Write ptr for Y
+	ld	de,shot_x		; Write ptr for X
+	ld	b,a			; Loop var
+	ld	c,a			; Number of surviving shots
+.lp:	ld	a,(ix)			; Load next shot Y
+	dec	c			; Presumptively delete it
+	or	a			; If it's nonzero, don't delete...
+	jr	z,.skip
+	ld	a,(ix)			; Copy its Y coordinate
+	ld	(hl),a
+	ld	a,(max_shot_y)		; Compare Y coord to max
+	cp	(hl)
+	jr	nc,1F
+	ld	a,(hl)			; New max!
+	ld	(max_shot_y),a
+1	ld	a,(ix+16)		; Copy X coordinate
+	ld	(de),a
+	inc	hl			; Advance the write pointers
+	inc	de
+	inc	c			; Reverse our deletion count
+.skip:	inc	ix			; Advance src ptr even when Y=0
+	djnz	.lp
+	ld	a,c			; Store out the number of shots
+	ld	(num_shots),a
+	ret
+
+;;; New shot if max_shot_y is low enough and we have enough space for them.
+new_shot:
+	ld	a,(shot_requested)	; Are we shooting at all?
+	or	a
+	ret	z			; If not, nothing to do.
+	ld	a,(max_shot_y)		; Lowest shot too low?
+	cp	124
+	ret	nc			; If so, nothing to do.
+	ld	hl,num_shots		; Too many shots already?
+	ld	a,(hl)
+	cp	16
+	ret	z			; If so, nothing to do.
+	inc	a
+	ld	(hl),a
+	ld	l,a
+	ld	h,0
+	ld	de,shot_y-1
+	add	hl,de
+	ld	a,146
+	ld	(hl),a
+	ld	de,16
+	add	hl,de
+	ld	a,(blaster_x)
+	add	a
+	ld	(hl),a
+	ld	a,(blaster_facing)	; Adjust shot location
+	or	a			; if facing right
+	ret	nz
+	inc	(hl)
+	ret
 
 ;;; ----------------------------------------------------------------------
-;;;  Game support routines
+;;;   Miscellaneous Game Logic
+;;; ----------------------------------------------------------------------
+
+award_point:
+	ld	hl,score+3
+	ld	b,4
+.lp:	ld	a,(hl)
+	inc	a
+	cp	$3a
+	jr	z,.carry
+	ld	(hl),a
+	jr	.disp
+.carry:	ld	(hl),$30
+	dec	hl
+	djnz	.lp
+.disp:	ld	hl,header
+	jp	print
+
+;;; ----------------------------------------------------------------------
+;;;   Player input routines
 ;;; ----------------------------------------------------------------------
 
 ;;; QAOP controls. Returns DY in H, DX in L
-;;;   Zero-flag set if Space is pressed
+;;;   A 0 (and ZF set) if Space is pressed
+;;;   A 1 (and ZF reset) if Space is not pressed
 read_keys:
 	ld	hl,0
 	ld	bc,$fbfe		; Check Q
@@ -252,236 +556,24 @@ read_keys:
 	and	1			; Set Z if SPACE pressed
 	ret
 
-row_addr:
-	ld	d,a
-	and	7
-	ld	b,a
-	ld	a,d
-	rra
-	scf
-	rra
-	rra
-	and	$58
-	or	b
-	ld	b,a
-	ld	a,d
-	ld	d,b
-	add	a
-	add	a
-	and	$e0
-	ld	e,a
+;; Zero flag set if a quit is requested.
+;; Quit is requested with CAPS-SHIFT-SPACE (Break)
+;; or CAPS-SHIFT-1 (EDIT, Esc in emulators)
+check_quit:
+	ld	bc,$fefe		; Check SHIFT
+	in	a,(c)
+	and	1
+	ret	nz			; If no SHIFT, done.
+	ld	b,$f7			; Check EDIT
+	in	a,(c)
+	and	1
+	ret	z			; If EDIT/ESC, done.
+	ld	b,$7f			; Check BREAK
+	in	a,(c)
+	and	1			; Return Z/NZ on BREAK
 	ret
 
-;;; ----------------------------------------------------------------------
-;;;   Sprite graphics generation routines
-;;; ----------------------------------------------------------------------
-
-reverse_sprite:
-	push	hl
-	push	de
-	ld	de,16
-	add	hl,de
-	pop	de
-	call	.col
-	pop	hl
-	call	.col
-	push	de
-	ld	de,16
-	add	hl,de
-	pop	de
-	ret
-.col:	ld	c,16
-1	push	de
-	ld	a,(hl)
-	ld	b,8
-2	rra
-	rl	d
-	djnz	2B
-	ld	a,d
-	pop	de
-	ld	(de),a
-	inc	hl
-	inc	de
-	dec	c
-	jr	nz,1B
-	ret
-
-;;  B: Number of sprites
-;; HL: Pointer to "base" graphics (B*32 bytes)
-;; IX: Pointer to output buffer (B*48*4 bytes)
-shift_sprites:
-	push	de
-1	call	.shift
-	djnz	1B
-	pop	de
-	ret
-.shift:	push	bc
-	push	hl			; IX += 96; PUSH IX; LD IX,HL
-	ld	de,96			; shift IX so it reaches all
-	add	ix,de			; 192 bytes
-	ex	(sp),ix			; (Cache dest ptr, IX=src ptr)
-	ld	b,16			; 16 pixel rows
-1	xor	a			; Load gfx
-	ld	h,(ix)
-	ld	l,(ix+16)
-	inc	ix			; Advance src ptr
-	ex	(sp),ix			; Swap to dest ptr
-	ld	(ix-96),h		; Write unshifted
-	ld	(ix-80),l
-	ld	(ix-64),a
-	add	hl,hl			; stay in the 0-127 offset range
-	rla
-	add	hl,hl			; Shift left 2 for the "right 6" sprite
-	rla
-	ld	(ix+48),a
-	ld	(ix+64),h
-	ld	(ix+80),l
-	add	hl,hl			; Now for "right 4"
-	rla
-	add	hl,hl
-	rla
-	ld	(ix),a
-	ld	(ix+16),h
-	ld	(ix+32),l
-	add	hl,hl			; Finally "right 2"
-	rla
-	add	hl,hl
-	rla
-	ld	(ix-48),a
-	ld	(ix-32),h
-	ld	(ix-16),l
-	inc	ix			; Next dest row
-	ex	(sp),ix			; And swap focus to src
-	djnz	1B
-	push	ix			; src ptr back in HL
-	pop	hl
-	ld	e,16			; Advance src (D is still 0)
-	add	hl,de
-	pop	ix			; dest ptr back in IX
-	ld	e,80			; Advance dest
-	add	ix,de
-	pop	bc			; Restore BC for outer loop
-	ret
-
-;;; ----------------------------------------------------------------------
-;;;   Sprite rendering routines
-;;; ----------------------------------------------------------------------
-
-;;; draw_sprite
-;;; HL = source ptr
-;;; D = Y coord (-15 - 191)
-;;; E = X coord (-7 - 127)
-draw_sprite:
-	;; Quit immediately if we're entirely off the top or bottom
-	ld	a,d
-	add	15
-	cp	192+15
-	ret	nc
-	;; src += 48 * (x & 3)
-	ld	a,e
-	and	3
-	jr	z,.x_aligned
-	ld	bc,48
-1	add	hl,bc
-	dec	a
-	jr	nz,1B
-.x_aligned:
-	sra	e			; Move E from X coord to char offset
-	sra	e
-	ld	a,3			; Number of columns to render
-	;; Skip any columns off the left edge. X>127 reads as negative, so
-	;; this catches being completely offscreen on left *and* right edges
-	ld	bc,16			; BC = 16 = column size in src
-1	bit	7,e			; X coord negative?
-	jr	z,.blit			; Once we're on-screen go blit
-	add	hl,bc			; Otherwise skip a column...
-	inc	e			; ... move a character cell right...
-	dec	a			; ... decrement the column count...
-	ret	z			; ... quit if it's zero...
-	jr	1B			; ... and check again if it's not.
-.blit:	ld	c,a			; Column count in C
-	ld	b,16			; Default row count in B
-	;; Adjust source pointer and row count if we're off the top
-	ld	a,b			; ... are we off the top?
-	add	d
-	jr	nc,1F
-	ld	b,a			; If so, correct height...
-	ld	a,16			; ... compute ptr offset...
-	sub	b
-	add	l			; ...and apply it to source...
-	jr	nc,2F
-	inc	h
-2	ld	l,a
-	ld	d,0			; ... and set Y to top of screen
-	jr	.y_ok
-	;; Adjust row count if we're off the bottom
-1	ld	a,192-16
-	sub	d
-	jr	nc,.y_ok
-	add	b
-	ld	b,a			; Wow this code is unfortunate
-	;; Convert final X/Y to write coords in DE
-.y_ok:	ld	a,b			; Store row count in loop
-	ld	(.row_count),a
-	ld	a,16
-	sub	b
-	ld	(.stride),a
-	ld	a,d
-	and	7
-	ld	b,a
-	ld	a,d
-	rra
-	scf
-	rra
-	rra
-	and	$58
-	or	b
-	ld	b,a
-	ld	a,d
-	ld	d,b
-	add	a
-	add	a
-	and	$e0
-	or	e
-	ld	e,a
-	;; Blit out C columns of 16 rows each.
-	;; The .row_count and .stride variables are constants
-	;; here modified by the prep code; .row_count is the
-	;; number of rows actually copied, and .stride the number
-	;; skipped. Their sum should always be 16.
-1	push	de
-	ld	b,16
-.row_count equ $-1
-2	ld	a,(hl)
-	inc	hl
-	ld	(de),a
-	inc	d
-	ld	a,7
-	and	d
-	jr	nz,3F
-	ld	a,e
-	add	32
-	ld	e,a
-	jr	c,3F
-	ld	a,d
-	sub	8
-	ld	d,a
-3	djnz	2B
-	pop	de
-	inc	de
-	ld	a,e
-	and	31
-	ret	z
-	ld	a,0
-.stride equ $-1
-	add	l
-	jr	nc,4F
-	inc	h
-4	ld	l,a
-	dec	c
-	jr	nz,1B
-	ret
-
+include "zxsprites.asm"
 
 ;;; ----------------------------------------------------------------------
 ;;;   Other graphical support routines
@@ -523,3 +615,4 @@ gfx:	defb	$03,$0f,$1c,$30,$63,$66,$cc,$c9,$c9,$cc,$66,$63,$30,$1c,$0f,$03
 	defb	$00,$00,$00,$00,$00,$00,$00,$fa,$8b,$ea,$ef,$88,$80,$db,$3c,$18
 	defb	$00,$00,$20,$20,$70,$a8,$f8,$aa,$fe,$fa,$ff,$01,$01,$ed,$1e,$0c
 bss_start:
+bss_end # 1
