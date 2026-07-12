@@ -14,15 +14,19 @@ blaster_facing # 1
 blaster_old_facing # 1
 target_y # 1
 target_x # 3
-target_old_r1 # 2
-target_old_r2 # 2
+target_old # 2
 max_shot_y # 1
 num_shots # 1
 ;;; Shot tables.
 shot_y # 16
 shot_x # 16
-shot_tails # 64
-shot_heads # 48
+shot_collide # 16
+shot_tails # 64				; 32 pointers to erase (0-terminated)
+shot_heads # 64				; 16 pointers to shot_head struct
+
+;;; SHOT_HEAD struct: { ptr screen_byte (0 = terminator, always even row)
+;;;                     byte x_mask (for collision and compositing)
+;;;                     byte index (for recording collision) };
 
 	;; Put our mask list at the top so we know it's all on one
 	;; memory page
@@ -35,7 +39,6 @@ x_mask:	defb	$80,$40,$20,$10,$08,$04,$02,$01
 main:	halt
 	call	render
 	call	frame_logic
-	call	award_point
 	call	check_quit
 	jr	nz,main
 
@@ -105,8 +108,6 @@ init_game_state:
 	ld	(target_x+2),a
 	ld	a,20
 	ld	(target_y),a
-	ld	hl,0
-	ld	(target_old_r1),hl
 
 	;; Reset score
 	ld	a,$30
@@ -144,9 +145,9 @@ draw_main_screen:
 ;;;   Screen rendering
 ;;; ----------------------------------------------------------------------
 
-;;; Erase two rows at target_old_r1 and target_old_r2, if required
+;;; Erase two rows at target_old and its successor, if required
 erase_targets:
-	ld	hl,(target_old_r1)
+	ld	hl,(target_old)
 	ld	a,h
 	or	a
 	ret z
@@ -159,7 +160,9 @@ erase_targets:
 	ld	bc,31
 	ldir
 	pop	hl
-	ld	de,(target_old_r2)
+	ld	d,h
+	ld	e,l
+	inc	d
 	ld	bc,32
 	ldir
 	ret
@@ -244,14 +247,31 @@ draw_shots:
 	ld	h,a
 	ld	a,(de)			; mask for shot location in byte
 	;; Leave DE here for now; we'll need to reload it later
-	;; Composit top of shot into screen
-	;; TODO: Also check collision on this one byte
+	and	(hl)			; Collision?
+	jr	z,.no_collision
+	inc	de
+	push	hl
+	ld	hl,shot_collide
+	ld	a,(de)
+	add	l
+	jr	nc,1F
+	inc	h
+1	ld	l,a
+	ld	(hl),1
+	pop	hl
+	dec	de
+.no_collision:
+	;; Draw the entire shot in case something erased it
+	ld	b,3
+.drawlp:
+	ld	a,(de)			; Composite shot pixel
 	or	(hl)
 	ld	(hl),a
-	;; Draw the rest of the shot in case something erased it
-	ld	b,5
-.drawlp:
-	inc	h			; Advance one pixel down, inline
+	inc	h			; Shots always on even rows,
+	ld	a,(de)			; so alternating advances are free
+	or	(hl)
+	ld	(hl),a
+	inc	h			; Advance the other pixels the hard way
 	ld	a,7
 	and	h
 	jr	nz,1F
@@ -262,12 +282,10 @@ draw_shots:
 	ld	a,h
 	sub	8
 	ld	h,a
-1	ld	a,(de)
-	or	(hl)
-	ld	(hl),a
-	djnz	.drawlp
+1	djnz	.drawlp
 	;; Proceed to next shot
 	inc	de			; Advance to next shot element
+	inc	de
 	jr	.shotlp
 
 ;;; ----------------------------------------------------------------------
@@ -319,22 +337,13 @@ handle_input:
 	ld	a,h
 	or	a
 	jr	z,1F
-	jp	m,.up
 	ld	a,l
+	jp	m,.up
 	sub	2
 	jr	2F
-.up:	ld	a,l
-	add	16
-2	push	af
-	call	row_addr
-1	ld	(target_old_r1),de
-	ld	a,d
-	or	a
-	jr	z,1F
-	pop	af
-	inc	a
-	call	row_addr
-1	ld	(target_old_r2),de
+.up:	add	16
+2	call	row_addr
+1	ld	(target_old),de
 	ret
 
 move_autonomous:
@@ -372,11 +381,14 @@ record_display_list:
 	ld	hl,shot_heads
 	ld	a,(num_shots)
 	or	a			; Any shots at all?
-	jr	z,.done
+	jp	z,.done
 	ld	b,a
 .shotplotlp:
 	push	bc
-	ld	a,(ix)
+	ld	a,(ix+32)		; Don't keep drawing the head on collision
+	or	a
+	jr	nz,.checkdel
+	ld	a,(ix)			; Also don't draw if we're scrolling off the top
 	cp	8
 	jr	c,.checkdel
 	call	row_addr
@@ -399,6 +411,12 @@ record_display_list:
 	ld	a,(de)
 	ld	(hl),a
 	inc	hl
+	pop	bc			; Record shot index
+	ld	a,(num_shots)
+	sub	b
+	ld	(hl),a
+	inc	hl
+	push	bc
 .checkdel:
 	pop	bc
 	ex	(sp),hl			; Now consider tails
@@ -406,10 +424,9 @@ record_display_list:
 1	ld	a,(ix)
 	add	6
 	cp	8
-	jr	c,.nextshot
+	jr	c,.checkhit
 	call	row_addr
 	ld	a,(ix+16)
-	ld	b,a
 	rrca
 	rrca
 	rrca
@@ -419,11 +436,51 @@ record_display_list:
 	inc	hl
 	ld	(hl),d
 	inc	hl
+.checkhit:
+	ld	a,(ix+32)
+	or	a
+	jr	z,.nextshot
+	ld	a,(ix)			; Delete the rest of the shot too
+	add	2			; Don't bother erasing the head we skipped
+	call	row_addr
+	ld	a,(ix+16)
+	rrca
+	rrca
+	rrca
+	and	$1f
+	add	e
+	ld	e,a
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+	inc	hl
+	inc	d
+	inc	d			; Advance the other pixels the hard way
+	ld	a,7
+	and	d
+	jr	nz,1F
+	ld	a,e
+	add	32
+	ld	e,a
+	jr	c,1F
+	ld	a,d
+	sub	8
+	ld	d,a
+1	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+	inc	hl
+	push	hl
+	call	award_point
+	pop	hl
+	ld	(ix+32),0		; Mark the shot as no longer colliding
+	ld	(ix),0			; Mark the shot for deletion/compaction
 .nextshot:
 	inc	ix
 	pop	bc
 	ex	(sp),hl			; HL back to pointing at heads
-	djnz	.shotplotlp
+	dec	b
+	jp	nz,.shotplotlp
 	;; Terminate the heads-and-tails lists
 .done:	xor	a
 	ld	(hl),a
@@ -433,11 +490,6 @@ record_display_list:
 	ld	(hl),a
 	inc	hl
 	ld	(hl),a
-	ret
-
-;;; TODO: Generate erase codes for shots with collision recorded
-;;;       then mark the shot for deletion by zeroing its Y coordinate.
-erase_shot:
 	ret
 
 ;;; Compact the shot array and update max_shot_y. Trashes ABCDEHL/IX.
@@ -506,7 +558,7 @@ new_shot:
 	ret
 
 ;;; ----------------------------------------------------------------------
-;;;   Miscellaneous Game Logic
+;;;   Scoring logic
 ;;; ----------------------------------------------------------------------
 
 award_point:
