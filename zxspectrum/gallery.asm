@@ -21,8 +21,8 @@ num_shots # 1
 shot_y # 16
 shot_x # 16
 shot_collide # 16
-shot_tails # 64				; 32 pointers to erase (0-terminated)
-shot_heads # 64				; 16 pointers to shot_head struct
+shot_tails # 64				; 31 pointers to erase (0-terminated)
+shot_heads # 68				; 16 pointers to shot_head struct (0-terminated)
 
 ;;; SHOT_HEAD struct: { ptr screen_byte (0 = terminator, always even row)
 ;;;                     byte x_mask (for collision and compositing)
@@ -36,8 +36,16 @@ x_mask:	defb	$80,$40,$20,$10,$08,$04,$02,$01
 
 	call	initialize
 
-main:	halt
+	;; Main loop. The commented-out code here provides a visual
+	;; frame timer when uncommented.
+main:	; xor	a			; FRAMETIMER: black border
+	; out	($fe),a			; for end of frame
+	halt
+	; ld	a,5			; FRAMETIMER: cyan border
+	; out	($fe),a			; for rendering step
 	call	render
+	; ld	a,3			; FRAMETIMER: magenta border
+	; out	($fe),a			; for frame logic
 	call	frame_logic
 	call	check_quit
 	jr	nz,main
@@ -61,10 +69,10 @@ render:	call	erase_targets
 
 frame_logic:
 	call	handle_input
-	call	move_autonomous
-	call	record_display_list
 	call	compact_shots
-	jp	new_shot
+	call	move_autonomous
+	call	new_shot
+	jp	record_display_list
 
 ;;; ----------------------------------------------------------------------
 ;;;   Game initialization
@@ -384,13 +392,13 @@ record_display_list:
 	jp	z,.done
 	ld	b,a
 .shotplotlp:
-	push	bc
 	ld	a,(ix+32)		; Don't keep drawing the head on collision
 	or	a
 	jr	nz,.checkdel
 	ld	a,(ix)			; Also don't draw if we're scrolling off the top
 	cp	8
 	jr	c,.checkdel
+	push	bc
 	call	row_addr
 	ld	a,(ix+16)
 	ld	b,a
@@ -416,9 +424,7 @@ record_display_list:
 	sub	b
 	ld	(hl),a
 	inc	hl
-	push	bc
 .checkdel:
-	pop	bc
 	ex	(sp),hl			; Now consider tails
 	push	bc
 1	ld	a,(ix)
@@ -500,12 +506,13 @@ compact_shots:
 	or	a			; No shots? Nothing to compact.
 	ret	z
 	ld	ix,shot_y		; Read ptr for Y and X
+	ld	hl,shot_collide		; Write ptr for collision
+	push	hl
 	ld	hl,shot_y		; Write ptr for Y
 	ld	de,shot_x		; Write ptr for X
 	ld	b,a			; Loop var
-	ld	c,a			; Number of surviving shots
+	ld	c,0			; Number of surviving shots
 .lp:	ld	a,(ix)			; Load next shot Y
-	dec	c			; Presumptively delete it
 	or	a			; If it's nonzero, don't delete...
 	jr	z,.skip
 	ld	a,(ix)			; Copy its Y coordinate
@@ -517,13 +524,19 @@ compact_shots:
 	ld	(max_shot_y),a
 1	ld	a,(ix+16)		; Copy X coordinate
 	ld	(de),a
+	ex	(sp),hl			; Swap in collision write pointer
+	ld	a,(ix+32)		; Copy collision bit
+	ld	(hl),a
 	inc	hl			; Advance the write pointers
+	ex	(sp),hl
+	inc	hl
 	inc	de
-	inc	c			; Reverse our deletion count
+	inc	c			; Boost write count
 .skip:	inc	ix			; Advance src ptr even when Y=0
 	djnz	.lp
 	ld	a,c			; Store out the number of shots
 	ld	(num_shots),a
+	pop	hl
 	ret
 
 ;;; New shot if max_shot_y is low enough and we have enough space for them.
@@ -553,8 +566,10 @@ new_shot:
 	ld	(hl),a
 	ld	a,(blaster_facing)	; Adjust shot location
 	or	a			; if facing right
-	ret	nz
+	jr	nz,1F
 	inc	(hl)
+1	add	hl,de			; Update collision
+	ld	(hl),0
 	ret
 
 ;;; ----------------------------------------------------------------------
