@@ -42,21 +42,22 @@ main:	ld	de,init_reg		; Init VDP registers
 	ld	bc,$0088		; Tile graphics
 	ld	de,$0808
 	rst	blit_vram
-	ld	bc,$0018		; Sprite graphics
+	ld	bc,$0100		; Sprite graphics
 	ld	de,$0b00
 	rst	blit_vram
-	ld	bc,$0030		; Load sprite attrs to CPU RAM
+	ld	bc,$0038		; Load sprite attrs to CPU RAM
 	ld	de,sprattrs
 	ldir
-	ld	bc,$0031		; Then blit them to VRAM
+	ld	bc,$0039		; Then blit them to VRAM
 	ld	de,$0300
 	ld	hl,gfx_sprattr
 	rst	blit_vram
+	call	init_game
 	;;	Set up interrupt handler
 	ld	hl,.irq
 	ld	(irqvec),hl
 	ei
-	ld	hl,$01e1
+	ld	hl,$01e2
 	rst	set_vdp_register
 
 .ever:	halt
@@ -70,7 +71,7 @@ main:	ld	de,init_reg		; Init VDP registers
 blit_sprites:
 	ld	hl,sprattrs		; Blit updated sprites to VRAM
 	ld	de,$0300
-	ld	bc,$0030
+	ld	bc,$0038
 	rst	blit_vram
 	ret
 
@@ -109,4 +110,4 @@ init_reg:
 
 	include	"../common/gallerycore.asm"
 
-	ds	$400-$,$ff
+	ds	$800-$,$ff

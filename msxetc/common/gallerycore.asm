@@ -4,11 +4,23 @@
 ;;;  the target platforms; check subdirectories for those details.
 ;;;----------------------------------------------------------------------
 
-sprattrs     # 48
+sprattrs     # 60
 score        #  2
 scorebuf     #  4
 fire         #  1
 collision    #  1
+blaster_x    #  1
+blaster_face #  1
+
+init_game:
+	xor	a
+	ld	hl,score
+	ld	de,score+1
+	ld	bc,blaster_face-score
+	ldir
+	ld	a,$80
+	ld	(blaster_x),a
+	ret
 
 irq:	push	ix
 	ld	a,(collision)
@@ -19,17 +31,39 @@ irq:	push	ix
 	call	read_joystick
 
 	ld	ix,sprattrs
-	ld	a,(ix+1)
+	ld	a,(blaster_x)
 	add	h
-	cp	$06
+	cp	$0a
 	jr	z,1f
-	cp	$ea
+	cp	$f0
 	jr	nz,2f
 1	sub	h
+2	ld	(blaster_x),a
+	ld	a,h			; Did we move at all?
+	or	a
+	jr	z,1F
+	rlca				; Save the sign bit as LSB
+	and	1
+	ld	(blaster_face),a
+1	ld	a,(blaster_face)	; Check facing
+	rrca				; C = facing left
+	ld	a,(blaster_x)
+	jr	c,1F
+	sub	5			; Right-facing
+	ld	(ix+2),$6c
+	ld	(ix+6),$70
+	ld	(ix+10),$74
+	jr	2F
+1	sub	10			; Left-facing
+	ld	(ix+2),$60
+	ld	(ix+6),$64
+	ld	(ix+10),$68
 2	ld	(ix+1),a
+	ld	(ix+5),a
+	ld	(ix+9),a
 
 	ld	b,3
-	add	ix,de
+	ld	ix,sprattrs+12		; Targets
 .targetlp:
 	ld	a,(ix)			; Load Y coordinate
 	add	l
@@ -58,7 +92,7 @@ irq:	push	ix
 	ld	b,8			; 8 shots
 	ld	a,(collision)		; Cache collision data in C
 	ld	c,a
-	ld	a,(sprattrs+4)		; Targets' Y coordinate
+	ld	a,(sprattrs+12)		; Targets' Y coordinate
 	ld	h,a
 	ld	l,0			; Lowest shot found so far
 .shotlp:
@@ -94,7 +128,7 @@ irq:	push	ix
 	ld	a,(fire)		; Either fire button pressed?
 	and	a
 	jr	z,.noshot
-	ld	ix,sprattrs+16		; Reset IX to first shot
+	ld	ix,sprattrs+24		; Reset IX to first shot
 	ld	b,8
 1	ld	a,(ix)			; Is this shot offscreen?
 	cp	$c0
@@ -103,7 +137,7 @@ irq:	push	ix
 	djnz	1B
 	jr	.noshot			; No free shots
 2	ld	(ix),$89		; Set new shot Y coordinate
-	ld	a,(sprattrs+1)		; Copy Blaster X coordinate to new shot
+	ld	a,(blaster_x)		; Copy Blaster X coordinate to new shot
 	ld	(ix+1),a
 .noshot:
 	call	blit_sprites
@@ -168,14 +202,44 @@ gfx_pat:
 	db	$00,$3c,$62,$3c,$62,$62,$3c,$00 ; $10: 8
 	db	$00,$3c,$62,$3e,$02,$62,$3c,$00 ; $11: 9
 gfx_sprpat:
-	db	$10,$38,$ba,$ba,$fe,$fe,$92,$00 ; $60: Blaster
-	db	$00,$3c,$42,$5a,$5a,$42,$3c,$00 ; $61: Target
-	db	$00,$00,$00,$00,$00,$10,$10,$10 ; $62: Missile
+	db	$00,$00,$00,$00,$00,$f8,$18,$18 ; $60: Blaster L-A
+	db	$18,$ff,$ff,$e7,$c3,$00,$00,$00
+	db	$00,$00,$00,$00,$00,$00,$00,$00
+	db	$00,$ff,$ff,$f9,$f0,$00,$00,$00
+	db	$00,$00,$00,$00,$00,$00,$02,$03 ; $64: Blaster L-B
+	db	$02,$00,$00,$00,$00,$00,$00,$00
+	db	$00,$20,$20,$70,$a8,$f8,$aa,$fe
+	db	$fa,$00,$00,$00,$00,$00,$00,$00
+	db	$00,$00,$00,$00,$00,$00,$e0,$e0 ; $68: Blaster L-C
+	db	$e0,$00,$00,$18,$3c,$18,$00,$00
+	db	$00,$00,$00,$00,$00,$00,$00,$00
+	db	$00,$00,$00,$06,$0f,$06,$00,$00
+	db	$00,$00,$00,$00,$00,$00,$00,$00 ; $6C: Blaster R-A
+	db	$00,$ff,$ff,$9f,$0f,$00,$00,$00
+	db	$00,$00,$00,$00,$00,$1f,$18,$18
+	db	$18,$ff,$ff,$e7,$c3,$00,$00,$00
+	db	$00,$04,$04,$0e,$15,$1f,$55,$7f ; $70: Blaster R-B
+	db	$5f,$00,$00,$00,$00,$00,$00,$00
+	db	$00,$00,$00,$00,$00,$00,$40,$c0
+	db	$40,$00,$00,$00,$00,$00,$00,$00
+	db	$00,$00,$00,$00,$00,$00,$00,$00 ; $74: Blaster R-C
+	db	$00,$00,$00,$60,$f0,$60,$00,$00
+	db	$00,$00,$00,$00,$00,$00,$07,$07
+	db	$07,$00,$00,$18,$3c,$18,$00,$00
+	db	$03,$0f,$1c,$30,$63,$66,$cc,$c9 ; $78: Target A
+	db	$c9,$cc,$66,$63,$30,$1c,$0f,$03
+	db	$c0,$f0,$38,$0c,$c6,$66,$33,$93
+	db	$93,$33,$66,$c6,$0c,$38,$f0,$c0
+	db	$00,$00,$00,$00,$00,$00,$00,$00 ; $7C: Missile
+	db	$00,$00,$80,$80,$80,$80,$80,$80
+	db	$00,$00,$00,$00,$00,$00,$00,$00
+	db	$00,$00,$00,$00,$00,$00,$00,$00
 gfx_sprattr:
-	db	$99,$78,$60,$09,$38,$38,$61,$06
-	db	$38,$78,$61,$06,$38,$b8,$61,$06
-	db	$c0,$78,$62,$0b,$c0,$78,$62,$0b
-	db	$c0,$78,$62,$0b,$c0,$78,$62,$0b
-	db	$c0,$78,$62,$0b,$c0,$78,$62,$0b
-	db	$c0,$78,$62,$0b,$c0,$78,$62,$0b
+	db	$99,$78,$6c,$0c,$99,$78,$70,$09
+	db	$99,$78,$74,$0e,$38,$38,$78,$06
+	db	$38,$78,$78,$06,$38,$b8,$78,$06
+	db	$c0,$78,$7c,$0b,$c0,$78,$7c,$0b
+	db	$c0,$78,$7c,$0b,$c0,$78,$7c,$0b
+	db	$c0,$78,$7c,$0b,$c0,$78,$7c,$0b
+	db	$c0,$78,$7c,$0b,$c0,$78,$7c,$0b
 	db	$d0

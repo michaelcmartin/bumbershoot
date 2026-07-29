@@ -40,19 +40,20 @@ main:
 	ld	de,$0008
 	call	WRITE_VRAM
 	ld	hl,gfx_sprpat
-	ld	bc,$0018
+	ld	bc,$0100
 	ld	de,$3b00
 	call	WRITE_VRAM
 	ld	hl,gfx_sprattr
-	ld	bc,$0030
+	ld	bc,$0038
 	ld	de,sprattrs
 	ldir
-	ld	bc,$0031		; Then blit them to VRAM
+	ld	bc,$0039		; Then blit them to VRAM
 	ld	de,$1b00
 	ld	hl,gfx_sprattr
 	call	WRITE_VRAM
+	call	init_game
 
-	ld	bc,$01e1
+	ld	bc,$01e2
 	call	WRITE_REGISTER
 
 .ever:	halt
@@ -79,7 +80,7 @@ vblank:	ex	af,af'
 blit_sprites:
 	ld	hl,sprattrs		; Blit updated sprites to VRAM
 	ld	de,$1b00
-	ld	bc,$0030
+	ld	bc,$0038
 	jp	WRITE_VRAM
 
 blit_score:

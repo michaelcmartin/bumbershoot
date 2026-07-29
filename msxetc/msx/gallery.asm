@@ -24,7 +24,7 @@ INIT:	ld	hl,0			; Set up VRAM tables
 	ld	(BAKCLR),a
 	ld	(BDRCLR),a
 	call	INIT32
-	ld	bc,$e101		; Magnify sprites
+	ld	bc,$e201		; Magnify sprites
 	call	WRTVDP
 
 	;; Draw static screen
@@ -49,20 +49,19 @@ INIT:	ld	hl,0			; Set up VRAM tables
 	ld	de,$0808
 	call	LDIRVM
 	ld	hl,gfx_sprpat
-	ld	bc,$0018		; Sprite graphics
+	ld	bc,$0100		; Sprite graphics
 	ld	de,$0b00
 	call	LDIRVM
 	ld	hl,gfx_sprattr
-	ld	bc,$0030		; Load sprite attrs to CPU RAM
+	ld	bc,$0038		; Load sprite attrs to CPU RAM
 	ld	de,sprattrs
 	ldir
-	ld	bc,$0031		; Then blit them to VRAM
+	ld	bc,$0039		; Then blit them to VRAM
 	ld	de,$0300
 	ld	hl,gfx_sprattr
 	call	LDIRVM
 
-	ld	hl,0
-	ld	(score),hl
+	call	init_game
 
 mainlp:	ld	hl,JIFFY
 	ld	a,(hl)
@@ -79,7 +78,7 @@ mainlp:	ld	hl,JIFFY
 blit_sprites:
 	ld	hl,sprattrs
 	ld	de,$0300
-	ld	bc,$0030
+	ld	bc,$0038
 	call	LDIRVM
 	ret
 
