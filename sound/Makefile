@@ -1,6 +1,9 @@
 CFLAGS=-O2
 
-all: conv_amiga conv_coco conv_dos conv_nes_pcm conv_nes_dmc conv_iigs revbits sndplay_sdl2
+all: conv_1bit conv_amiga conv_coco conv_dos conv_nes_pcm conv_nes_dmc conv_iigs revbits sndplay_sdl2
+
+conv_1bit: conv_1bit.c wavefile.c wavefile.h
+	$(CC) $(CFLAGS) -o $@ conv_1bit.c wavefile.c
 
 conv_amiga: conv_amiga.c wavefile.c wavefile.h
 	$(CC) $(CFLAGS) -o $@ conv_amiga.c wavefile.c
@@ -45,4 +48,4 @@ sndplay_dx9-res.o: sndplay_dx9.rc sinestra.bin wow.wav bumbershoot.wav
 	windres -o $@ $<
 
 clean:
-	rm -f conv_amiga conv_coco conv_dos conv_nes_pcm conv_nes_dmc revbits conv_iigs sndplay_sdl2 wow.c bumbershoot.c sinestra.c sinestra.bin sndplay_sdl2.exe sndplay_dx9.exe sndplay_dx9-res.o
+	rm -f conv_1bit conv_amiga conv_coco conv_dos conv_nes_pcm conv_nes_dmc revbits conv_iigs sndplay_sdl2 wow.c bumbershoot.c sinestra.c sinestra.bin sndplay_sdl2.exe sndplay_dx9.exe sndplay_dx9-res.o
