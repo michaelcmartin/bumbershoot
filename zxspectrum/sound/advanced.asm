@@ -8,8 +8,8 @@
 	call	print
 
 1	call	getkey
-	sub	$31			; Subtract ord('1') for 0-4
-	cp	5			; Check if out of range
+	sub	$31			; Subtract ord('1') for 0-5
+	cp	6			; Check if out of range
 	jr	nc,1B
 	call	vector
 	jr	1B
@@ -64,10 +64,11 @@ menu:	db	$16,0,2,"BEEPING WITH THE BUMBERSHOOT",13,13,13,13,13
 	db	13,"     2. ARPEGGIO CHORDS"
 	db	13,"     3. CHANNEL-SUM CHORDS"
 	db	13,"     4. 1-BIT PCM"
-	db	13,"     5. EXIT PROGRAM"
-	db	$16,16,7,"YOUR CHOICE (1-5)?",255
+	db	13,"     5. 3-BIT PCM WITH PWM"
+	db	13,"     6. EXIT PROGRAM"
+	db	$16,16,7,"YOUR CHOICE (1-6)?",255
 choices:
-	dw	tech0,tech1,tech2,tech3,exit
+	dw	tech0,tech1,tech2,tech3,tech4,exit
 
 	;; Technique 1: Scale with custom player
 
@@ -276,7 +277,91 @@ tech3:	ld	hl,pcmdat
 	ei
 	ret
 
+
+tech4:	ld	hl,pcmdat2
+	ld	bc,pcmlen2
+
+	di
+	exx
+	push	bc
+	push	de
+	push	hl
+	exx
+	call	.lp
+	exx
+	pop	hl
+	pop	de
+	pop	bc
+	exx
+	ei
+	ret
+.step:	;; Enter .step on cycle 307
+	ld	b,0			; + 7 (314)
+	ld	b,0			; + 7 (321)
+	exx				; + 4 (325)
+	dec	bc			; + 6 (331)
+	ld	a,b			; + 4 (335)
+	or	c			; + 4 (339)
+	ret	z			; + 5 (344)
+.lp:	ld	a,(hl)			; + 7 (351)
+	inc	hl			; + 6 (357)
+	rrca				; + 4 (361)
+	rrca				; + 4 (365)
+	and	$1e			; + 7 (372)
+	exx				; + 4 (376)
+	ld	h,.table / 256		; + 7 (383)
+	add	.table & $ff		; + 7 (390)
+	ld	l,a			; + 4 (394)
+	ld	e,(hl)			; + 7 (401)
+	inc	l			; + 4 (405)
+	ld	d,(hl)			; + 7 (412)
+	ex	de,hl			; + 4 (416)
+	ld	a,$11			; + 7 (423)
+	jp	(hl)			; + 4 (427)
+	align	32
+.table: dw	.s0,.s0,.s0,.s0
+	dw	.s0,.s0,.s3,.s6
+	dw	.s9,.s12,.s15,.s15
+	dw	.s15,.s15,.s15,.s15
+
+	;; Enter on cycle 427
+	macro	pcmstep i
+	out	($fe),a			; + 11 (438)
+	xor	$10			; +  7 (  7)
+	repeat	i
+	nop				; 4*i
+	endrepeat
+	out	($fe),a			; 11
+	repeat	15-i			; 60-4*i
+	nop
+	endrepeat			; + 71 ( 78)
+	ld	b,9			; +  7 ( 85)
+1	djnz	1B			; +112 (197)
+	nop				; +  4 (201)
+	xor	$10			; +  7 (208)
+	out	($fe),a			; + 11 (219)
+	xor	$10			; +  7 (226)
+	repeat	i
+	nop
+	endrepeat
+	out	($fe),a
+	repeat	15-i
+	nop
+	endrepeat			; + 71 (297)
+	jp	.step			; + 10 (307)
+	endmacro
+
+.s0:	pcmstep 0
+.s3:	pcmstep 3
+.s6:	pcmstep 6
+.s9:	pcmstep 9
+.s12:	pcmstep 12
+.s15:	pcmstep 15
+
 pcmdat	incbin	"sample.dat"
 pcmlen	equ	$-pcmdat
+
+pcmdat2	incbin	"wow_pcm.dat"
+pcmlen2	equ	$-pcmdat2
 
 bss_start:
