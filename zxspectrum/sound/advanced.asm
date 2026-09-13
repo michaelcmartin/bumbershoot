@@ -9,7 +9,7 @@
 
 1	call	getkey
 	sub	$31			; Subtract ord('1') for 0-5
-	cp	6			; Check if out of range
+	cp	7			; Check if out of range
 	jr	nc,1B
 	call	vector
 	jr	1B
@@ -63,12 +63,13 @@ menu:	db	$16,0,2,"BEEPING WITH THE BUMBERSHOOT",13,13,13,13,13
 	db	13,"     1. SIMPLE SCALE"
 	db	13,"     2. ARPEGGIO CHORDS"
 	db	13,"     3. CHANNEL-SUM CHORDS"
-	db	13,"     4. 1-BIT PCM"
-	db	13,"     5. 3-BIT PCM WITH PWM"
-	db	13,"     6. EXIT PROGRAM"
-	db	$16,16,7,"YOUR CHOICE (1-6)?",255
+	db	13,"     4. INTERLEAVED CHORDS"
+	db	13,"     5. 1-BIT PCM"
+	db	13,"     6. 3-BIT PCM WITH PWM"
+	db	13,"     7. EXIT PROGRAM"
+	db	$16,16,7,"YOUR CHOICE (1-7)?",255
 choices:
-	dw	tech0,tech1,tech2,tech3,tech4,exit
+	dw	tech0,tech1,tech2,tech3,tech4,tech5,exit
 
 	;; Technique 1: Scale with custom player
 
@@ -173,6 +174,7 @@ sound:
 scale:	dw	$0367,$03d2,$044a,$048b,$051a,$05ba,$066e,$06cf
 
 
+;;; Technique 3: Channel-summed chords
 ;; Notes:
 ;;   B      C    D     E     F     G     A
 ;; $061b $0678 $0743 $0826 $08a2 $09b1 $0ae1
@@ -211,16 +213,19 @@ endmacro
 freq1 # 2
 freq2 # 2
 freq3 # 2
+counter1 # 2
+counter2 # 2
+counter3 # 2
 chord2:	ld	hl,0
-	ld	(.counter1),hl
-	ld	(.counter2),hl
-	ld	(.counter3),hl
+	ld	(counter1),hl
+	ld	(counter2),hl
+	ld	(counter3),hl
 	di
 	;; 338 cycles per loop:
 .lp:	xor	a			; + 4
-	count_channel .counter1,freq1	; +91
-	count_channel .counter2,freq2	; +91
-	count_channel .counter3,freq3	; +91
+	count_channel counter1,freq1	; +91
+	count_channel counter2,freq2	; +91
+	count_channel counter3,freq3	; +91
 	add	a			; + 4
 	add	a			; + 4
 	add	a			; + 4
@@ -233,11 +238,70 @@ chord2:	ld	hl,0
 	jp	nz,.lp			; +10
 	ei
 	ret
-.counter1 # 2
-.counter2 # 2
-.counter3 # 2
 
-tech3:	ld	hl,pcmdat
+;;; Technique 4: Sample-interleaved chords
+;;;   (Reuses the scratch space from previous technique)
+macro	play3	4
+	ld	hl,@2
+	ld	(freq1),hl
+	ld	hl,@3
+	ld	(freq2),hl
+	ld	hl,@4
+	ld	(freq3),hl
+	ld	bc,@1
+	call	chord3
+endmacro
+
+;;;   A     B     C     D     E     F     G     A
+;;; $0134 $015a $016f $019c $01ce $01ea $0226 $0269
+
+tech3:	play3	$5000,$016f,$01ce,$0226	; I
+	play3	$5000,$016f,$01ea,$0269	; IV
+	play3	$5000,$016f,$01ce,$0226	; I
+	play3	$5000,$015a,$019c,$0226	; V
+	play3	$a000,$016f,$01ce,$0226	; I
+	ret
+
+	;; proc_channel: 140 cycles. With interleaved
+	;; JP instructions to handle the Z flag on
+	;; counter exit, 150 cycles between entries
+	;; signal flips at 0x8000 instead of 0x10000
+macro	count_channel2	count,freq
+	ld	hl,(count)		; +16
+	ld	de,(freq)		; +20
+	add	hl,de			; +11
+	add	hl,de			; +11
+	add	hl,de			; +11
+	ld	a,h			; + 4
+	rrca				; + 4
+	rrca				; + 4
+	rrca				; + 4
+	and	$10			; + 7
+	or	$01			; + 7
+	out	($fe),a			; +11
+	ld	(count),hl		; +16
+	dec	bc			; + 6
+	ld	a,b			; + 4
+	or	c			; + 4
+endmacro
+
+chord3:	ld	hl,0
+	ld	(counter1),hl
+	ld	(counter2),hl
+	ld	(counter3),hl
+	di
+.lp:	count_channel2 counter1, freq1
+	jp	z,.end
+	count_channel2 counter2, freq2
+	jp	z,.end
+	count_channel2 counter3, freq3
+	jp	nz,.lp
+.end:	ei
+	ret
+
+;;; Technique 5: 1-bit PCM playback
+
+tech4:	ld	hl,pcmdat
 	ld	de,pcmlen
 	di
 	;; We enter .lp at the 24-cycle count
@@ -277,8 +341,10 @@ tech3:	ld	hl,pcmdat
 	ei
 	ret
 
-
-tech4:	ld	hl,pcmdat2
+;;; Technique 6: Pulse-Width modulated digital sound
+;;;   16 kHz playback from an 8kHz sample, each sample
+;;;   doubled in-place
+tech5:	ld	hl,pcmdat2
 	ld	bc,pcmlen2
 
 	di
@@ -318,13 +384,17 @@ tech4:	ld	hl,pcmdat2
 	ex	de,hl			; + 4 (416)
 	ld	a,$11			; + 7 (423)
 	jp	(hl)			; + 4 (427)
+	;; Align jump table so address computations can all
+	;; be 8-bit math
 	align	32
+	;; The sample turns out to be kind of soft, so we
+	;; do some volume compression along the way
 .table: dw	.s0,.s0,.s0,.s0
 	dw	.s0,.s0,.s3,.s6
 	dw	.s9,.s12,.s15,.s15
 	dw	.s15,.s15,.s15,.s15
 
-	;; Enter on cycle 427
+	;; Enter macro on cycle 427, leave on cycle 307
 	macro	pcmstep i
 	out	($fe),a			; + 11 (438)
 	xor	$10			; +  7 (  7)
