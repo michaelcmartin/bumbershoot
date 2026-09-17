@@ -253,13 +253,13 @@ macro	play3	4
 endmacro
 
 ;;;   A     B     C     D     E     F     G     A
-;;; $0134 $015a $016f $019c $01ce $01ea $0226 $0269
+;;; $0269 $02b5 $02de $0338 $039d $03d4 $044c $04d3
 
-tech3:	play3	$5000,$016f,$01ce,$0226	; I
-	play3	$5000,$016f,$01ea,$0269	; IV
-	play3	$5000,$016f,$01ce,$0226	; I
-	play3	$5000,$015a,$019c,$0226	; V
-	play3	$a000,$016f,$01ce,$0226	; I
+tech3:	play3	$5000,$02de,$039d,$044c	; I
+	play3	$5000,$02de,$01ea,$04d3	; IV
+	play3	$5000,$02de,$039d,$044c	; I
+	play3	$5000,$02b5,$019c,$044c	; V
+	play3	$a000,$02de,$039d,$044c	; I
 	ret
 
 	;; proc_channel: 140 cycles. With interleaved
