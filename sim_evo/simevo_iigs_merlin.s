@@ -1,107 +1,214 @@
-                 DSK   SimEvo8#FF2000
-                 TYP   $FF
-                 ORG   $2000
+                 REL
+                 DSK   SimEvo.GS#B30000
+                 TYP   $B3
 
-                 MX    %11
+                 MX    %00
 
-*** Monitor routines
-COUT             =     $FDED
-HOME             =     $FC58
-PRODOS8          =     $BF00
+*** OS routines
+GSOS             =     $E100A8
 
-*** Aliases we carve out of SimEvo's SCRATCH3 space
-BORDER           =     SCRATCH3+15
+*** Direct-Page variables and scratch regions
+                 DUM   0
+TIME_PTR         DS    4
+BORDER           DS    1
+NUMBUGS          DS    1
+GARDEN           DS    1
+WARP             DS    1
+EATEN            DS    1
+SCR_ADDR         DS    2
+MEM_ID           DS    2
+RNDVAL           DS    4
+SE_PTR           DS    2
+TIMER            DS    2
+SCRATCH          DS    16
+SCRATCH2         DS    16
+                 DEND
 
 *** Main program
-START            JSR   HOME              ; Clear screen
-                 LDA   #>TITLE_MSG       ; Display title
-                 LDY   #$00
-                 STA   :1+2
-:1               LDA   TITLE_MSG,Y
-                 BEQ   :2
-                 JSR   COUT
-                 INY
-                 BNE   :1
-                 INC   :1+2
-                 BNE   :1
-:2               BIT   $C010             ; Clear KB buffer
-                 CLC                     ; Escape into 65816 mode
-                 XCE
-                 REP   #$10              ; 16-bit indices
-                 LDX   #$0000
-:3               INX                     ; Bump iteration counter
-                 BIT   $C000             ; Wait for key
-                 BPL   :3
-                 BIT   $C010
-                 STX   SCRATCH           ; Save iteration counter
-                 SEP   #$10              ; Back to 8-bit everything
-                 LDA   SCRATCH           ; Use iteration counter to seed PRNG
+START            SEP   #$30               ; We default into 8-bit mode
+                 PHK                      ; And data bank is program bank
+                 PLB
+                 JSR   INIT_TOOLBOX
+                 JSR   DO_TITLE
+                 LDA   SCRATCH            ; Use iteration counter to seed PRNG
                  LDX   SCRATCH+1
+
                  JSR   SRND
 
                  JSR   INIT_GFX
                  JSR   INIT_BACTERIA
                  JSR   INIT_BUGS
-
-MAINLP           LDA   $C000             ; Check for key
-                 BPL   :STEP             ; No keypress, no problem
-                 BIT   $C010             ; Acknowledge keypress
-                 CMP   #$C7              ; Garden?
-                 BEQ   :GARDEN
-                 CMP   #$E7              ; Lowercase input?
-                 BEQ   :GARDEN
-                 CMP   #$9b              ; Pressed ESC?
-                 BNE   :STEP
+                 STZ   WARP
+MAINLP           LDAL  $E0C000            ; Check for key
+                 BPL   :STEP              ; No keypress, no problem
+                 TAX
+                 LDAL  $E0C010            ; Acknowledge keypress
+                 TXA
+                 CMP   #$9b               ; Pressed ESC?
                  BEQ   :QUIT
-:GARDEN          LDA   GARDEN
+                 AND   #$DF               ; Flatten case
+                 CMP   #$C7               ; Garden?
+                 BNE   :NOGARDEN
+                 LDA   GARDEN
                  EOR   #$01
                  STA   GARDEN
-:STEP            JSR   RUN_STEP
-                 JMP   MAINLP
+                 JMP   :STEP
+:NOGARDEN        CMP   #$D7               ; Warp?
+                 BNE   :STEP
+                 LDA   WARP
+                 EOR   #$01
+                 STA   WARP
+:STEP            LDA   [TIME_PTR]
+                 STA   TIMER
+                 JSR   RUN_STEP
+                 LDA   WARP
+                 BNE   MAINLP
+:ZZZ             LDA   [TIME_PTR]
+                 CMP   TIMER
+                 BNE   MAINLP
+                 WAI
+                 JMP   :ZZZ
 
 * Return to ProDOS
 :QUIT            JSR   EXIT_GFX
-                 SEC                     ; Back to emulation mode
-                 XCE
-                 JSR   PRODOS8
-                 DB    $65
-                 DA    :QARG
-                 BRK
-:QARG            DFB   4,0,0,0,0,0,0
+                 JSR   EXIT_TOOLBOX
+                 JSL   GSOS
+                 DW    $2029              ; GS/OS call: QUIT
+                 ADRL  :QARGS
+:QARGS           DW    0
 
 *** Support routines and data
 
-TITLE_MSG        ASC   8D,8D,"        "
-                 INV   "                        "
-                 ASC   8D,"        "
-                 INV   "  SIMULATED  EVOLUTION  "
-                 ASC   8D,"        "
-                 INV   "                        "
-                 ASC   8D,8D,8D,8D,"  ][gs edition by Michael Martin, 2026",8D,8D
-                 ASC   "            Original program",8D
-                 ASC   "          Michael Palmiter and",8D
-                 ASC   "          Martin Gardner, 1989",8D,8D,8D,8D
-                 ASC   "    Press G to toggle Garden of Eden",8D
-                 ASC   "          Press Escape to quit",8D,8D,8D,8D,8D
-                 ASC   "       "
-                 INV   "  PRESS ANY KEY TO BEGIN  "
-                 DFB   0
+DO_TITLE         REP   #$30               ; All 16-bit
+                 JSL   GSOS               ; GS/OS call: OPEN
+                 DW    $2010
+                 ADRL  :OPEN_ARGS
+                 LDX   :OPN_FD            ; Copy file descriptor to all other
+                 STX   :PRN_FD            ; arg blocks
+                 STX   :CLS_FD
+                 JSL   GSOS               ; GS/OS call: WRITE
+                 DW    $2013
+                 ADRL  :PRINT_ARGS
 
-INIT_GFX         REP   #$30              ; 16-bit everything
-                 LDX   #$7C60            ; Clear out last line and all mode lines and palettes
+                 SEP   #$20               ; 8-bit accumulator
+                 LDAL  $E0C010            ; Clear KB buffer
+                 LDX   #$0000
+]LP              INX                      ; Bump iteration counter
+                 LDAL  $E0C000            ; Wait for key
+                 BPL   ]LP
+                 LDAL  $E0C010            ; Acknowledge keypress
+                 STX   SCRATCH            ; Save iteration counter
+
+                 REP   #$20               ; Clear screen on the way out
+                 LDA   #$02
+                 STA   :PRN_LEN
+                 LDA   #$00
+                 STA   :PRN_LEN+2
+                 JSL   GSOS
+                 DW    $2013              ; GS/OS call: WRITE
+                 ADRL  :PRINT_ARGS
+
+                 JSL   GSOS               ; GS/OS call: CLOSE
+                 DW    $2014
+                 ADRL  :CLOSE_ARGS
+
+                 SEP   #$30               ; Back to 8-bit everything
+                 RTS
+
+:CONPATH         STRL  '.CONSOLE'
+:OPEN_ARGS
+                 DW    3
+:OPN_FD          DW    0
+                 ADRL  :CONPATH
+                 DW    2
+
+:CLOSE_ARGS
+                 DW    1
+:CLS_FD          DW    0
+
+:PRINT_ARGS
+                 DW    4
+:PRN_FD          DW    0
+                 ADRL  TITLE_MSG
+:PRN_LEN         ADRL  TITLE_LEN,0
+
+TITLE_MSG        ASC   11,0C,0D,0D,'        ',0F,'                        ',0E,0D
+                 ASC   '        ',0F,'  SIMULATED  EVOLUTION  ',0E,0D
+                 ASC   '        ',0F,'                        ',0E,0D
+                 ASC   0D,0D,0D,'  ][gs edition by Michael Martin, 2026',0D,0D
+                 ASC   '            Original program',0D
+                 ASC   '          Michael Palmiter and',0D
+                 ASC   '          Martin Gardner, 1989',0D,0D,0D,0D
+                 ASC   '    Press G to toggle Garden of Eden',0D
+                 ASC   '      Press W to toggle Warp Speed',0D
+                 ASC   '          Press Escape to quit',0D,0D,0D,0D,0D
+                 ASC   '       ',0F,'  PRESS ANY KEY TO BEGIN  ',0E
+TITLE_LEN        =     *-TITLE_MSG
+
+INIT_TOOLBOX     REP   #$30
+                 LDX   #$0201             ; Toolbox call: TLStartUp
+                 JSL   $E10000
+                 PHA                      ; Toolbox call: MMStartUp
+                 LDX   #$0202
+                 JSL   $E10000
+                 PLA
+                 STA   MEM_ID             ; Save return value as process ID
+                 LDX   #$0203             ; Toolbox call: MTStartUp
+                 JSL   $E10000
+                 PEA   ^BUG_HEART
+                 PEA   BUG_HEART
+                 LDX   #$1203             ; Toolbox call: SetHeartBeat
+                 JSL   $E10000
+                 PEA   $0002              ; vblEnable
+                 LDX   #$2303             ; Toolbox call: IntSource
+                 JSL   $E10000
+                 PHA                      ; Toolbox call: GetAddr
+                 PHA
+                 PEA   $0005              ; Tick counter
+                 LDX   #$1603
+                 JSL   $E10000
+                 PLA
+                 STA   TIME_PTR
+                 PLA
+                 STA   TIME_PTR+2
+                 SEP   #$30
+                 RTS
+
+EXIT_TOOLBOX     REP   #$30
+                 PEA   ^BUG_HEART
+                 PEA   BUG_HEART
+                 LDX   #$1303             ; Toolbox call: DelHeartBeat
+                 JSL   $E10000
+                 LDX   #$0303             ; Toolbox call: MTShutDown
+                 JSL   $E10000
+                 LDA   MEM_ID             ; Toolbox call: MMShutDown(MEM_ID)
+                 PHA
+                 LDX   #$0302
+                 JSL   $E10000
+                 LDX   #$0301             ; Toolbox call: TLShutDown
+                 JSL   $E10000
+                 SEP   #$30
+                 RTS
+
+BUG_HEART        ADRL  0
+                 DW    0,$A55A
+                 RTL
+
+INIT_GFX         REP   #$30               ; 16-bit everything
+                 LDX   #$7C60             ; Clear out last line and all mode lines and palettes
                  LDA   #$0000
 :1               STAL  $E12000,X
                  INX
                  INX
                  CPX   #$8000
                  BNE   :1
-                 LDA   #$0A              ; Just write the palette directly
+                 LDA   #$0A               ; Just write the palette directly
                  STAL  $E19E02
                  LDA   #$A0
                  STAL  $E19E04
                  LDA   #$0FFF
                  STAL  $E19E06
-                 LDA   #$1111            ; Draw the pool in the last line
+                 LDA   #$1111             ; Draw the pool in the last line
                  LDX   #$7C65
                  LDY   #75
 :2               STAL  $E12000,X
@@ -109,42 +216,51 @@ INIT_GFX         REP   #$30              ; 16-bit everything
                  INX
                  DEY
                  BNE   :2
-                 LDX   #$7C5E            ; Now copy everything backwards to fill the screen
+                 LDX   #$7C5E             ; Now copy everything backwards to fill the screen
 :3               LDAL  $E120A0,X
                  STAL  $E12000,X
                  DEX
                  DEX
                  BPL   :3
-                 SEP   #$30              ; Back to 8-bit everything
-                 LDA   $C034             ; Collect border value
+                 SEP   #$30               ; Back to 8-bit everything
+                 LDA   #$E0               ; Switch to I/O bank
+                 PHB
+                 PHA
+                 PLB
+                 LDA   $C034              ; Collect border value
                  AND   #$0F
                  STA   BORDER
                  LDA   #$0F
-                 TRB   $C034             ; Turn border black
+                 TRB   $C034              ; Turn border black
                  LDA   #$C0
-                 TSB   $C029             ; Enable Super High-Res Mode
+                 TSB   $C029              ; Enable Super High-Res Mode
+                 PLB                      ; Back to original bank
                  RTS
 
-EXIT_GFX         LDA   #$C0              ; Leave Super High-Res Mode
-                 TRB   $C029
-                 LDA   BORDER            ; Restore border color
+EXIT_GFX         LDA   #$E0               ; Switch to I/O bank
+                 PHB
+                 PHA
+                 PLB
+                 LDA   BORDER             ; Restore border color
                  TSB   $C034
+                 LDA   #$C0               ; Back to text mode to look cleaner on restoration
+                 TRB   $C029
+                 PLB
                  RTS
 
-                 MX    %00               ; This routine is pure 16-bit
-SHR_ADDRESS      TYA                     ; Compute Y*320 + X, which equals...
-                 XBA                     ; ... Y * 256...
-                 STA   SCRATCH3
-                 LSR                     ; ... + Y * 64...
+                 MX    %00                ; This routine is pure 16-bit
+SHR_ADDRESS      TYA                      ; Compute Y*320 + X, which equals...
+                 XBA                      ; ... Y * 256...
+                 STA   SCR_ADDR
+                 LSR                      ; ... + Y * 64...
                  LSR
-                 ADC   SCRATCH3
-                 STX   SCRATCH3          ; ... + X.
-                 ADC   SCRATCH3
+                 ADC   SCR_ADDR
+                 STX   SCR_ADDR           ; ... + X.
+                 ADC   SCR_ADDR
                  TAX
                  RTS
 
-                 MX    %10               ; This routine is A8 X16
-EATEN            =     SCRATCH3
+                 MX    %10                ; This routine is A8 X16
 PAINT_AND_EAT    PHA
                  LDA   #$22
                  CMPL  $E12005,X
@@ -155,22 +271,7 @@ PAINT_AND_EAT    PHA
                  STAL  $E120A5,X
                  RTS
 
-                 MX    %11               ; Back to project standard 8-bit
-
-                 DUM   $12CA
-NUMBUGS          DS    1
-GARDEN           DS    1
-RNDVAL           DS    4
-SCRATCH          DS    16
-SCRATCH2         DS    16
-SCRATCH3         DS    16
-BUG_X            DS    256               ; This should land exactly at $1300
-BUG_Y            DS    256
-BUG_AGE          DS    512               ; 256 * 2
-BUG_HP           DS    512
-BUG_DIR          DS    256
-BUG_DNA          DS    1536              ; 256 * 6
-                 DEND
+                 MX    %11                ; Back to project standard 8-bit
 
 INIT_BACTERIA    LDA   #100
                  STA   SCRATCH2
@@ -229,7 +330,7 @@ INIT_BUGS        LDA   #$00
                  STA   BUG_DNA,X
                  INC   :DNAPAGE
                  LDA   :DNAPAGE
-                 CMP   #{BUG_DNA/256}+6
+                 CMP   #>{BUG_DNA+$0600}
                  BNE   ]2
                  JSR   NORMALIZE_GENES
                  INC   NUMBUGS
@@ -251,13 +352,13 @@ RUN_STEP
 
 * Sum the gene weights.
                  LDA   #<BUG_DNA
-                 STA   $FB
-                 LDA   #>BUG_DNA         ; Reset bug DNA pointer
-                 STA   $FC
+                 STA   SE_PTR
+                 LDA   #>BUG_DNA          ; Reset bug DNA pointer
+                 STA   SE_PTR+1
                  LDA   #$00
                  STA   :TOTAL
                  STA   :TOTAL+1
-]1               LDA   ($FB),Y
+]1               LDA   (SE_PTR),Y
                  TAX
                  CLC
                  LDA   WGT_L,X
@@ -266,9 +367,9 @@ RUN_STEP
                  LDA   WGT_H,X
                  ADC   :TOTAL+1
                  STA   :TOTAL+1
-                 INC   $FC
-                 LDA   $FC
-                 CMP   #{BUG_DNA/256}+6
+                 INC   SE_PTR+1
+                 LDA   SE_PTR+1
+                 CMP   #>{BUG_DNA+$0600}
                  BNE   ]1
 
 * Pick a value within the total weight.
@@ -281,12 +382,12 @@ RUN_STEP
                  TAY
 
 * Translate weighted value to relative direction.
-                 LDA   #>BUG_DNA         ; Reset bug DNA pointer
-                 STA   $FC
+                 LDA   #>BUG_DNA          ; Reset bug DNA pointer
+                 STA   SE_PTR+1
                  LDA   #$00
                  STA   :TOTAL
                  STA   :TOTAL+1
-]1               LDA   ($FB),Y
+]1               LDA   (SE_PTR),Y
                  TAX
                  CLC
                  LDA   WGT_L,X
@@ -301,11 +402,11 @@ RUN_STEP
                  LDA   :TOTAL+1
                  SBC   INTRNDVAL+1
                  BCS   :FOUND
-                 INC   $FC
-                 LDA   $FC
-                 CMP   #{BUG_DNA/256}+5
+                 INC   SE_PTR+1
+                 LDA   SE_PTR+1
+                 CMP   #>{BUG_DNA+500}
                  BNE   ]1
-:FOUND           LDA   $FC
+:FOUND           LDA   SE_PTR+1
                  SEC
                  SBC   #>BUG_DNA
 
@@ -350,7 +451,7 @@ RUN_STEP
                  INC   BUG_AGE,X
                  BNE   :B5OK
                  INC   BUG_AGE+$100,X
-:B5OK            LDA   BUG_AGE+$100,X    ; Cap bug age at 4,096
+:B5OK            LDA   BUG_AGE+$100,X     ; Cap bug age at 4,096
                  CMP   #$10
                  BMI   :B6OK
                  DEC   BUG_AGE+$100,X
@@ -371,17 +472,17 @@ RUN_STEP
                  JSR   COPY_BUG
                  DEX
                  JMP   :NEXT
-:LIVES           LDA   NUMBUGS           ; Do not reproduce if pop 255
+:LIVES           LDA   NUMBUGS            ; Do not reproduce if pop 255
                  CMP   #$FF
                  BEQ   :DONE
                  SEC
-                 LDA   BUG_AGE,X         ; Bug must be 800 units old at least
+                 LDA   BUG_AGE,X          ; Bug must be 800 units old at least
                  SBC   #<800
                  LDA   BUG_AGE+$100,X
                  SBC   #>800
                  BMI   :DONE
                  SEC
-                 LDA   BUG_HP,X          ; Bug must have at least 1000 hp
+                 LDA   BUG_HP,X           ; Bug must have at least 1000 hp
                  SBC   #<1000
                  LDA   BUG_HP+$100,X
                  SBC   #>1000
@@ -393,24 +494,24 @@ RUN_STEP
                  STA   BUG_AGE,X
                  STA   BUG_AGE+$100,X
                  TXA
-                 PHA                     ; Stash current bug number
+                 PHA                      ; Stash current bug number
                  TAY
                  LDX   NUMBUGS
                  JSR   COPY_BUG
-                 LDA   #$06              ; Mutate younger twin
+                 LDA   #$06               ; Mutate younger twin
                  LDX   #$00
                  JSR   INTRND
                  LDX   NUMBUGS
                  LDA   #>BUG_DNA
                  CLC
                  ADC   INTRNDVAL
-                 STA   *+5               ; Modify high byte of next insn
+                 STA   *+5                ; Modify high byte of next insn
                  INC   BUG_DNA,X
                  JSR   NORMALIZE_GENES
-                 LDA   #$06              ; Mutate elder twin
+                 LDA   #$06               ; Mutate elder twin
                  LDX   #$00
                  JSR   INTRND
-                 PLA                     ; Restore elder twin index
+                 PLA                      ; Restore elder twin index
                  TAX
                  LDA   #>BUG_DNA
                  CLC
@@ -420,7 +521,7 @@ RUN_STEP
                  JSR   NORMALIZE_GENES
                  INC   NUMBUGS
                  JSR   DRAW_BUG
-                 DEX                     ; Reprocess first child
+                 DEX                      ; Reprocess first child
                  JMP   :NEXT
 :DONE            JSR   DRAW_BUG
 :NEXT            INX
@@ -439,7 +540,7 @@ RUN_STEP
                  PLA
                  TAX
                  JSR   DRAW_BACTERIUM
-                 LDA   GARDEN            ; Replenish Garden of Eden if active
+                 LDA   GARDEN             ; Replenish Garden of Eden if active
                  BEQ   :NOGARD
                  LDA   #$14
                  LDX   #$00
@@ -471,7 +572,7 @@ COPY_BUG         LDA   #>BUG_X
                  INC   :CPAGE1
                  INC   :CPAGE2
                  LDA   :CPAGE2
-                 CMP   #{BUG_DNA/256}+6
+                 CMP   #>{BUG_DNA+$0600}
                  BNE   ]1
                  RTS
 
@@ -493,33 +594,33 @@ NORMALIZE_GENES  PHA
                  TYA
                  PHA
                  TXA
-                 TAY                     ; Move bug index to Y
+                 TAY                      ; Move bug index to Y
                  LDA   #<BUG_DNA
-                 STA   $FB
+                 STA   SE_PTR
                  LDA   #>BUG_DNA
-                 STA   $FC
+                 STA   SE_PTR+1
 * Find minimum gene value
-                 LDA   ($FB),Y
+                 LDA   (SE_PTR),Y
                  LDX   #5
-]1               INC   $FC
-                 CMP   ($FB),Y
+]1               INC   SE_PTR+1
+                 CMP   (SE_PTR),Y
                  BMI   :OK
-                 LDA   ($FB),Y
+                 LDA   (SE_PTR),Y
 :OK              DEX
                  BNE   ]1
-                 STA   $FD               ; Minimum gene value
+                 STA   SCRATCH            ; Minimum gene value
 * Restore pointer and normalize
                  LDA   #>BUG_DNA
-                 STA   $FC
+                 STA   SE_PTR+1
                  LDX   #6
-]1               LDA   ($FB),Y
+]1               LDA   (SE_PTR),Y
                  SEC
-                 SBC   $FD
+                 SBC   SCRATCH
                  CMP   #13
                  BCC   :OK2
                  LDA   #13
-:OK2             STA   ($FB),Y
-                 INC   $FC
+:OK2             STA   (SE_PTR),Y
+                 INC   SE_PTR+1
                  DEX
                  BNE   ]1
 * Restore original register values
@@ -560,8 +661,8 @@ MUL2             EQU   SCRATCH+4
 :MUL1B           EQU   SCRATCH+6
 :REG             EQU   SCRATCH+8
 
-                 LDA   MUL1              ; Back up mul1 since that space
-                 STA   :MUL1B            ; is reused as our result
+                 LDA   MUL1               ; Back up mul1 since that space
+                 STA   :MUL1B             ; is reused as our result
                  LDA   MUL1+1
                  STA   :MUL1B+1
                  LDA   #$00
@@ -609,7 +710,7 @@ SRND             ORA   #$01
 RND
 :X               EQU   RNDVAL+2
 :Y               EQU   RNDVAL
-                 LDA   :X                ; :X ^= :X << 5
+                 LDA   :X                 ; :X ^= :X << 5
                  LDY   :X+1
                  LDX   #$05
 :LP              ASL
@@ -621,8 +722,8 @@ RND
                  TYA
                  EOR   :X+1
                  STA   :X+1
-                 LDY   :X                ; :X ^= :X >> 3
-                 LDX   #$03              ; .A already has :X+1
+                 LDY   :X                 ; :X ^= :X >> 3
+                 LDX   #$03               ; .A already has :X+1
 :LP2             LSR
                  ROR   :X
                  DEX
@@ -632,11 +733,11 @@ RND
                  TYA
                  EOR   :X
                  STA   :X
-                 LDA   :Y                ; PUSH :Y
+                 LDA   :Y                 ; PUSH :Y
                  PHA
                  LDA   :Y+1
                  PHA
-                 LSR                     ; (:X, :Y) = (:Y, :Y ^ (:Y >> 1) ^ :X)
+                 LSR                      ; (:X, :Y) = (:Y, :Y ^ (:Y >> 1) ^ :X)
                  ROR   :Y
                  EOR   :X+1
                  STA   :Y+1
@@ -669,16 +770,16 @@ INTRND           STA   MUL1
 ARENA_WIDTH      =     150
 ARENA_HEIGHT     =     100
 
-DRAW_BACTERIUM   PHA                     ; Preserve all registers
+DRAW_BACTERIUM   PHA                      ; Preserve all registers
                  PHX
-                 REP   #$30              ; 16-bit mode for RTS
+                 REP   #$30               ; 16-bit mode for SHR_ADDRESS
                  JSR   SHR_ADDRESS
-                 SEP   #$20              ; Back to 8-bit memory
-                 LDA   #$22              ; Draw green
-                 STAL  $E12005,X         ; in two adjacent rows
+                 SEP   #$20               ; Back to 8-bit memory
+                 LDA   #$22               ; Draw green
+                 STAL  $E12005,X          ; in two adjacent rows
                  STAL  $E120A5,X
-                 SEP   #$10              ; Back to 8-bit everything
-                 PLX                     ; Restore registers we trashed
+                 SEP   #$10               ; Back to 8-bit everything
+                 PLX                      ; Restore registers we trashed
                  PLA
                  RTS
 
@@ -718,7 +819,7 @@ PAINT_COLOR      =     *+1
                  DEY
                  BNE   ]1
                  SEP   #$10
-                 PLX                     ; Restore bug number in .X
+                 PLX                      ; Restore bug number in .X
                  PLY
                  LDA   EATEN
                  BEQ   :DONE
@@ -727,3 +828,11 @@ PAINT_COLOR      =     *+1
                  BNE   ]1
 :DONE            PLA
                  RTS
+
+BUG_X            DS    256
+BUG_Y            DS    256
+BUG_AGE          DS    512                ; 256 * 2
+BUG_HP           DS    512
+BUG_DIR          DS    256
+BUG_DNA          DS    1536               ; 256 * 6
+                 END
